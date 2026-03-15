@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFileSync, existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // vi.mock must be at module top level — vitest hoists it automatically
 vi.mock('node:fs/promises');
@@ -8,6 +11,16 @@ import { MantisClient } from '../../src/client.js';
 import { MetadataCache, type CachedMetadata } from '../../src/cache.js';
 import { registerMetadataTools } from '../../src/tools/metadata.js';
 import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const recordedFixturesDir = join(__dirname, '..', 'fixtures', 'recorded');
+
+// Recorded fixture: single issue returned by issues?page=1&page_size=1
+const sampleFixturePath = join(recordedFixturesDir, 'get_issue_fields_sample.json');
+const recordedSampleFixture = existsSync(sampleFixturePath)
+  ? (JSON.parse(readFileSync(sampleFixturePath, 'utf-8')) as { issues: Array<Record<string, unknown>> })
+  : null;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -212,5 +225,37 @@ describe('get_issue_fields', () => {
     expect(Array.isArray(parsed.fields)).toBe(true);
     expect(parsed.fields.length).toBeGreaterThan(0);
     expect(typeof parsed.timestamp).toBe('number');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// get_issue_fields – recorded fixtures
+// ---------------------------------------------------------------------------
+
+describe('get_issue_fields – recorded fixtures', () => {
+  it.skipIf(!recordedSampleFixture)('discovers fields from recorded sample issue', async () => {
+    // Cache miss — force live discovery
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(recordedSampleFixture!)));
+
+    const result = await mockServer.callTool('get_issue_fields', {});
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { fields: string[]; source: string };
+    expect(parsed.source).toBe('live');
+
+    // Every top-level key of the recorded sample issue must be in the discovered fields
+    const sampleKeys = Object.keys(recordedSampleFixture!.issues[0]!);
+    for (const key of sampleKeys) {
+      expect(parsed.fields).toContain(key);
+    }
+
+    // EMPTY_STRIPPED_FIELDS must always be present even if absent from the sample
+    expect(parsed.fields).toContain('attachments');
+    expect(parsed.fields).toContain('notes');
+    expect(parsed.fields).toContain('relationships');
   });
 });

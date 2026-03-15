@@ -103,6 +103,17 @@ async function recordFixtures(): Promise<void> {
     console.error('Failed to fetch issues:', err instanceof Error ? err.message : String(err));
   }
 
+  // GET issues?page=1&page_size=1 — single issue sample for get_issue_fields field discovery
+  try {
+    const sampleResult = await client.get<{ issues: unknown[] }>('issues', {
+      page: 1,
+      page_size: 1,
+    });
+    saveFixture('get_issue_fields_sample.json', sampleResult);
+  } catch (err) {
+    console.error('Failed to fetch issues sample:', err instanceof Error ? err.message : String(err));
+  }
+
   // GET issues/{id}
   if (firstIssueId !== undefined) {
     try {
