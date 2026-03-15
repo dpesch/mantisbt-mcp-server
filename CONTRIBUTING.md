@@ -41,6 +41,11 @@ node dist/index.js
 
 Please describe **why** you made the change, not just what you changed.
 
+> **Note:** This repository on Codeberg is a public mirror. Pull requests are
+> reviewed and integrated via cherry-pick into the authoritative upstream — they
+> are not merged directly through Codeberg. Your contribution will be credited
+> in the commit message and CHANGELOG.
+
 ## Reporting Issues
 
 Open an issue on [Codeberg](https://codeberg.org/dpesch/mantisbt-mcp-server/issues) with:
