@@ -7,6 +7,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.1] – 2026-03-15
+
+### Added
+- Gitea Actions CI workflow: typecheck, tests, build on every push
+- Gitea Actions publish workflow: automatic npm publish and Codeberg release on version tags
+
+### Changed
+- README badges: added CI status, npm version, and license badges
+
+---
+
 ## [1.0.0] – 2026-03-15
 
 First stable release.
