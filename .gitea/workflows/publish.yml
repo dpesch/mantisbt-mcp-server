@@ -35,3 +35,23 @@ jobs:
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Extract release notes from CHANGELOG
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION_NUM="${VERSION#v}"
+          awk "/^## \[${VERSION_NUM}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md \
+            | sed '/^[[:space:]]*$/d' > /tmp/release_notes.md
+          echo "Release notes:"
+          cat /tmp/release_notes.md
+
+      - name: Create Codeberg release
+        run: |
+          curl -s -X POST "https://codeberg.org/api/v1/repos/dpesch/mantisbt-mcp-server/releases" \
+            -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg tag "${{ github.ref_name }}" \
+              --arg name "${{ github.ref_name }}" \
+              --rawfile body /tmp/release_notes.md \
+              '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: false}')"
