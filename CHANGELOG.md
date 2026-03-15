@@ -7,6 +7,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.3] – 2026-03-15
+
+### Fixed
+- CI badge reverted to Codeberg native URL (shields.io Gitea endpoint returned 404)
+
+### Changed
+- CI workflow skips duplicate run on branch push for release commits
+
+---
+
 ## [1.0.2] – 2026-03-15
 
 ### Changed
