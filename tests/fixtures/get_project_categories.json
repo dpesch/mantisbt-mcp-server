@@ -1,0 +1,60 @@
+{
+  "categories": [
+    {
+      "id": 369,
+      "name": "API",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
+      "id": 176,
+      "name": "Außenbereich / GaLaBau",
+      "project": { "id": 30, "name": "Project 1" },
+      "status": "1",
+      "default_handler": { "id": 4, "name": "user_4" }
+    },
+    {
+      "id": 170,
+      "name": "Außenhülle",
+      "project": { "id": 30, "name": "Project 1" },
+      "status": "1"
+    },
+    {
+      "id": 372,
+      "name": "Automatisierung",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
+      "id": 351,
+      "name": "Build-Stack",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
+      "id": 171,
+      "name": "Elektro",
+      "project": { "id": 30, "name": "Project 1" },
+      "status": "1",
+      "default_handler": { "id": 2, "name": "user_5" }
+    },
+    {
+      "id": 350,
+      "name": "Konfiguration",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
+      "id": 364,
+      "name": "QS (Qualitätssicherung)",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
+      "id": 365,
+      "name": "Wartung (u. a. Vendors)",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    }
+  ]
+}

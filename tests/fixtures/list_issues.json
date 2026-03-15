@@ -1,0 +1,67 @@
+{
+  "issues": [
+    {
+      "id": 7856,
+      "summary": "Issue summary 1",
+      "description": "Issue description 1",
+      "project": { "id": 54, "name": "Project 2" },
+      "category": { "id": 350, "name": "Konfiguration" },
+      "reporter": { "id": 52, "name": "user_2" },
+      "handler": {
+        "id": 51,
+        "name": "user_1",
+        "real_name": "User One",
+        "email": "user1@example.com"
+      },
+      "status": { "id": 80, "name": "resolved", "label": "erledigt", "color": "#e8e8e8" },
+      "resolution": { "id": 20, "name": "fixed", "label": "erledigt" },
+      "priority": { "id": 30, "name": "normal", "label": "normal" },
+      "severity": { "id": 210, "name": "Wartung", "label": "Wartung" },
+      "sticky": false,
+      "created_at": "2026-03-13T15:51:57+01:00",
+      "updated_at": "2026-03-15T08:35:48+01:00"
+    },
+    {
+      "id": 7855,
+      "summary": "Issue summary 2",
+      "description": "Issue description 2",
+      "project": { "id": 54, "name": "Project 2" },
+      "category": { "id": 394, "name": "Hooks" },
+      "reporter": { "id": 52, "name": "user_2" },
+      "handler": {
+        "id": 51,
+        "name": "user_1",
+        "real_name": "User One",
+        "email": "user1@example.com"
+      },
+      "status": { "id": 80, "name": "resolved", "label": "erledigt", "color": "#e8e8e8" },
+      "resolution": { "id": 20, "name": "fixed", "label": "erledigt" },
+      "priority": { "id": 30, "name": "normal", "label": "normal" },
+      "severity": { "id": 210, "name": "Wartung", "label": "Wartung" },
+      "sticky": false,
+      "created_at": "2026-03-13T15:51:52+01:00",
+      "updated_at": "2026-03-13T16:22:49+01:00"
+    },
+    {
+      "id": 7854,
+      "summary": "Issue summary 3",
+      "description": "Issue description 3",
+      "project": { "id": 54, "name": "Project 2" },
+      "category": { "id": 393, "name": "Skills" },
+      "reporter": { "id": 53, "name": "user_3" },
+      "handler": {
+        "id": 51,
+        "name": "user_1",
+        "real_name": "User One",
+        "email": "user1@example.com"
+      },
+      "status": { "id": 80, "name": "resolved", "label": "erledigt", "color": "#e8e8e8" },
+      "resolution": { "id": 20, "name": "fixed", "label": "erledigt" },
+      "priority": { "id": 30, "name": "normal", "label": "normal" },
+      "severity": { "id": 50, "name": "kleinerer Fehler", "label": "kleinerer Fehler" },
+      "sticky": false,
+      "created_at": "2026-03-13T09:58:23+01:00",
+      "updated_at": "2026-03-13T11:25:19+01:00"
+    }
+  ]
+}
