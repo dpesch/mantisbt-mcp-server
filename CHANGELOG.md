@@ -7,6 +7,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.2] – 2026-03-15
+
+### Changed
+- CI badge switched to shields.io for correct rendering on npmjs.com
+- Publish workflow now depends on CI passing (`needs: ci`) before releasing
+
+---
+
 ## [1.0.1] – 2026-03-15
 
 ### Added
