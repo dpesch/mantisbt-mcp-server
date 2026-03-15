@@ -1,0 +1,151 @@
+{
+  "issues": [
+    {
+      "id": 7856,
+      "summary": "Issue summary 1",
+      "description": "Issue description 1",
+      "project": { "id": 54, "name": "Project 2" },
+      "category": { "id": 350, "name": "Konfiguration" },
+      "reporter": { "id": 52, "name": "user_2" },
+      "handler": {
+        "id": 51,
+        "name": "user_1",
+        "real_name": "User One",
+        "email": "user1@example.com"
+      },
+      "status": {
+        "id": 80,
+        "name": "resolved",
+        "label": "erledigt",
+        "color": "#e8e8e8"
+      },
+      "resolution": {
+        "id": 20,
+        "name": "fixed",
+        "label": "erledigt"
+      },
+      "view_state": {
+        "id": 10,
+        "name": "public",
+        "label": "öffentlich"
+      },
+      "priority": {
+        "id": 30,
+        "name": "normal",
+        "label": "normal"
+      },
+      "severity": {
+        "id": 210,
+        "name": "Wartung",
+        "label": "Wartung"
+      },
+      "reproducibility": {
+        "id": 70,
+        "name": "have not tried",
+        "label": "nicht getestet"
+      },
+      "sticky": false,
+      "created_at": "2026-03-13T15:51:57+01:00",
+      "updated_at": "2026-03-15T08:35:48+01:00",
+      "notes": [
+        {
+          "id": 3982,
+          "reporter": { "id": 52, "name": "user_2" },
+          "text": "Note text 1",
+          "view_state": { "id": 10, "name": "public", "label": "öffentlich" },
+          "attachments": [],
+          "type": "note",
+          "created_at": "2026-03-13T15:58:50+01:00",
+          "updated_at": "2026-03-13T15:58:50+01:00"
+        },
+        {
+          "id": 3984,
+          "reporter": {
+            "id": 51,
+            "name": "user_1",
+            "real_name": "User One",
+            "email": "user1@example.com"
+          },
+          "text": "Note text 2",
+          "view_state": { "id": 10, "name": "public", "label": "öffentlich" },
+          "attachments": [],
+          "type": "note",
+          "created_at": "2026-03-13T16:22:40+01:00",
+          "updated_at": "2026-03-13T16:22:40+01:00"
+        }
+      ],
+      "history": [
+        {
+          "created_at": "2026-03-13T15:51:57+01:00",
+          "user": { "id": 52, "name": "user_2" },
+          "type": { "id": 1, "name": "issue-new" },
+          "message": "Neuer Eintrag"
+        },
+        {
+          "created_at": "2026-03-13T15:51:57+01:00",
+          "user": { "id": 52, "name": "user_2" },
+          "field": { "name": "status", "label": "Status" },
+          "type": { "id": 0, "name": "field-updated" },
+          "old_value": { "id": 10, "name": "new", "label": "neu", "color": "#eeb3aa" },
+          "new_value": { "id": 50, "name": "assigned", "label": "zugewiesen", "color": "#afbed5" },
+          "message": "Status",
+          "change": "neu => zugewiesen"
+        },
+        {
+          "created_at": "2026-03-13T15:51:57+01:00",
+          "user": { "id": 52, "name": "user_2" },
+          "field": { "name": "handler", "label": "Bearbeitung durch" },
+          "type": { "id": 0, "name": "field-updated" },
+          "old_value": { "id": 0 },
+          "new_value": {
+            "id": 51,
+            "name": "user_1",
+            "real_name": "User One",
+            "email": "user1@example.com"
+          },
+          "message": "Bearbeitung durch",
+          "change": " => user_1"
+        },
+        {
+          "created_at": "2026-03-13T16:22:40+01:00",
+          "user": {
+            "id": 51,
+            "name": "user_1",
+            "real_name": "User One",
+            "email": "user1@example.com"
+          },
+          "type": { "id": 2, "name": "note-added" },
+          "note": { "id": 3984 },
+          "message": "Notiz hinzugefügt: 0003984"
+        },
+        {
+          "created_at": "2026-03-13T16:22:49+01:00",
+          "user": {
+            "id": 51,
+            "name": "user_1",
+            "real_name": "User One",
+            "email": "user1@example.com"
+          },
+          "field": { "name": "status", "label": "Status" },
+          "type": { "id": 0, "name": "field-updated" },
+          "old_value": { "id": 50, "name": "assigned", "label": "zugewiesen", "color": "#afbed5" },
+          "new_value": { "id": 80, "name": "resolved", "label": "erledigt", "color": "#e8e8e8" },
+          "message": "Status",
+          "change": "zugewiesen => erledigt"
+        },
+        {
+          "created_at": "2026-03-15T08:35:40+01:00",
+          "user": {
+            "id": 51,
+            "name": "user_1",
+            "real_name": "User One",
+            "email": "user1@example.com"
+          },
+          "type": { "id": 25, "name": "tag-added" },
+          "tag": { "id": 25, "name": "mcp-test" },
+          "message": "Tag zugeordnet: mcp-test"
+        }
+      ]
+    }
+  ]
+}
