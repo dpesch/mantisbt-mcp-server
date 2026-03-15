@@ -29,12 +29,14 @@ interface CacheFile {
 
 export class MetadataCache {
   private readonly filePath: string;
+  private readonly issueFieldsFilePath: string;
   private readonly ttlSeconds: number;
   private readonly cacheDir: string;
 
   constructor(cacheDir: string, ttlSeconds: number) {
     this.cacheDir = cacheDir;
     this.filePath = join(cacheDir, 'metadata.json');
+    this.issueFieldsFilePath = join(cacheDir, 'issue_fields.json');
     this.ttlSeconds = ttlSeconds;
   }
 
@@ -74,5 +76,23 @@ export class MetadataCache {
     } catch {
       // Already gone — that is fine
     }
+  }
+
+  async loadIssueFields(): Promise<string[] | null> {
+    try {
+      const raw = await readFile(this.issueFieldsFilePath, 'utf-8');
+      const file = JSON.parse(raw) as { timestamp: number; fields: string[] };
+      const ageSeconds = (Date.now() - file.timestamp) / 1000;
+      if (ageSeconds >= this.ttlSeconds) return null;
+      return file.fields;
+    } catch {
+      return null;
+    }
+  }
+
+  async saveIssueFields(fields: string[]): Promise<void> {
+    await mkdir(this.cacheDir, { recursive: true });
+    const file = { timestamp: Date.now(), fields };
+    await writeFile(this.issueFieldsFilePath, JSON.stringify(file, null, 2), 'utf-8');
   }
 }

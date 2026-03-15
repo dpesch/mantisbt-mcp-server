@@ -2,8 +2,60 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MantisClient } from '../client.js';
 import { MetadataCache, type CachedMetadata, type CachedProjectMeta } from '../cache.js';
-import type { MantisProject, MantisUser, MantisVersion, MantisCategory } from '../types.js';
+import type { MantisProject, MantisUser, MantisVersion, MantisCategory, MantisPaginatedIssues } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
+
+// Fields MantisBT strips from issue responses when the array is empty.
+// They are always valid 'select' values even if absent in a sample issue.
+const EMPTY_STRIPPED_FIELDS = [
+  'attachments',
+  'custom_fields',
+  'history',
+  'monitors',
+  'notes',
+  'relationships',
+  'tags',
+];
+
+// Fallback static list used when no issues are available to sample.
+const STATIC_ISSUE_FIELDS = [
+  'additional_information',
+  'attachments',
+  'build',
+  'category',
+  'created_at',
+  'custom_fields',
+  'description',
+  'due_date',
+  'eta',
+  'fixed_in_version',
+  'handler',
+  'history',
+  'id',
+  'monitors',
+  'notes',
+  'os',
+  'os_build',
+  'platform',
+  'priority',
+  'profile',
+  'project',
+  'projection',
+  'relationships',
+  'reporter',
+  'reproducibility',
+  'resolution',
+  'severity',
+  'status',
+  'steps_to_reproduce',
+  'sticky',
+  'summary',
+  'tags',
+  'target_version',
+  'updated_at',
+  'version',
+  'view_state',
+];
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -140,6 +192,64 @@ Use sync_metadata to force a refresh.`,
 
         return {
           content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
+      }
+    }
+  );
+
+  // ---------------------------------------------------------------------------
+  // get_issue_fields
+  // ---------------------------------------------------------------------------
+
+  server.registerTool(
+    'get_issue_fields',
+    {
+      title: 'Get Issue Fields',
+      description: `Return all field names that are valid for the "select" parameter of list_issues and get_issue.
+
+Fields are discovered by fetching a sample issue from MantisBT (which reflects the server's active configuration — e.g. whether eta, projection, or profile fields are enabled) and merging the result with fields that MantisBT omits when empty (notes, attachments, relationships, etc.). The result is cached with the same TTL as the metadata cache.
+
+Use this tool before constructing a "select" string to ensure you only request fields that exist on this server.`,
+      inputSchema: z.object({
+        project_id: z.number().int().positive().optional().describe('Optional project ID to scope the sample issue fetch'),
+      }),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async ({ project_id }) => {
+      try {
+        const cached = await cache.loadIssueFields();
+        if (cached) {
+          return {
+            content: [{ type: 'text', text: JSON.stringify({ fields: cached, source: 'cache' }, null, 2) }],
+          };
+        }
+
+        const params: Record<string, string | number | boolean | undefined> = {
+          page: 1,
+          page_size: 1,
+          project_id,
+        };
+        const result = await client.get<MantisPaginatedIssues>('issues', params);
+        const issues = result.issues ?? [];
+
+        let fields: string[];
+        if (issues.length === 0) {
+          fields = STATIC_ISSUE_FIELDS;
+        } else {
+          const discovered = Object.keys(issues[0]);
+          fields = Array.from(new Set([...discovered, ...EMPTY_STRIPPED_FIELDS])).sort();
+        }
+
+        await cache.saveIssueFields(fields);
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ fields, source: issues.length > 0 ? 'live' : 'static' }, null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
