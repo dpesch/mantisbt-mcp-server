@@ -88,7 +88,7 @@ Falls keine Umgebungsvariablen gesetzt sind, wird `~/.claude/mantis.json` ausgel
 | Tool | Beschreibung |
 |---|---|
 | `get_issue` | Ein Issue anhand seiner ID abrufen |
-| `list_issues` | Issues nach Projekt, Status, Autor u.v.m. filtern |
+| `list_issues` | Issues nach Projekt, Status, Autor u.v.m. filtern; optionales `select` für Feldprojektion und `status` für clientseitige Statusfilterung |
 | `create_issue` | Neues Issue anlegen |
 | `update_issue` | Bestehendes Issue bearbeiten |
 | `delete_issue` | Issue löschen |
@@ -140,6 +140,7 @@ Falls keine Umgebungsvariablen gesetzt sind, wird `~/.claude/mantis.json` ausgel
 
 | Tool | Beschreibung |
 |---|---|
+| `get_issue_fields` | Alle gültigen Feldnamen für den `select`-Parameter von `list_issues` zurückgeben |
 | `get_metadata` | Gecachte Metadaten abrufen (Projekte, Benutzer, Versionen, Kategorien) |
 | `sync_metadata` | Metadaten-Cache neu befüllen |
 | `list_filters` | Gespeicherte Filter auflisten |

@@ -88,7 +88,7 @@ If no environment variables are set, `~/.claude/mantis.json` is read:
 | Tool | Description |
 |---|---|
 | `get_issue` | Retrieve an issue by its numeric ID |
-| `list_issues` | Filter issues by project, status, author, and more |
+| `list_issues` | Filter issues by project, status, author, and more; optional `select` for field projection and `status` for client-side status filtering |
 | `create_issue` | Create a new issue |
 | `update_issue` | Update an existing issue |
 | `delete_issue` | Delete an issue |
@@ -140,6 +140,7 @@ If no environment variables are set, `~/.claude/mantis.json` is read:
 
 | Tool | Description |
 |---|---|
+| `get_issue_fields` | Return all field names valid for the `select` parameter of `list_issues` |
 | `get_metadata` | Retrieve cached metadata (projects, users, versions, categories) |
 | `sync_metadata` | Refresh the metadata cache |
 | `list_filters` | List saved filters |
