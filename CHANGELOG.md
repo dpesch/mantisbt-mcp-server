@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - `list_issues`: new optional `select` parameter — passes a comma-separated field list to the MantisBT `select` query parameter for server-side field projection. Significantly reduces response size when only a subset of fields is needed (e.g. `"id,summary,status,priority,handler,updated_at"`).
+- `list_issues`: new optional `status` parameter — client-side filter by status name (e.g. `"new"`, `"assigned"`, `"resolved"`) or the shorthand `"open"` for all statuses with id < 80. Note: applied after fetching, so a page may contain fewer results than `page_size` when active.
 
 ---
 

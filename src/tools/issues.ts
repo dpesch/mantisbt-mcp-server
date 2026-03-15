@@ -64,6 +64,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
         sort: z.string().optional().describe('Sort field (e.g. "last_updated", "id")'),
         direction: z.enum(['ASC', 'DESC']).optional().describe('Sort direction'),
         select: z.string().optional().describe('Comma-separated list of fields to include in the response (server-side projection). Significantly reduces response size. Example: "id,summary,status,priority,handler,updated_at"'),
+        status: z.string().optional().describe('Filter issues by status name (e.g. "new", "feedback", "acknowledged", "confirmed", "assigned", "resolved", "closed") or use "open" as shorthand for all statuses with id < 80 (i.e. not yet resolved or closed). Applied client-side after fetching — when combined with pagination, a page may contain fewer results than page_size.'),
       }),
       annotations: {
         readOnlyHint: true,
@@ -71,7 +72,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
         idempotentHint: true,
       },
     },
-    async ({ project_id, page, page_size, assigned_to, reporter_id, filter_id, sort, direction, select }) => {
+    async ({ project_id, page, page_size, assigned_to, reporter_id, filter_id, sort, direction, select, status }) => {
       try {
         const params: Record<string, string | number | boolean | undefined> = {
           page,
@@ -85,6 +86,16 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
           select,
         };
         const result = await client.get<MantisPaginatedIssues>('issues', params);
+
+        if (status && result.issues) {
+          const statusLower = status.toLowerCase();
+          result.issues = result.issues.filter(issue => {
+            if (!issue.status) return false;
+            if (statusLower === 'open') return (issue.status.id ?? 0) < 80;
+            return issue.status.name?.toLowerCase() === statusLower;
+          });
+        }
+
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         };
