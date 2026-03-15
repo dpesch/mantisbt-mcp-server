@@ -53,7 +53,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
     'list_issues',
     {
       title: 'List Issues',
-      description: 'List MantisBT issues with optional filtering. Returns a paginated list of issues.',
+      description: 'List MantisBT issues with optional filtering. Returns a paginated list of issues. Use the "select" parameter to limit returned fields and reduce response size significantly.',
       inputSchema: z.object({
         project_id: z.number().int().positive().optional().describe('Filter by project ID'),
         page: z.number().int().positive().default(1).describe('Page number (default: 1)'),
@@ -63,6 +63,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
         filter_id: z.number().int().positive().optional().describe('Use a saved MantisBT filter ID'),
         sort: z.string().optional().describe('Sort field (e.g. "last_updated", "id")'),
         direction: z.enum(['ASC', 'DESC']).optional().describe('Sort direction'),
+        select: z.string().optional().describe('Comma-separated list of fields to include in the response (server-side projection). Significantly reduces response size. Example: "id,summary,status,priority,handler,updated_at"'),
       }),
       annotations: {
         readOnlyHint: true,
@@ -70,7 +71,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
         idempotentHint: true,
       },
     },
-    async ({ project_id, page, page_size, assigned_to, reporter_id, filter_id, sort, direction }) => {
+    async ({ project_id, page, page_size, assigned_to, reporter_id, filter_id, sort, direction, select }) => {
       try {
         const params: Record<string, string | number | boolean | undefined> = {
           page,
@@ -81,6 +82,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
           filter_id,
           sort,
           direction,
+          select,
         };
         const result = await client.get<MantisPaginatedIssues>('issues', params);
         return {
