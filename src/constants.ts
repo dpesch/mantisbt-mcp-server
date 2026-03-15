@@ -17,6 +17,10 @@ export type RelationshipTypeId = (typeof RELATIONSHIP_TYPES)[keyof typeof RELATI
 // Status names (internal English names used in API calls)
 // ---------------------------------------------------------------------------
 
+// MantisBT default status ID for "resolved". Issues with status.id strictly
+// below this value are considered open (new/feedback/acknowledged/confirmed/assigned).
+export const MANTIS_RESOLVED_STATUS_ID = 80;
+
 export const STATUS_NAMES = [
   'new',
   'feedback',

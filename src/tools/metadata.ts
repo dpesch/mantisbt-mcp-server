@@ -180,15 +180,7 @@ Use sync_metadata to force a refresh.`,
     },
     async () => {
       try {
-        let data: CachedMetadata | null = null;
-
-        if (await cache.isValid()) {
-          data = await cache.load();
-        }
-
-        if (!data) {
-          data = await fetchAndCacheMetadata(client, cache);
-        }
+        const data: CachedMetadata = await cache.loadIfValid() ?? await fetchAndCacheMetadata(client, cache);
 
         return {
           content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],

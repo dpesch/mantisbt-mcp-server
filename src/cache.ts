@@ -61,6 +61,18 @@ export class MetadataCache {
     }
   }
 
+  async loadIfValid(): Promise<CachedMetadata | null> {
+    try {
+      const raw = await readFile(this.filePath, 'utf-8');
+      const file = JSON.parse(raw) as CacheFile;
+      const ageSeconds = (Date.now() - file.timestamp) / 1000;
+      if (ageSeconds >= this.ttlSeconds) return null;
+      return file.data;
+    } catch {
+      return null;
+    }
+  }
+
   async save(data: CachedMetadata): Promise<void> {
     await mkdir(this.cacheDir, { recursive: true });
     const file: CacheFile = {

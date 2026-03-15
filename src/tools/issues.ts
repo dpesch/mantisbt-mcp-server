@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { MantisClient } from '../client.js';
 import type { MantisIssue, MantisPaginatedIssues } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
+import { MANTIS_RESOLVED_STATUS_ID } from '../constants.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -91,7 +92,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
           const statusLower = status.toLowerCase();
           result.issues = result.issues.filter(issue => {
             if (!issue.status) return false;
-            if (statusLower === 'open') return (issue.status.id ?? 0) < 80;
+            if (statusLower === 'open') return (issue.status.id ?? 0) < MANTIS_RESOLVED_STATUS_ID;
             return issue.status.name?.toLowerCase() === statusLower;
           });
         }
