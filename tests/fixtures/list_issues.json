@@ -62,6 +62,40 @@
       "sticky": false,
       "created_at": "2026-03-13T09:58:23+01:00",
       "updated_at": "2026-03-13T11:25:19+01:00"
+    },
+    {
+      "id": 7900,
+      "summary": "Issue summary 4 (open)",
+      "description": "Issue description 4",
+      "project": { "id": 54, "name": "Project 2" },
+      "category": { "id": 350, "name": "Konfiguration" },
+      "reporter": { "id": 52, "name": "user_2" },
+      "handler": {
+        "id": 51,
+        "name": "user_1",
+        "real_name": "User One",
+        "email": "user1@example.com"
+      },
+      "status": { "id": 50, "name": "assigned", "label": "zugewiesen", "color": "#e8e8e8" },
+      "priority": { "id": 30, "name": "normal", "label": "normal" },
+      "severity": { "id": 210, "name": "Wartung", "label": "Wartung" },
+      "sticky": false,
+      "created_at": "2026-03-14T10:00:00+01:00",
+      "updated_at": "2026-03-14T10:00:00+01:00"
+    },
+    {
+      "id": 7901,
+      "summary": "Issue summary 5 (open, new)",
+      "description": "Issue description 5",
+      "project": { "id": 54, "name": "Project 2" },
+      "category": { "id": 350, "name": "Konfiguration" },
+      "reporter": { "id": 52, "name": "user_2" },
+      "status": { "id": 10, "name": "new", "label": "neu", "color": "#fcbdbd" },
+      "priority": { "id": 30, "name": "normal", "label": "normal" },
+      "severity": { "id": 210, "name": "Wartung", "label": "Wartung" },
+      "sticky": false,
+      "created_at": "2026-03-14T11:00:00+01:00",
+      "updated_at": "2026-03-14T11:00:00+01:00"
     }
   ]
 }
