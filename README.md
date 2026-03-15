@@ -1,6 +1,5 @@
 # MantisBT MCP Server
 
-[![CI](https://codeberg.org/dpesch/mantisbt-mcp-server/actions/workflows/ci.yml/badge.svg)](https://codeberg.org/dpesch/mantisbt-mcp-server/actions)
 [![npm version](https://img.shields.io/npm/v/@dpesch/mantisbt-mcp-server)](https://www.npmjs.com/package/@dpesch/mantisbt-mcp-server)
 [![license](https://img.shields.io/npm/l/@dpesch/mantisbt-mcp-server)](LICENSE)
 
