@@ -1,5 +1,8 @@
 # MantisBT MCP Server
 
+[![npm version](https://img.shields.io/npm/v/@dpesch/mantisbt-mcp-server)](https://www.npmjs.com/package/@dpesch/mantisbt-mcp-server)
+[![license](https://img.shields.io/npm/l/@dpesch/mantisbt-mcp-server)](LICENSE)
+
 Ein [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) Server, der die [MantisBT REST API](https://documenter.getpostman.com/view/29959/mantis-bug-tracker-rest-api) in Claude Code und andere MCP-fähige Clients integriert. Issues lesen, erstellen und bearbeiten – direkt aus dem Editor heraus.
 
 ## Voraussetzungen
