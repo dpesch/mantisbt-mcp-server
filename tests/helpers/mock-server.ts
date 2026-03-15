@@ -1,3 +1,13 @@
+export function makeResponse(status: number, body: string): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    statusText: `Status ${status}`,
+    text: () => Promise.resolve(body),
+    headers: { get: (_key: string) => null },
+  } as unknown as Response;
+}
+
 // Typ für das Result-Objekt das die Tools zurückgeben
 export interface ToolResult {
   content: Array<{ type: string; text: string }>;

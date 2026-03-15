@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MantisClient } from '../../src/client.js';
 import { registerProjectTools } from '../../src/tools/projects.js';
-import { MockMcpServer } from '../helpers/mock-server.js';
+import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -21,20 +21,6 @@ const listProjectsFixture = existsSync(listProjectsFixturePath)
   : { projects: [{ id: 1, name: 'Test Project' }] };
 
 const firstProjectId = listProjectsFixture.projects[0]?.id ?? 1;
-
-// ---------------------------------------------------------------------------
-// Helper
-// ---------------------------------------------------------------------------
-
-function makeResponse(status: number, body: string): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    statusText: `Status ${status}`,
-    text: () => Promise.resolve(body),
-    headers: { get: (_key: string) => null },
-  } as unknown as Response;
-}
 
 // ---------------------------------------------------------------------------
 // Setup

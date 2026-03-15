@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MantisClient } from '../../src/client.js';
 import { registerIssueTools } from '../../src/tools/issues.js';
-import { MockMcpServer } from '../helpers/mock-server.js';
+import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
 import { MANTIS_RESOLVED_STATUS_ID } from '../../src/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,20 +30,6 @@ const recordedListIssuesPath = join(fixturesDir, 'recorded', 'list_issues.json')
 const recordedListIssuesFixture = existsSync(recordedListIssuesPath)
   ? (JSON.parse(readFileSync(recordedListIssuesPath, 'utf-8')) as { issues: Array<{ id: number; summary: string; status: { id: number; name: string } }> })
   : null;
-
-// ---------------------------------------------------------------------------
-// Helper: minimale Response nachbauen
-// ---------------------------------------------------------------------------
-
-function makeResponse(status: number, body: string): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    statusText: `Status ${status}`,
-    text: () => Promise.resolve(body),
-    headers: { get: (_key: string) => null },
-  } as unknown as Response;
-}
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -201,11 +187,8 @@ describe('list_issues', () => {
 // ---------------------------------------------------------------------------
 
 describe('list_issues – recorded fixtures', () => {
-  it('status "open" on all-resolved recorded fixture yields 0 results', async () => {
-    if (!recordedListIssuesFixture) {
-      return; // skip when no recorded fixture available
-    }
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(recordedListIssuesFixture)));
+  it.skipIf(!recordedListIssuesFixture)('status "open" on all-resolved recorded fixture yields 0 results', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(recordedListIssuesFixture!)));
 
     const result = await mockServer.callTool('list_issues', { status: 'open', page: 1, page_size: 50 });
 
@@ -215,16 +198,13 @@ describe('list_issues – recorded fixtures', () => {
     expect(parsed.issues).toHaveLength(0);
   });
 
-  it('status "resolved" on recorded fixture yields same count as total recorded issues', async () => {
-    if (!recordedListIssuesFixture) {
-      return; // skip when no recorded fixture available
-    }
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(recordedListIssuesFixture)));
+  it.skipIf(!recordedListIssuesFixture)('status "resolved" on recorded fixture yields same count as total recorded issues', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(recordedListIssuesFixture!)));
 
     const result = await mockServer.callTool('list_issues', { status: 'resolved', page: 1, page_size: 50 });
 
     expect(result.isError).toBeUndefined();
     const parsed = JSON.parse(result.content[0]!.text) as { issues: unknown[] };
-    expect(parsed.issues).toHaveLength(recordedListIssuesFixture.issues.length);
+    expect(parsed.issues).toHaveLength(recordedListIssuesFixture!.issues.length);
   });
 });

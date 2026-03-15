@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MantisClient } from '../../src/client.js';
 import { registerUserTools } from '../../src/tools/users.js';
-import { MockMcpServer } from '../helpers/mock-server.js';
+import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -19,20 +19,6 @@ const getCurrentUserFixturePath = join(fixturesDir, 'get_current_user.json');
 const getCurrentUserFixture = existsSync(getCurrentUserFixturePath)
   ? (JSON.parse(readFileSync(getCurrentUserFixturePath, 'utf-8')) as { id: number; name: string; real_name?: string; email?: string })
   : { id: 5, name: 'testuser', real_name: 'Test User', email: 'test@example.com' };
-
-// ---------------------------------------------------------------------------
-// Helper
-// ---------------------------------------------------------------------------
-
-function makeResponse(status: number, body: string): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    statusText: `Status ${status}`,
-    text: () => Promise.resolve(body),
-    headers: { get: (_key: string) => null },
-  } as unknown as Response;
-}
 
 // ---------------------------------------------------------------------------
 // Setup

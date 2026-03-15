@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // vi.mock must be at module top level — vitest hoists it automatically
 vi.mock('node:fs/promises');
@@ -7,7 +7,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { MantisClient } from '../../src/client.js';
 import { MetadataCache, type CachedMetadata } from '../../src/cache.js';
 import { registerMetadataTools } from '../../src/tools/metadata.js';
-import { MockMcpServer } from '../helpers/mock-server.js';
+import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -26,16 +26,6 @@ function makeClient(): MantisClient {
 
 function makeCache(): MetadataCache {
   return new MetadataCache(CACHE_DIR, TTL);
-}
-
-function makeResponse(status: number, body: string): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    statusText: `Status ${status}`,
-    text: () => Promise.resolve(body),
-    headers: { get: (_key: string) => null },
-  } as unknown as Response;
 }
 
 function makeSampleMetadata(): CachedMetadata {
@@ -65,6 +55,10 @@ beforeEach(() => {
   cache = makeCache();
   registerMetadataTools(mockServer as never, client, cache);
   vi.stubGlobal('fetch', vi.fn());
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 // ---------------------------------------------------------------------------
@@ -104,6 +98,9 @@ describe('get_metadata', () => {
 
     expect(result.isError).toBeUndefined();
     expect(fetch).toHaveBeenCalled();
+    expect(writeFile).toHaveBeenCalled();
+    const writtenPath = vi.mocked(writeFile).mock.calls[0]![0] as string;
+    expect(writtenPath).toContain('metadata.json');
   });
 });
 
