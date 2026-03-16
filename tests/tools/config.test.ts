@@ -1,22 +1,38 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { MantisClient } from '../../src/client.js';
 import { MetadataCache } from '../../src/cache.js';
 import { registerConfigTools } from '../../src/tools/config.js';
 import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const fixturesDir = join(__dirname, '..', 'fixtures');
+
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
+
+const enumFixture = JSON.parse(
+  readFileSync(join(fixturesDir, 'get_issue_enums.json'), 'utf-8')
+) as { configs: Array<{ option: string; value: Array<{ id: number; name: string; label: string }> }> };
+
+// Legacy: some MantisBT versions return value as a comma-separated "id:name" string
+const ENUM_FIXTURE_STRING = {
+  configs: [
+    { option: 'severity_enum_string',        value: '10:feature,50:minor,80:block' },
+    { option: 'status_enum_string',          value: '10:new,80:resolved,90:closed' },
+    { option: 'priority_enum_string',        value: '10:none,30:normal,60:immediate' },
+    { option: 'resolution_enum_string',      value: '10:open,20:fixed' },
+    { option: 'reproducibility_enum_string', value: '10:always,70:have not tried' },
+  ],
+};
+
 // ---------------------------------------------------------------------------
 // Setup
 // ---------------------------------------------------------------------------
-
-const ENUM_FIXTURE = {
-  configs: [
-    { option: 'severity_enum_string',       value: '10:feature,20:trivial,30:text,40:tweak,50:minor,60:major,70:crash,80:block' },
-    { option: 'status_enum_string',         value: '10:new,20:feedback,30:acknowledged,40:confirmed,50:assigned,80:resolved,90:closed' },
-    { option: 'priority_enum_string',       value: '10:none,20:low,30:normal,40:high,50:urgent,60:immediate' },
-    { option: 'resolution_enum_string',     value: '10:open,20:fixed,30:reopened,40:unable to duplicate,50:not fixable,60:duplicate,70:no change required,80:suspended,90:wont fix' },
-    { option: 'reproducibility_enum_string', value: '10:always,30:sometimes,50:random,70:have not tried,90:unable to reproduce,100:N/A' },
-  ],
-};
 
 let mockServer: MockMcpServer;
 let client: MantisClient;
@@ -44,7 +60,7 @@ describe('get_issue_enums', () => {
   });
 
   it('gibt strukturierte Enum-Arrays für alle 5 Felder zurück', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(ENUM_FIXTURE)));
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(enumFixture)));
 
     const result = await mockServer.callTool('get_issue_enums', {});
 
@@ -58,23 +74,39 @@ describe('get_issue_enums', () => {
     expect(Array.isArray(parsed.reproducibility)).toBe(true);
   });
 
-  it('parst id und name korrekt', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(ENUM_FIXTURE)));
+  it('parst Array-Format (MantisBT 2.x): id und name korrekt, label wird verworfen', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(enumFixture)));
+
+    const result = await mockServer.callTool('get_issue_enums', {});
+
+    const parsed = JSON.parse(result.content[0]!.text) as Record<string, Array<{ id: number; name: string }>>;
+
+    // Werte aus der echten Fixture prüfen
+    expect(parsed.severity).toContainEqual({ id: 50, name: 'kleinerer Fehler' });
+    expect(parsed.severity).toContainEqual({ id: 80, name: 'Blocker' });
+    expect(parsed.severity).toContainEqual({ id: 200, name: 'Technische Schuld' });
+    expect(parsed.status).toContainEqual({ id: 10, name: 'new' });
+    expect(parsed.status).toContainEqual({ id: 80, name: 'resolved' });
+    expect(parsed.priority).toContainEqual({ id: 30, name: 'normal' });
+    expect(parsed.reproducibility).toContainEqual({ id: 70, name: 'have not tried' });
+    // label darf nicht im Output enthalten sein
+    expect(Object.keys(parsed.severity[0]!)).toEqual(['id', 'name']);
+  });
+
+  it('parst String-Format (Legacy): "id:name,..."-Strings korrekt', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(ENUM_FIXTURE_STRING)));
 
     const result = await mockServer.callTool('get_issue_enums', {});
 
     const parsed = JSON.parse(result.content[0]!.text) as Record<string, Array<{ id: number; name: string }>>;
 
     expect(parsed.severity).toContainEqual({ id: 50, name: 'minor' });
-    expect(parsed.severity).toContainEqual({ id: 80, name: 'block' });
-    expect(parsed.status).toContainEqual({ id: 10, name: 'new' });
     expect(parsed.status).toContainEqual({ id: 80, name: 'resolved' });
-    expect(parsed.priority).toContainEqual({ id: 30, name: 'normal' });
     expect(parsed.reproducibility).toContainEqual({ id: 70, name: 'have not tried' });
   });
 
   it('fragt alle 5 Enum-Optionen ab', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(ENUM_FIXTURE)));
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(enumFixture)));
 
     await mockServer.callTool('get_issue_enums', {});
 

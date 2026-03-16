@@ -2,6 +2,7 @@ import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MantisClient } from '../src/client.js';
+import { ISSUE_ENUM_OPTIONS } from '../src/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -122,6 +123,16 @@ async function recordFixtures(): Promise<void> {
     } catch (err) {
       console.error(`Failed to fetch issues/${firstIssueId}:`, err instanceof Error ? err.message : String(err));
     }
+  }
+
+  // GET config — enum values for severity, status, priority, resolution, reproducibility
+  try {
+    const enumParams: Record<string, string> = {};
+    ISSUE_ENUM_OPTIONS.forEach((opt, i) => { enumParams[`option[${i}]`] = opt; });
+    const configResult = await client.get<unknown>('config', enumParams);
+    saveFixture('get_issue_enums.json', configResult);
+  } catch (err) {
+    console.error('Failed to fetch config enums:', err instanceof Error ? err.message : String(err));
   }
 
   // GET projects/{id}/versions + categories

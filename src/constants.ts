@@ -21,6 +21,22 @@ export type RelationshipTypeId = (typeof RELATIONSHIP_TYPES)[keyof typeof RELATI
 // below this value are considered open (new/feedback/acknowledged/confirmed/assigned).
 export const MANTIS_RESOLVED_STATUS_ID = 80;
 
+// ---------------------------------------------------------------------------
+// Issue enum config option names
+// ---------------------------------------------------------------------------
+
+export const ISSUE_ENUM_OPTIONS = [
+  'severity_enum_string',
+  'status_enum_string',
+  'priority_enum_string',
+  'resolution_enum_string',
+  'reproducibility_enum_string',
+] as const;
+
+export type IssueEnumOption = (typeof ISSUE_ENUM_OPTIONS)[number];
+
+// ---------------------------------------------------------------------------
+
 export const STATUS_NAMES = [
   'new',
   'feedback',

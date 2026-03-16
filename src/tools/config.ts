@@ -2,7 +2,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MantisClient } from '../client.js';
 import { MetadataCache } from '../cache.js';
+import { ISSUE_ENUM_OPTIONS } from '../constants.js';
 import { getVersionHint } from '../version-hint.js';
+
+// MantisBT config API: enum values may be a pre-parsed array (2.x) or legacy "id:name,..." string
+type EnumEntry = { id: number; name: string; label?: string };
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -103,19 +107,12 @@ The "name" field is the value to pass to create_issue or update_issue.`,
     },
     async () => {
       try {
-        const enumOptions = [
-          'severity_enum_string',
-          'status_enum_string',
-          'priority_enum_string',
-          'resolution_enum_string',
-          'reproducibility_enum_string',
-        ];
         const params: Record<string, string | number | boolean | undefined> = {};
-        enumOptions.forEach((opt, i) => {
+        ISSUE_ENUM_OPTIONS.forEach((opt, i) => {
           params[`option[${i}]`] = opt;
         });
 
-        const result = await client.get<{ configs: Array<{ option: string; value: string }> }>('config', params);
+        const result = await client.get<{ configs: Array<{ option: string; value: string | EnumEntry[] }> }>('config', params);
         const configs = result.configs ?? [];
 
         const keyMap: Record<string, string> = {
@@ -129,8 +126,11 @@ The "name" field is the value to pass to create_issue or update_issue.`,
         const enums: Record<string, Array<{ id: number; name: string }>> = {};
         for (const { option, value } of configs) {
           const key = keyMap[option];
-          if (key && typeof value === 'string') {
+          if (!key) continue;
+          if (typeof value === 'string') {
             enums[key] = parseEnumString(value);
+          } else if (Array.isArray(value)) {
+            enums[key] = value.map(({ id, name }) => ({ id, name }));
           }
         }
 
