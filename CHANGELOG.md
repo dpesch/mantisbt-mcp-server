@@ -7,13 +7,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [1.3.0] – 2026-03-16
 
 ### Added
 - New tool `get_search_index_status`: returns the current fill level of the semantic search index — how many issues are indexed vs. total, plus the timestamp of the last sync. Only active when `MANTIS_SEARCH_ENABLED=true`.
 
 ### Fixed
 - Numeric ID parameters now accept string inputs (e.g. `"1940"`) — MCP clients that pass IDs as strings no longer receive error -32602.
+- `get_search_index_status` now correctly reports the total issue count on MantisBT installations that do not return `total_count` in the issues list API. The total is persisted after every sync: `total_count` from the API takes precedence, otherwise the current store size is used as a best-effort estimate. The status tool will therefore no longer show "total unknown" after any sync has completed.
 
 ---
 

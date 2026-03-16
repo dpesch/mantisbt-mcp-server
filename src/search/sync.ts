@@ -74,12 +74,13 @@ export class SearchSyncService {
     await this.store.setLastSyncedAt(new Date().toISOString());
 
     // Persist the best known total for get_search_index_status.
-    // API total takes precedence; for a full rebuild (no updatedAfter) we
-    // know the total equals all issues we just fetched.
-    const total = totalFromApi ?? (lastSyncedAt === null ? indexed + skipped : null);
-    if (total !== null) {
-      await this.store.setLastKnownTotal(total);
-    }
+    // Priority: API total_count > full-rebuild count > current store size.
+    // The store size fallback handles MantisBT installations that never return
+    // total_count and ensures the status tool never shows "total unknown" after
+    // any sync has completed.
+    const storeCount = await this.store.count();
+    const total = totalFromApi ?? (lastSyncedAt === null ? indexed + skipped : storeCount);
+    await this.store.setLastKnownTotal(total);
 
     return { indexed, skipped, total };
   }

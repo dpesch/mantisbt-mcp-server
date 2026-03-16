@@ -177,9 +177,10 @@ describe('SearchSyncService.sync – setLastKnownTotal persistence', () => {
     expect(store.setLastKnownTotal).toHaveBeenCalledWith(3);
   });
 
-  it('does NOT persist total when API omits total_count and it is an incremental sync', async () => {
-    // For incremental syncs (lastSyncedAt set) we cannot infer the total from the partial result
-    const store = makeMockStore({ lastSyncedAt: '2024-03-01T00:00:00.000Z' });
+  it('falls back to store.count() for incremental sync when API omits total_count', async () => {
+    // MantisBT installations without total_count: incremental sync uses the current store
+    // size as best available estimate so the status tool never shows "total unknown".
+    const store = makeMockStore({ lastSyncedAt: '2024-03-01T00:00:00.000Z', itemCount: 100 });
     vi.mocked(fetch).mockResolvedValue(
       makeResponse(200, JSON.stringify({ issues: [ISSUE_FIXTURE[0]!] })) // no total_count, partial result
     );
@@ -187,7 +188,8 @@ describe('SearchSyncService.sync – setLastKnownTotal persistence', () => {
     const service = new SearchSyncService(client, store, embedder);
     const result = await service.sync();
 
-    expect(result.total).toBeNull();
-    expect(store.setLastKnownTotal).not.toHaveBeenCalled();
+    // store.count() returns 101 after adding the 1 new item (mock increments count on addBatch)
+    expect(result.total).toBeGreaterThan(0);
+    expect(store.setLastKnownTotal).toHaveBeenCalled();
   });
 });
