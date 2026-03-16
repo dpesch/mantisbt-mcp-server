@@ -158,3 +158,131 @@ describe('rebuild_search_index – full: false', () => {
     expect(store.resetLastSyncedAt).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// get_search_index_status – registration
+// ---------------------------------------------------------------------------
+
+describe('get_search_index_status – registration', () => {
+  it('is registered', () => {
+    const store = makeMockStore({ itemCount: 0 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+    expect(mockServer.hasToolRegistered('get_search_index_status')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// get_search_index_status – normal case
+// ---------------------------------------------------------------------------
+
+describe('get_search_index_status – with data', () => {
+  it('returns summary, indexed, total, percent and last_synced_at', async () => {
+    const store = makeMockStore({ itemCount: 42, lastSyncedAt: '2026-03-16T10:00:00.000Z' });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: [], total_count: 100 }))
+    );
+
+    const result = await mockServer.callTool('get_search_index_status', {});
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as {
+      summary: string;
+      indexed: number;
+      total: number;
+      percent: number;
+      last_synced_at: string;
+    };
+    expect(parsed.indexed).toBe(42);
+    expect(parsed.total).toBe(100);
+    expect(parsed.percent).toBe(42);
+    expect(parsed.summary).toBe('42/100 (42 %)');
+    expect(parsed.last_synced_at).toBe('2026-03-16T10:00:00.000Z');
+  });
+
+  it('requests only page_size: 1 to minimise API payload', async () => {
+    const store = makeMockStore({ itemCount: 0 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: [], total_count: 50 }))
+    );
+
+    await mockServer.callTool('get_search_index_status', {});
+
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
+    expect(calledUrl).toContain('page_size=1');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// get_search_index_status – edge cases
+// ---------------------------------------------------------------------------
+
+describe('get_search_index_status – edge cases', () => {
+  it('returns 0 % when total is 0 (not null)', async () => {
+    const store = makeMockStore({ itemCount: 0 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: [], total_count: 0 }))
+    );
+
+    const result = await mockServer.callTool('get_search_index_status', {});
+
+    const parsed = JSON.parse(result.content[0]!.text) as { percent: number; summary: string };
+    expect(parsed.percent).toBe(0);
+    expect(parsed.summary).toBe('0/0 (0 %)');
+  });
+
+  it('returns 100 % when all issues are indexed', async () => {
+    const store = makeMockStore({ itemCount: 7842 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: [], total_count: 7842 }))
+    );
+
+    const result = await mockServer.callTool('get_search_index_status', {});
+
+    const parsed = JSON.parse(result.content[0]!.text) as { percent: number; summary: string };
+    expect(parsed.percent).toBe(100);
+    expect(parsed.summary).toBe('7842/7842 (100 %)');
+  });
+
+  it('handles missing total_count (null) gracefully', async () => {
+    const store = makeMockStore({ itemCount: 5 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: [] })) // no total_count
+    );
+
+    const result = await mockServer.callTool('get_search_index_status', {});
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as {
+      total: null;
+      percent: null;
+      summary: string;
+    };
+    expect(parsed.total).toBeNull();
+    expect(parsed.percent).toBeNull();
+    expect(parsed.summary).toContain('total unknown');
+  });
+
+  it('returns isError on API failure', async () => {
+    const store = makeMockStore({ itemCount: 0 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(500, JSON.stringify({ message: 'Internal Server Error' }))
+    );
+
+    const result = await mockServer.callTool('get_search_index_status', {});
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('Error:');
+  });
+});

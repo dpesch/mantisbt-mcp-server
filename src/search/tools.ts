@@ -1,9 +1,18 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { MantisClient } from '../client.js';
+import type { MantisPaginatedIssues } from '../types.js';
 import type { VectorStore } from './store.js';
 import type { Embedder } from './embedder.js';
 import { SearchSyncService } from './sync.js';
+import { getVersionHint } from '../version-hint.js';
+
+function errorText(msg: string): string {
+  const vh = getVersionHint();
+  vh?.triggerLatestVersionFetch();
+  const hint = vh?.getUpdateHint();
+  return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
+}
 
 // ---------------------------------------------------------------------------
 // registerSearchTools
@@ -66,7 +75,61 @@ export function registerSearchTools(
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: 'text', text: `Error: ${msg}` }], isError: true };
+        return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // get_search_index_status
+  // ---------------------------------------------------------------------------
+
+  server.registerTool(
+    'get_search_index_status',
+    {
+      title: 'Search Index Status',
+      description:
+        'Returns the current fill level of the semantic search index: how many issues are ' +
+        'indexed vs. the total number of issues in MantisBT, plus the timestamp of the last sync.',
+      inputSchema: z.object({}),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async () => {
+      try {
+        const [indexed, lastSyncedAt, totalResponse] = await Promise.all([
+          store.count(),
+          store.getLastSyncedAt(),
+          client.get<MantisPaginatedIssues>('issues', { page_size: 1, page: 1 }),
+        ]);
+
+        const total = totalResponse.total_count ?? null;
+        const percent = total !== null
+          ? (total > 0 ? Math.round((indexed / total) * 100) : 0)
+          : null;
+
+        const summary = total !== null
+          ? `${indexed}/${total} (${percent} %)`
+          : `${indexed}/? (total unknown)`;
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                { summary, indexed, total, percent, last_synced_at: lastSyncedAt },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
       }
     },
   );
@@ -122,7 +185,7 @@ export function registerSearchTools(
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: 'text', text: `Error: ${msg}` }], isError: true };
+        return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
       }
     },
   );
