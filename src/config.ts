@@ -6,11 +6,19 @@ import { join } from 'node:path';
 // Config shape
 // ---------------------------------------------------------------------------
 
+export interface SearchConfig {
+  enabled: boolean;
+  backend: 'vectra' | 'sqlite-vec';
+  dir: string;
+  modelName: string;
+}
+
 export interface MantisConfig {
   baseUrl: string;
   apiKey: string;
   cacheDir: string;
   cacheTtl: number;
+  search: SearchConfig;
 }
 
 // ---------------------------------------------------------------------------
@@ -70,11 +78,29 @@ export async function getConfig(): Promise<MantisConfig> {
     ? parseInt(process.env.MANTIS_CACHE_TTL, 10)
     : 3600;
 
+  const searchEnabled = process.env.MANTIS_SEARCH_ENABLED === 'true';
+  const searchBackendRaw = process.env.MANTIS_SEARCH_BACKEND ?? 'vectra';
+  if (searchBackendRaw !== 'vectra' && searchBackendRaw !== 'sqlite-vec') {
+    process.stderr.write(`[mantisbt-config] Unknown MANTIS_SEARCH_BACKEND="${searchBackendRaw}", falling back to "vectra"\n`);
+  }
+  const searchBackend: 'vectra' | 'sqlite-vec' =
+    searchBackendRaw === 'sqlite-vec' ? 'sqlite-vec' : 'vectra';
+  const searchDir = process.env.MANTIS_SEARCH_DIR ?? join(cacheDir, 'search');
+  const searchModelName =
+    process.env.MANTIS_SEARCH_MODEL ??
+    'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
+
   cachedConfig = {
     baseUrl: baseUrl.replace(/\/$/, ''), // strip trailing slash
     apiKey,
     cacheDir,
     cacheTtl,
+    search: {
+      enabled: searchEnabled,
+      backend: searchBackend,
+      dir: searchDir,
+      modelName: searchModelName,
+    },
   };
 
   return cachedConfig;

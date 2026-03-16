@@ -13,6 +13,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - New tool `remove_relationship`: removes a relationship from an issue. The `relationship_id` is the numeric `id` field on the relationship object returned by `get_issue` (not the type id).
 - New tool `remove_monitor`: removes a user as a monitor of an issue by username.
 - New tool `upload_file`: uploads a file to an issue via multipart/form-data. Supports two input modes: a local `file_path` (filename derived from path) or Base64-encoded `content` with an explicit `filename`. Optional parameters: `filename` (overrides derived name), `content_type` (default: `application/octet-stream`), `description`.
+- New optional semantic search module (`MANTIS_SEARCH_ENABLED=true`): indexes all MantisBT issues as local vector embeddings using `@huggingface/transformers` (ONNX, no external API required). Two new tools:
+  - `search_issues` — natural language search over all indexed issues, returns top-N results by cosine similarity score.
+  - `rebuild_search_index` — build or incrementally update the search index; `full: true` clears and rebuilds from scratch.
+  - Vector store: `vectra` (pure JS, default) or `sqlite-vec` (optional, requires manual installation).
+  - Incremental sync on every server start via `updated_at` timestamp.
+  - Configuration: `MANTIS_SEARCH_ENABLED`, `MANTIS_SEARCH_BACKEND`, `MANTIS_SEARCH_DIR`, `MANTIS_SEARCH_MODEL`.
+
+### Fixed
+- `list_issues` recorded-fixture tests were fragile: status filter counts are now derived dynamically from the fixture instead of hardcoded assumptions.
 
 ---
 

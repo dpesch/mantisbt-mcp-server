@@ -69,6 +69,10 @@ npm run build
 | `MANTIS_CACHE_TTL` | – | `3600` | Cache-Lebensdauer in Sekunden |
 | `TRANSPORT` | – | `stdio` | Transport-Modus: `stdio` oder `http` |
 | `PORT` | – | `3000` | Port für HTTP-Modus |
+| `MANTIS_SEARCH_ENABLED` | – | `false` | Auf `true` setzen, um die semantische Suche zu aktivieren |
+| `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vektorspeicher: `vectra` (reines JS) oder `sqlite-vec` (manuelle Installation erforderlich) |
+| `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/search` | Verzeichnis für den Suchindex |
+| `MANTIS_SEARCH_MODEL` | – | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | Embedding-Modell (wird beim ersten Start einmalig heruntergeladen, ~80 MB) |
 
 ### Config-Datei (Fallback)
 
@@ -138,6 +142,21 @@ Falls keine Umgebungsvariablen gesetzt sind, wird `~/.claude/mantis.json` ausgel
 | `get_project_versions` | Versionen eines Projekts abrufen |
 | `get_project_categories` | Kategorien eines Projekts abrufen |
 | `get_project_users` | Benutzer eines Projekts abrufen |
+
+### Semantische Suche *(optional)*
+
+Aktivierung mit `MANTIS_SEARCH_ENABLED=true`. Beim ersten Start wird das Embedding-Modell (~80 MB) heruntergeladen und lokal gecacht. Alle Issues werden danach bei jedem Serverstart inkrementell indexiert.
+
+| Tool | Beschreibung |
+|---|---|
+| `search_issues` | Natürlichsprachige Suche über alle indizierten Issues – liefert Top-N-Ergebnisse mit Cosine-Similarity-Score |
+| `rebuild_search_index` | Suchindex aufbauen oder aktualisieren; `full: true` löscht und baut ihn vollständig neu |
+
+**`sqlite-vec`-Backend** (optional, schneller bei großen Instanzen):
+```bash
+npm install sqlite-vec better-sqlite3
+# dann MANTIS_SEARCH_BACKEND=sqlite-vec setzen
+```
 
 ### Metadaten & System
 

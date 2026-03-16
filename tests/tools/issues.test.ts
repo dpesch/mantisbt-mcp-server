@@ -187,24 +187,25 @@ describe('list_issues', () => {
 // ---------------------------------------------------------------------------
 
 describe('list_issues – recorded fixtures', () => {
-  it.skipIf(!recordedListIssuesFixture)('status "open" on all-resolved recorded fixture yields 0 results', async () => {
+  it.skipIf(!recordedListIssuesFixture)('status "open" filter matches open issues in recorded fixture', async () => {
     vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(recordedListIssuesFixture!)));
 
     const result = await mockServer.callTool('list_issues', { status: 'open', page: 1, page_size: 50 });
 
     expect(result.isError).toBeUndefined();
     const parsed = JSON.parse(result.content[0]!.text) as { issues: unknown[] };
-    // Recorded fixture contains only resolved issues (status.id=80)
-    expect(parsed.issues).toHaveLength(0);
+    const openInFixture = recordedListIssuesFixture!.issues.filter(i => i.status.id < 80).length;
+    expect(parsed.issues).toHaveLength(openInFixture);
   });
 
-  it.skipIf(!recordedListIssuesFixture)('status "resolved" on recorded fixture yields same count as total recorded issues', async () => {
+  it.skipIf(!recordedListIssuesFixture)('status "resolved" filter matches resolved issues in recorded fixture', async () => {
     vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(recordedListIssuesFixture!)));
 
     const result = await mockServer.callTool('list_issues', { status: 'resolved', page: 1, page_size: 50 });
 
     expect(result.isError).toBeUndefined();
     const parsed = JSON.parse(result.content[0]!.text) as { issues: unknown[] };
-    expect(parsed.issues).toHaveLength(recordedListIssuesFixture!.issues.length);
+    const resolvedInFixture = recordedListIssuesFixture!.issues.filter(i => i.status.id >= 80).length;
+    expect(parsed.issues).toHaveLength(resolvedInFixture);
   });
 });

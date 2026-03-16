@@ -70,6 +70,12 @@ async function createMcpServer(): Promise<McpServer> {
   registerTagTools(server, client);
   registerVersionTools(server, client, versionHint);
 
+  // Optional: Semantic search module
+  if (config.search.enabled) {
+    const { initializeSearchModule } = await import('./search/index.js');
+    await initializeSearchModule(server, client, config.search);
+  }
+
   return server;
 }
 
