@@ -68,7 +68,7 @@ async function createMcpServer(): Promise<McpServer> {
   registerConfigTools(server, client);
   registerMetadataTools(server, client, cache);
   registerTagTools(server, client);
-  registerVersionTools(server, client, versionHint);
+  registerVersionTools(server, client, versionHint, version);
 
   // Optional: Semantic search module
   if (config.search.enabled) {

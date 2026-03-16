@@ -3,7 +3,28 @@ import { z } from 'zod';
 import { MantisClient } from '../client.js';
 import { VersionHintService, parseVersion, compareVersions } from '../version-hint.js';
 
-export function registerVersionTools(server: McpServer, client: MantisClient, versionHint: VersionHintService): void {
+export function registerVersionTools(server: McpServer, client: MantisClient, versionHint: VersionHintService, mcpVersion: string): void {
+
+  // ---------------------------------------------------------------------------
+  // get_mcp_version
+  // ---------------------------------------------------------------------------
+
+  server.registerTool(
+    'get_mcp_version',
+    {
+      title: 'Get MCP Server Version',
+      description: 'Returns the version of this mantisbt-mcp-server instance.',
+      inputSchema: z.object({}),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async () => ({
+      content: [{ type: 'text', text: JSON.stringify({ version: mcpVersion }, null, 2) }],
+    }),
+  );
 
   // ---------------------------------------------------------------------------
   // get_mantis_version
