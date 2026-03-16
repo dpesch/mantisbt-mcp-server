@@ -92,6 +92,49 @@ describe('get_issue', () => {
 });
 
 // ---------------------------------------------------------------------------
+// create_issue
+// ---------------------------------------------------------------------------
+
+describe('create_issue', () => {
+  it('ist registriert', () => {
+    expect(mockServer.hasToolRegistered('create_issue')).toBe(true);
+  });
+
+  it('sends severity: { name: "minor" } by default when no severity is provided', async () => {
+    // Regression: omitting severity caused MantisBT to store 0 → displayed as "@0@".
+    // validate: true ensures Zod defaults are applied before the handler runs.
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(201, JSON.stringify({ issue: { id: 100, summary: 'Test' } }))
+    );
+
+    await mockServer.callTool('create_issue', {
+      summary: 'Test issue',
+      project_id: 1,
+      category: 'General',
+    }, { validate: true });
+
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<string, unknown>;
+    expect(body.severity).toEqual({ name: 'minor' });
+  });
+
+  it('respects an explicitly passed severity', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(201, JSON.stringify({ issue: { id: 101, summary: 'Test' } }))
+    );
+
+    await mockServer.callTool('create_issue', {
+      summary: 'Crash bug',
+      project_id: 1,
+      category: 'General',
+      severity: 'crash',
+    }, { validate: true });
+
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<string, unknown>;
+    expect(body.severity).toEqual({ name: 'crash' });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // list_issues
 // ---------------------------------------------------------------------------
 

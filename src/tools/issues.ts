@@ -122,7 +122,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
         project_id: z.coerce.number().int().positive().describe('Project ID the issue belongs to'),
         category: z.string().min(1).describe('Category name (use get_project_categories to list available categories)'),
         priority: z.string().optional().describe('Priority name (e.g. "normal", "high", "urgent", "immediate", "low", "none")'),
-        severity: z.string().optional().describe('Severity name (e.g. "minor", "major", "crash", "block", "feature", "trivial", "text")'),
+        severity: z.string().default('minor').describe('Severity name (e.g. "minor", "major", "crash", "block", "feature", "trivial", "text") — default: "minor"'),
         handler_id: z.coerce.number().int().positive().optional().describe('User ID of the person to assign the issue to'),
       }),
       annotations: {
@@ -140,7 +140,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
           category: { name: category },
         };
         if (priority) body.priority = { name: priority };
-        if (severity) body.severity = { name: severity };
+        body.severity = { name: severity };
         if (handler_id) body.handler = { id: handler_id };
 
         const result = await client.post<{ issue: MantisIssue }>('issues', body);
