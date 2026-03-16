@@ -79,7 +79,7 @@ describe('list_issue_files', () => {
 });
 
 // ---------------------------------------------------------------------------
-// upload_file
+// upload_file – file_path mode
 // ---------------------------------------------------------------------------
 
 describe('upload_file', () => {
@@ -157,6 +157,116 @@ describe('upload_file', () => {
     vi.mocked(fetch).mockResolvedValue(makeResponse(403, JSON.stringify({ message: 'Forbidden' })));
 
     const result = await mockServer.callTool('upload_file', { issue_id: 42, file_path: '/tmp/test.txt' });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('Error:');
+  });
+
+  it('overrides the filename when filename is provided', async () => {
+    vi.mocked(readFile).mockResolvedValue(Buffer.from('content') as never);
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 5 })));
+
+    await mockServer.callTool('upload_file', { issue_id: 42, file_path: '/tmp/report.pdf', filename: 'custom-name.pdf' });
+
+    const options = vi.mocked(fetch).mock.calls[0]![1] as RequestInit;
+    const formData = options.body as FormData;
+    const fileEntry = formData.get('file') as File;
+    expect(fileEntry.name).toBe('custom-name.pdf');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// upload_file – Base64 mode
+// ---------------------------------------------------------------------------
+
+describe('upload_file (Base64)', () => {
+  it('decodes Base64 content and uploads it', async () => {
+    const originalContent = 'Hello, World!';
+    const base64Content = Buffer.from(originalContent).toString('base64');
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 7, file_name: 'hello.txt' })));
+
+    const result = await mockServer.callTool('upload_file', {
+      issue_id: 42,
+      content: base64Content,
+      filename: 'hello.txt',
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(readFile).not.toHaveBeenCalled();
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
+    expect(calledUrl).toContain('issues/42/files');
+  });
+
+  it('uses the provided filename', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 7 })));
+
+    await mockServer.callTool('upload_file', {
+      issue_id: 42,
+      content: Buffer.from('data').toString('base64'),
+      filename: 'export.csv',
+    });
+
+    const options = vi.mocked(fetch).mock.calls[0]![1] as RequestInit;
+    const formData = options.body as FormData;
+    const fileEntry = formData.get('file') as File;
+    expect(fileEntry.name).toBe('export.csv');
+  });
+
+  it('sets the content_type when provided', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 7 })));
+
+    await mockServer.callTool('upload_file', {
+      issue_id: 42,
+      content: Buffer.from('data').toString('base64'),
+      filename: 'image.png',
+      content_type: 'image/png',
+    });
+
+    const options = vi.mocked(fetch).mock.calls[0]![1] as RequestInit;
+    const formData = options.body as FormData;
+    const fileEntry = formData.get('file') as File;
+    expect(fileEntry.type).toBe('image/png');
+  });
+
+  it('returns isError when neither file_path nor content is provided', async () => {
+    const result = await mockServer.callTool('upload_file', { issue_id: 42 });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('Either file_path or content');
+  });
+
+  it('returns isError when both file_path and content are provided', async () => {
+    vi.mocked(readFile).mockResolvedValue(Buffer.from('x') as never);
+
+    const result = await mockServer.callTool('upload_file', {
+      issue_id: 42,
+      file_path: '/tmp/test.txt',
+      content: Buffer.from('x').toString('base64'),
+      filename: 'test.txt',
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('Only one of');
+  });
+
+  it('returns isError when content is provided without filename', async () => {
+    const result = await mockServer.callTool('upload_file', {
+      issue_id: 42,
+      content: Buffer.from('data').toString('base64'),
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('filename is required');
+  });
+
+  it('returns isError on API error', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(500, JSON.stringify({ message: 'Internal Server Error' })));
+
+    const result = await mockServer.callTool('upload_file', {
+      issue_id: 42,
+      content: Buffer.from('data').toString('base64'),
+      filename: 'test.txt',
+    });
 
     expect(result.isError).toBe(true);
     expect(result.content[0]!.text).toContain('Error:');
