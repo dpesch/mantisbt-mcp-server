@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.3.1] – 2026-03-16
+
+### Fixed
+- `get_issue_enums` returned an empty object `{}` on MantisBT 2.x installations. The MantisBT REST API returns enum config values as pre-parsed `[{id, name, label}]` arrays, not as legacy `"id:name,..."` strings. The handler now covers both formats; the `label` field is stripped from the output.
+
+---
+
 ## [1.3.0] – 2026-03-16
 
 ### Added
