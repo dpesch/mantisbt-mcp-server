@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
     "dev": "tsc -p tsconfig.build.json --watch",
+    "dev:start": "npm run typecheck && npm run build && node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
