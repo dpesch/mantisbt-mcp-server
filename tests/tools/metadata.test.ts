@@ -46,6 +46,7 @@ function makeSampleMetadata(): CachedMetadata {
     timestamp: Date.now(),
     projects: [{ id: 1, name: 'Test Project' }],
     byProject: {},
+    tags: [],
   };
 }
 
@@ -114,6 +115,65 @@ describe('get_metadata', () => {
     expect(writeFile).toHaveBeenCalled();
     const writtenPath = vi.mocked(writeFile).mock.calls[0]![0] as string;
     expect(writtenPath).toContain('metadata.json');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sync_metadata
+// ---------------------------------------------------------------------------
+
+describe('sync_metadata', () => {
+  it('is registered', () => {
+    expect(mockServer.hasToolRegistered('sync_metadata')).toBe(true);
+  });
+
+  it('fetches and stores tags at root level (#7860)', async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+
+    const projectsResponse = { projects: [{ id: 1, name: 'Test Project' }] };
+    const emptyProjectMeta = { users: [], versions: [], categories: [] };
+    const tagsResponse = { tags: [{ id: 1, name: 'regression' }, { id: 2, name: 'ui' }] };
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(projectsResponse)))  // GET /projects
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(emptyProjectMeta)))  // GET /projects/1/users
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(emptyProjectMeta)))  // GET /projects/1/versions
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(emptyProjectMeta)))  // GET /projects/1/categories
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(tagsResponse)));     // GET /tags
+
+    const result = await mockServer.callTool('sync_metadata', {});
+
+    expect(result.isError).toBeUndefined();
+    // Tags count must appear in the success message
+    expect(result.content[0]!.text).toContain('Global tags: 2');
+
+    // The written metadata.json must contain tags at root level
+    const writeCall = vi.mocked(writeFile).mock.calls.find(
+      call => String(call[0]).includes('metadata.json')
+    );
+    expect(writeCall).toBeDefined();
+    const written = JSON.parse(writeCall![1] as string) as { data: { tags: unknown[] } };
+    expect(Array.isArray(written.data.tags)).toBe(true);
+    expect(written.data.tags).toHaveLength(2);
+  });
+
+  it('stores empty tags array when tags endpoint fails (#7860)', async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+
+    const projectsResponse = { projects: [] };
+    // Tags endpoint returns 500 — must degrade gracefully
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(projectsResponse)))
+      .mockResolvedValueOnce(makeResponse(500, 'Internal Server Error'));
+
+    const result = await mockServer.callTool('sync_metadata', {});
+
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0]!.text).toContain('Global tags: 0');
   });
 });
 

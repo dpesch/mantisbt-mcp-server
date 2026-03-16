@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MantisClient } from '../client.js';
 import { MetadataCache, type CachedMetadata, type CachedProjectMeta } from '../cache.js';
-import type { MantisProject, MantisUser, MantisVersion, MantisCategory, MantisPaginatedIssues } from '../types.js';
+import type { MantisProject, MantisUser, MantisVersion, MantisCategory, MantisTag, MantisPaginatedIssues } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
 
 // Fields MantisBT strips from issue responses when the array is empty.
@@ -105,10 +105,20 @@ async function fetchAndCacheMetadata(client: MantisClient, cache: MetadataCache)
     })
   );
 
+  // Fetch all tags globally (single call, no per-project overhead)
+  let tags: MantisTag[] = [];
+  try {
+    const tagsResult = await client.get<{ tags: MantisTag[] }>('tags');
+    tags = tagsResult.tags ?? [];
+  } catch {
+    // Tags endpoint may not be available on all MantisBT versions — degrade gracefully
+  }
+
   const data: CachedMetadata = {
     timestamp: Date.now(),
     projects,
     byProject,
+    tags,
   };
 
   await cache.save(data);
@@ -149,7 +159,7 @@ Use this tool to refresh stale data.`,
         return {
           content: [{
             type: 'text',
-            text: `Metadata synced successfully.\n\n${projectCount} project(s):\n${summary}`,
+            text: `Metadata synced successfully.\n\n${projectCount} project(s):\n${summary}\n\nGlobal tags: ${data.tags.length}`,
           }],
         };
       } catch (error) {

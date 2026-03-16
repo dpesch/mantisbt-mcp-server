@@ -22,6 +22,7 @@ function makeSampleMetadata(): CachedMetadata {
     timestamp: Date.now(),
     projects: [{ id: 1, name: 'Test Project' }],
     byProject: {},
+    tags: [],
   };
 }
 

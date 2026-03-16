@@ -1,6 +1,6 @@
 import { readFile, writeFile, unlink, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { MantisProject, MantisUser, MantisVersion, MantisCategory } from './types.js';
+import type { MantisProject, MantisUser, MantisVersion, MantisCategory, MantisTag } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -16,6 +16,7 @@ export interface CachedMetadata {
   timestamp: number;
   projects: MantisProject[];
   byProject: Record<number, CachedProjectMeta>;
+  tags: MantisTag[];
 }
 
 interface CacheFile {
