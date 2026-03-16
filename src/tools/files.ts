@@ -25,7 +25,7 @@ export function registerFileTools(server: McpServer, client: MantisClient): void
       title: 'List Issue File Attachments',
       description: 'List all file attachments of a MantisBT issue.',
       inputSchema: z.object({
-        issue_id: z.number().int().positive().describe('Numeric issue ID'),
+        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
       }),
       annotations: {
         readOnlyHint: true,
@@ -63,7 +63,7 @@ Two input modes (exactly one must be provided):
 
 The optional content_type parameter sets the MIME type (e.g. "image/png"). If omitted, "application/octet-stream" is used.`,
       inputSchema: z.object({
-        issue_id: z.number().int().positive().describe('Numeric issue ID'),
+        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
         file_path: z.string().min(1).optional().describe('Absolute path to the local file to upload (mutually exclusive with content)'),
         content: z.string().min(1).optional().describe('Base64-encoded file content (mutually exclusive with file_path)'),
         filename: z.string().min(1).optional().describe('File name for the attachment (required when using content; overrides the derived name when using file_path)'),

@@ -99,8 +99,8 @@ Note: The GET /tags endpoint is not available in MantisBT 2.25 and earlier.
 If your MantisBT version does not support this endpoint, you will receive an error.
 In that case, use get_issue to read the tags of a specific issue instead.`,
       inputSchema: z.object({
-        page: z.number().int().positive().default(1).describe('Page number (default: 1)'),
-        page_size: z.number().int().min(1).max(200).default(50).describe('Tags per page (default: 50)'),
+        page: z.coerce.number().int().positive().default(1).describe('Page number (default: 1)'),
+        page_size: z.coerce.number().int().min(1).max(200).default(50).describe('Tags per page (default: 50)'),
       }),
       annotations: {
         readOnlyHint: true,

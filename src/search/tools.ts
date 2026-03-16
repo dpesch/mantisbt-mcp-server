@@ -39,7 +39,7 @@ export function registerSearchTools(
       inputSchema: z.object({
         query: z.string().describe('Natural language search query'),
         top_n: z
-          .number()
+          .coerce.number()
           .int()
           .positive()
           .max(50)
@@ -147,7 +147,7 @@ export function registerSearchTools(
         'Use full: true to clear the existing index and rebuild from scratch.',
       inputSchema: z.object({
         project_id: z
-          .number()
+          .coerce.number()
           .int()
           .positive()
           .optional()

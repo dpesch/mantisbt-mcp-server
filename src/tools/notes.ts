@@ -23,7 +23,7 @@ export function registerNoteTools(server: McpServer, client: MantisClient): void
       title: 'List Issue Notes',
       description: 'List all notes (comments) attached to a MantisBT issue.',
       inputSchema: z.object({
-        issue_id: z.number().int().positive().describe('Numeric issue ID'),
+        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
       }),
       annotations: {
         readOnlyHint: true,
@@ -55,7 +55,7 @@ export function registerNoteTools(server: McpServer, client: MantisClient): void
       title: 'Add Note to Issue',
       description: 'Add a note (comment) to an existing MantisBT issue. Full UTF-8 text is supported.',
       inputSchema: z.object({
-        issue_id: z.number().int().positive().describe('Numeric issue ID'),
+        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
         text: z.string().min(1).describe('Note text (supports full UTF-8, markdown will be stored as-is)'),
         view_state: z.enum(['public', 'private']).default('public').describe('Visibility of the note (default: public)'),
       }),
@@ -92,8 +92,8 @@ export function registerNoteTools(server: McpServer, client: MantisClient): void
       title: 'Delete Note',
       description: 'Permanently delete a note from a MantisBT issue. This action is irreversible.',
       inputSchema: z.object({
-        issue_id: z.number().int().positive().describe('Numeric issue ID that owns the note'),
-        note_id: z.number().int().positive().describe('Numeric note ID to delete'),
+        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID that owns the note'),
+        note_id: z.coerce.number().int().positive().describe('Numeric note ID to delete'),
       }),
       annotations: {
         readOnlyHint: false,

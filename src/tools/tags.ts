@@ -28,10 +28,10 @@ tag_create_threshold permission, default: REPORTER).
 
 Requires tag_attach_threshold permission (default: REPORTER).`,
       inputSchema: z.object({
-        issue_id: z.number().int().positive().describe('Numeric issue ID'),
+        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
         tags: z.array(
           z.object({
-            id: z.number().int().positive().optional().describe('Tag ID'),
+            id: z.coerce.number().int().positive().optional().describe('Tag ID'),
             name: z.string().min(1).optional().describe('Tag name'),
           }).refine(t => t.id !== undefined || t.name !== undefined, {
             message: 'Each tag must have at least an id or a name',
@@ -70,8 +70,8 @@ Requires tag_attach_threshold permission (default: REPORTER).`,
 Requires tag_detach_own_threshold (default: REPORTER) for own tags,
 or tag_detach_threshold (default: DEVELOPER) for tags attached by others.`,
       inputSchema: z.object({
-        issue_id: z.number().int().positive().describe('Numeric issue ID'),
-        tag_id: z.number().int().positive().describe('Numeric tag ID to remove'),
+        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
+        tag_id: z.coerce.number().int().positive().describe('Numeric tag ID to remove'),
       }),
       annotations: {
         readOnlyHint: false,

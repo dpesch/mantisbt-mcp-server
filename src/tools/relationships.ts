@@ -35,9 +35,9 @@ Directionality note: "A child_of B" means A blocks B. "A parent_of B" means A de
 
 Important: The API only accepts numeric type IDs, not string names.`,
       inputSchema: z.object({
-        issue_id: z.number().int().positive().describe('The source issue ID (the one the relationship is added to)'),
-        target_id: z.number().int().positive().describe('The target issue ID'),
-        type_id: z.number().int().min(0).max(4).describe(
+        issue_id: z.coerce.number().int().positive().describe('The source issue ID (the one the relationship is added to)'),
+        target_id: z.coerce.number().int().positive().describe('The target issue ID'),
+        type_id: z.coerce.number().int().min(0).max(4).describe(
           `Relationship type ID: 0=duplicate_of, 1=related_to, 2=parent_of (depends on), 3=child_of (blocks), 4=has_duplicate`
         ),
       }),
@@ -76,8 +76,8 @@ Important: The API only accepts numeric type IDs, not string names.`,
 
 Use get_issue first to retrieve the relationship IDs. The relationship_id is the numeric id field of a relationship object in the issue's relationships array (not the type ID).`,
       inputSchema: z.object({
-        issue_id: z.number().int().positive().describe('The issue ID the relationship belongs to'),
-        relationship_id: z.number().int().positive().describe('The numeric ID of the relationship to remove (from the relationships array in get_issue)'),
+        issue_id: z.coerce.number().int().positive().describe('The issue ID the relationship belongs to'),
+        relationship_id: z.coerce.number().int().positive().describe('The numeric ID of the relationship to remove (from the relationships array in get_issue)'),
       }),
       annotations: {
         readOnlyHint: false,

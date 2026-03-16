@@ -22,7 +22,7 @@ export function registerMonitorTools(server: McpServer, client: MantisClient): v
       title: 'Add Issue Monitor',
       description: 'Add a user as a monitor (watcher) of a MantisBT issue. Monitors receive email notifications for issue updates.',
       inputSchema: z.object({
-        issue_id: z.number().int().positive().describe('Numeric issue ID'),
+        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
         username: z.string().min(1).describe('Username of the user to add as monitor'),
       }),
       annotations: {
@@ -55,7 +55,7 @@ export function registerMonitorTools(server: McpServer, client: MantisClient): v
       title: 'Remove Issue Monitor',
       description: 'Remove a user from the monitor list of a MantisBT issue. The user will no longer receive email notifications for updates to this issue.',
       inputSchema: z.object({
-        issue_id: z.number().int().positive().describe('Numeric issue ID'),
+        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
         username: z.string().min(1).describe('Username of the monitor to remove'),
       }),
       annotations: {

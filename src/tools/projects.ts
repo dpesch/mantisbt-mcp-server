@@ -54,8 +54,8 @@ export function registerProjectTools(server: McpServer, client: MantisClient): v
       title: 'Get Project Users',
       description: 'List all users with access to a specific MantisBT project.',
       inputSchema: z.object({
-        project_id: z.number().int().positive().describe('Numeric project ID'),
-        access_level: z.number().int().optional().describe('Minimum access level filter (e.g. 55 = developer, 90 = manager)'),
+        project_id: z.coerce.number().int().positive().describe('Numeric project ID'),
+        access_level: z.coerce.number().int().optional().describe('Minimum access level filter (e.g. 55 = developer, 90 = manager)'),
       }),
       annotations: {
         readOnlyHint: true,
@@ -88,7 +88,7 @@ export function registerProjectTools(server: McpServer, client: MantisClient): v
       title: 'Get Project Versions',
       description: 'List all versions defined for a MantisBT project.',
       inputSchema: z.object({
-        project_id: z.number().int().positive().describe('Numeric project ID'),
+        project_id: z.coerce.number().int().positive().describe('Numeric project ID'),
       }),
       annotations: {
         readOnlyHint: true,
@@ -122,7 +122,7 @@ export function registerProjectTools(server: McpServer, client: MantisClient): v
 Note: The MantisBT API returns global (cross-project) categories with a "[All Projects] " prefix.
 This tool strips that prefix so the returned names can be used directly when creating issues.`,
       inputSchema: z.object({
-        project_id: z.number().int().positive().describe('Numeric project ID'),
+        project_id: z.coerce.number().int().positive().describe('Numeric project ID'),
       }),
       annotations: {
         readOnlyHint: true,

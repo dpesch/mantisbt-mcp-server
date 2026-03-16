@@ -206,7 +206,7 @@ Fields are discovered by fetching a sample issue from MantisBT (which reflects t
 
 Use this tool before constructing a "select" string to ensure you only request fields that exist on this server.`,
       inputSchema: z.object({
-        project_id: z.number().int().positive().optional().describe('Optional project ID to scope the sample issue fetch'),
+        project_id: z.coerce.number().int().positive().optional().describe('Optional project ID to scope the sample issue fetch'),
       }),
       annotations: {
         readOnlyHint: true,

@@ -24,7 +24,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
       title: 'Get Issue',
       description: 'Retrieve a single MantisBT issue by its numeric ID. Returns all issue fields including notes, attachments, and relationships.',
       inputSchema: z.object({
-        id: z.number().int().positive().describe('Numeric issue ID'),
+        id: z.coerce.number().int().positive().describe('Numeric issue ID'),
       }),
       annotations: {
         readOnlyHint: true,
@@ -56,12 +56,12 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
       title: 'List Issues',
       description: 'List MantisBT issues with optional filtering. Returns a paginated list of issues. Use the "select" parameter to limit returned fields and reduce response size significantly.',
       inputSchema: z.object({
-        project_id: z.number().int().positive().optional().describe('Filter by project ID'),
-        page: z.number().int().positive().default(1).describe('Page number (default: 1)'),
-        page_size: z.number().int().min(1).max(50).default(50).describe('Issues per page (default: 50, max: 50)'),
-        assigned_to: z.number().int().positive().optional().describe('Filter by handler/assignee user ID'),
-        reporter_id: z.number().int().positive().optional().describe('Filter by reporter user ID'),
-        filter_id: z.number().int().positive().optional().describe('Use a saved MantisBT filter ID'),
+        project_id: z.coerce.number().int().positive().optional().describe('Filter by project ID'),
+        page: z.coerce.number().int().positive().default(1).describe('Page number (default: 1)'),
+        page_size: z.coerce.number().int().min(1).max(50).default(50).describe('Issues per page (default: 50, max: 50)'),
+        assigned_to: z.coerce.number().int().positive().optional().describe('Filter by handler/assignee user ID'),
+        reporter_id: z.coerce.number().int().positive().optional().describe('Filter by reporter user ID'),
+        filter_id: z.coerce.number().int().positive().optional().describe('Use a saved MantisBT filter ID'),
         sort: z.string().optional().describe('Sort field (e.g. "last_updated", "id")'),
         direction: z.enum(['ASC', 'DESC']).optional().describe('Sort direction'),
         select: z.string().optional().describe('Comma-separated list of fields to include in the response (server-side projection). Significantly reduces response size. Example: "id,summary,status,priority,handler,updated_at"'),
@@ -119,11 +119,11 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
       inputSchema: z.object({
         summary: z.string().min(1).describe('Issue summary/title'),
         description: z.string().default('').describe('Detailed issue description'),
-        project_id: z.number().int().positive().describe('Project ID the issue belongs to'),
+        project_id: z.coerce.number().int().positive().describe('Project ID the issue belongs to'),
         category: z.string().min(1).describe('Category name (use get_project_categories to list available categories)'),
         priority: z.string().optional().describe('Priority name (e.g. "normal", "high", "urgent", "immediate", "low", "none")'),
         severity: z.string().optional().describe('Severity name (e.g. "minor", "major", "crash", "block", "feature", "trivial", "text")'),
-        handler_id: z.number().int().positive().optional().describe('User ID of the person to assign the issue to'),
+        handler_id: z.coerce.number().int().positive().optional().describe('User ID of the person to assign the issue to'),
       }),
       annotations: {
         readOnlyHint: false,
@@ -178,7 +178,7 @@ The "fields" object accepts any combination of:
 
 Important: when resolving an issue, always set BOTH status and resolution to avoid leaving resolution as "open".`,
       inputSchema: z.object({
-        id: z.number().int().positive().describe('Numeric issue ID to update'),
+        id: z.coerce.number().int().positive().describe('Numeric issue ID to update'),
         fields: z.record(z.unknown()).describe('Object containing the fields to update (partial update — only provided fields are changed)'),
       }),
       annotations: {
@@ -210,7 +210,7 @@ Important: when resolving an issue, always set BOTH status and resolution to avo
       title: 'Delete Issue',
       description: 'Permanently delete a MantisBT issue. This action is irreversible.',
       inputSchema: z.object({
-        id: z.number().int().positive().describe('Numeric issue ID to delete'),
+        id: z.coerce.number().int().positive().describe('Numeric issue ID to delete'),
       }),
       annotations: {
         readOnlyHint: false,
