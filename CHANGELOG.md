@@ -10,10 +10,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## [1.3.0] – 2026-03-16
 
 ### Added
-- New tool `get_issue_enums`: returns structured ID/name pairs for all issue enum fields (severity, status, priority, resolution, reproducibility) — ready for direct use in `create_issue` / `update_issue` without requiring knowledge of MantisBT-internal config option names.
 - New tool `get_search_index_status`: returns the current fill level of the semantic search index — how many issues are indexed vs. total, plus the timestamp of the last sync. Only active when `MANTIS_SEARCH_ENABLED=true`.
-- New tool `get_mcp_version`: returns the version of the running mantisbt-mcp-server instance.
+- New tool `get_issue_enums`: returns structured ID/name pairs for all issue enum fields (severity, status, priority, resolution, reproducibility) — ready for direct use in `create_issue` / `update_issue` without requiring knowledge of MantisBT-internal config option names.
 - `sync_metadata` now fetches and caches all tags globally (`tags` field at root level of the cached metadata). When the dedicated `GET /tags` endpoint is unavailable (MantisBT < 2.26), tags are collected by scanning all issues across all projects (`select=id,tags`).
+- New tool `get_mcp_version`: returns the version of the running mantisbt-mcp-server instance.
 
 ### Fixed
 - `list_tags` now falls back to the metadata cache when `GET /tags` returns 404 instead of returning an error. Run `sync_metadata` first to populate the cache.
