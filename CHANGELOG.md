@@ -19,7 +19,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - `create_issue` now always sends a `severity` to MantisBT (default: `"minor"`). Previously omitting severity caused MantisBT to store `0`, which was displayed as `@0@`.
 - `get_search_index_status` now correctly reports the total issue count on MantisBT installations that do not return `total_count` in the issues list API. The total is persisted after every sync: `total_count` from the API takes precedence, otherwise the current store size is used as a best-effort estimate. The status tool will therefore no longer show "total unknown" after any sync has completed.
 - `sync_metadata` tags endpoint failure now degrades gracefully to an empty array instead of propagating an error.
-- `sync_metadata` now correctly populates `byProject[id].categories`. Previously the wrong endpoint (`projects/{id}/categories`) was called, which returned an empty array on many installations. Categories are now read from the project detail response (`projects/{id}`), identical to the source used by `get_project_categories`.
+- `sync_metadata` now correctly populates `byProject[id].categories`.
+- `sync_metadata` now fetches all versions including obsolete and inherited ones (`obsolete=1&inherit=1`). Previously only non-obsolete versions were returned, causing the version count in the cache to be far too low.
+- `get_project_versions` now accepts optional `obsolete` and `inherit` boolean parameters to include obsolete and/or inherited versions (both default to `false`). Previously the wrong endpoint (`projects/{id}/categories`) was called, which returned an empty array on many installations. Categories are now read from the project detail response (`projects/{id}`), identical to the source used by `get_project_categories`.
 
 ---
 
