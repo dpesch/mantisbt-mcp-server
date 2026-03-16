@@ -145,7 +145,15 @@ Falls keine Umgebungsvariablen gesetzt sind, wird `~/.claude/mantis.json` ausgel
 
 ### Semantische Suche *(optional)*
 
-Aktivierung mit `MANTIS_SEARCH_ENABLED=true`. Beim ersten Start wird das Embedding-Modell (~80 MB) heruntergeladen und lokal gecacht. Alle Issues werden danach bei jedem Serverstart inkrementell indexiert.
+Statt einfachem Keyword-Matching versteht die semantische Suche die *Bedeutung* einer Anfrage. Formuliere in natürlicher Sprache — die Suche findet konzeptuell verwandte Issues, auch wenn die genauen Begriffe nicht übereinstimmen:
+
+- *„Login funktioniert nach Passwort-Reset nicht"* — findet Issues rund um Authentifizierungsgrenzfälle
+- *„Performance-Probleme auf der Checkout-Seite"* — liefert verwandte Meldungen unabhängig von der verwendeten Terminologie
+- *„doppelte Einträge in der Rechnungsliste"* — erkennt auch Issues, die als „zweifach angezeigt", „dupliziert" o.ä. beschrieben sind
+
+Das Embedding-Modell (~80 MB) läuft vollständig **offline** — kein OpenAI-Key, keine externe API. Es wird beim ersten Start einmalig heruntergeladen und lokal gecacht. Issues werden bei jedem Serverstart inkrementell indexiert (nur neue und geänderte Issues werden neu verarbeitet).
+
+Aktivierung mit `MANTIS_SEARCH_ENABLED=true`.
 
 | Tool | Beschreibung |
 |---|---|
@@ -153,7 +161,17 @@ Aktivierung mit `MANTIS_SEARCH_ENABLED=true`. Beim ersten Start wird das Embeddi
 | `rebuild_search_index` | Suchindex aufbauen oder aktualisieren; `full: true` löscht und baut ihn vollständig neu |
 | `get_search_index_status` | Aktuellen Füllstand des Suchindex zurückgeben: wie viele Issues bereits indiziert sind im Verhältnis zur Gesamtanzahl, plus Zeitstempel der letzten Synchronisation |
 
-**`sqlite-vec`-Backend** (optional, schneller bei großen Instanzen):
+#### Welches Backend wählen?
+
+| | `vectra` *(Standard)* | `sqlite-vec` |
+|---|---|---|
+| Abhängigkeiten | Keine (reines JS) | Benötigt native Build-Tools |
+| Installation | Enthalten | `npm install sqlite-vec better-sqlite3` |
+| Geeignet für | Bis ~5.000 Issues | Große Instanzen (10.000+) |
+| Performance | Für die meisten Instanzen ausreichend | Schneller bei großen Datenmengen |
+
+Mit `vectra` starten. Zu `sqlite-vec` wechseln, wenn Indexierungszeiten oder Abfragen spürbar langsam werden.
+
 ```bash
 npm install sqlite-vec better-sqlite3
 # dann MANTIS_SEARCH_BACKEND=sqlite-vec setzen

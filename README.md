@@ -145,7 +145,15 @@ If no environment variables are set, `~/.claude/mantis.json` is read:
 
 ### Semantic search *(optional)*
 
-Activate with `MANTIS_SEARCH_ENABLED=true`. On first start the embedding model (~80 MB) is downloaded and cached locally. All issues are then indexed incrementally on each server start.
+Instead of exact keyword matching, semantic search understands the *meaning* behind a query. Ask in plain language — the search engine finds conceptually related issues even when the wording doesn't match:
+
+- *"login fails after password reset"* — finds issues about authentication edge cases
+- *"performance problems on the checkout page"* — surfaces related reports regardless of the exact terminology used
+- *"duplicate entries in the invoice list"* — catches issues described as "shown twice", "double records", etc.
+
+The embedding model (~80 MB) runs entirely **offline** — no OpenAI key, no external API. It is downloaded once on first start and cached locally. Issues are indexed incrementally on every server start (only new and updated issues are re-indexed).
+
+Activate with `MANTIS_SEARCH_ENABLED=true`.
 
 | Tool | Description |
 |---|---|
@@ -153,7 +161,17 @@ Activate with `MANTIS_SEARCH_ENABLED=true`. On first start the embedding model (
 | `rebuild_search_index` | Build or update the search index; `full: true` clears and rebuilds from scratch |
 | `get_search_index_status` | Return the current fill level of the search index: how many issues are indexed vs. total, and the timestamp of the last sync |
 
-**`sqlite-vec` backend** (optional, faster for large instances):
+#### Which backend to choose?
+
+| | `vectra` *(default)* | `sqlite-vec` |
+|---|---|---|
+| Dependencies | None (pure JS) | Requires native build tools |
+| Install | Included | `npm install sqlite-vec better-sqlite3` |
+| Best for | Up to ~5,000 issues | Large installations (10,000+) |
+| Performance | Fast enough for most setups | Faster for large corpora |
+
+Start with `vectra`. Switch to `sqlite-vec` if indexing or query times become noticeably slow.
+
 ```bash
 npm install sqlite-vec better-sqlite3
 # then set MANTIS_SEARCH_BACKEND=sqlite-vec
