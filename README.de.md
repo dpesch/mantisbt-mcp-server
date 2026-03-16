@@ -130,7 +130,7 @@ Falls keine Umgebungsvariablen gesetzt sind, wird `~/.claude/mantis.json` ausgel
 
 | Tool | Beschreibung |
 |---|---|
-| `list_tags` | Alle verfügbaren Tags auflisten |
+| `list_tags` | Alle verfügbaren Tags auflisten; greift auf den Metadaten-Cache zurück, wenn `GET /tags` mit 404 antwortet (vorher `sync_metadata` ausführen) |
 | `attach_tags` | Tags an ein Issue hängen |
 | `detach_tag` | Tag von einem Issue entfernen |
 
@@ -139,7 +139,7 @@ Falls keine Umgebungsvariablen gesetzt sind, wird `~/.claude/mantis.json` ausgel
 | Tool | Beschreibung |
 |---|---|
 | `list_projects` | Alle zugänglichen Projekte auflisten |
-| `get_project_versions` | Versionen eines Projekts abrufen |
+| `get_project_versions` | Versionen eines Projekts abrufen; optionale Booleans `obsolete` und `inherit` für veraltete bzw. vom Elternprojekt geerbte Versionen |
 | `get_project_categories` | Kategorien eines Projekts abrufen |
 | `get_project_users` | Benutzer eines Projekts abrufen |
 
@@ -188,7 +188,9 @@ npm install sqlite-vec better-sqlite3
 | `get_current_user` | Eigenes Benutzerprofil abrufen |
 | `list_languages` | Verfügbare Sprachen auflisten |
 | `get_config` | Server-Konfiguration (Basis-URL, Cache-TTL) anzeigen |
+| `get_issue_enums` | Gültige ID/Name-Paare für alle Enum-Felder zurückgeben (Severity, Status, Priority, Resolution, Reproducibility) — vor `create_issue` / `update_issue` verwenden, um korrekte Werte nachzuschlagen |
 | `get_mantis_version` | MantisBT-Version abrufen und auf Updates prüfen |
+| `get_mcp_version` | Version dieser mantisbt-mcp-server-Instanz zurückgeben |
 
 ## HTTP-Modus
 

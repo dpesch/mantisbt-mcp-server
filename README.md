@@ -130,7 +130,7 @@ If no environment variables are set, `~/.claude/mantis.json` is read:
 
 | Tool | Description |
 |---|---|
-| `list_tags` | List all available tags |
+| `list_tags` | List all available tags; falls back to the metadata cache when `GET /tags` returns 404 (run `sync_metadata` first to populate) |
 | `attach_tags` | Attach tags to an issue |
 | `detach_tag` | Remove a tag from an issue |
 
@@ -139,7 +139,7 @@ If no environment variables are set, `~/.claude/mantis.json` is read:
 | Tool | Description |
 |---|---|
 | `list_projects` | List all accessible projects |
-| `get_project_versions` | Get versions of a project |
+| `get_project_versions` | Get versions of a project; optional `obsolete` and `inherit` booleans to include obsolete or parent-inherited versions |
 | `get_project_categories` | Get categories of a project |
 | `get_project_users` | Get users of a project |
 
@@ -188,7 +188,9 @@ npm install sqlite-vec better-sqlite3
 | `get_current_user` | Retrieve your own user profile |
 | `list_languages` | List available languages |
 | `get_config` | Show server configuration (base URL, cache TTL) |
+| `get_issue_enums` | Return valid ID/name pairs for all issue enum fields (severity, status, priority, resolution, reproducibility) — use before `create_issue` / `update_issue` to look up correct values |
 | `get_mantis_version` | Get MantisBT version and check for updates |
+| `get_mcp_version` | Return the version of this mantisbt-mcp-server instance |
 
 ## HTTP mode
 
