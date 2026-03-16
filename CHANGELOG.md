@@ -7,7 +7,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [1.2.0] – 2026-03-16
 
 ### Added
 - New tool `remove_relationship`: removes a relationship from an issue. The `relationship_id` is the numeric `id` field on the relationship object returned by `get_issue` (not the type id).
