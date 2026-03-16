@@ -11,6 +11,20 @@ function errorText(msg: string): string {
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
 
+// Parse a MantisBT enum string ("10:feature,20:trivial,...") into {id, name}[]
+function parseEnumString(raw: string): Array<{ id: number; name: string }> {
+  return raw
+    .split(',')
+    .map((entry) => {
+      const colonIdx = entry.indexOf(':');
+      if (colonIdx === -1) return null;
+      const id = parseInt(entry.slice(0, colonIdx), 10);
+      const name = entry.slice(colonIdx + 1).trim();
+      return isNaN(id) ? null : { id, name };
+    })
+    .filter((e): e is { id: number; name: string } => e !== null);
+}
+
 export function registerConfigTools(server: McpServer, client: MantisClient, cache: MetadataCache): void {
 
   // ---------------------------------------------------------------------------
@@ -49,6 +63,79 @@ Common option names:
         const result = await client.get<unknown>('config', params);
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
+      }
+    }
+  );
+
+  // ---------------------------------------------------------------------------
+  // get_issue_enums
+  // ---------------------------------------------------------------------------
+
+  server.registerTool(
+    'get_issue_enums',
+    {
+      title: 'Get Issue Enum Values',
+      description: `Return valid ID and name pairs for all issue enum fields.
+
+Use this tool before creating or updating issues to look up the correct value
+for severity, status, priority, resolution, or reproducibility.
+
+Example response:
+{
+  "severity":         [{"id": 10, "name": "feature"}, {"id": 50, "name": "minor"}, ...],
+  "status":           [{"id": 10, "name": "new"}, {"id": 20, "name": "feedback"}, ...],
+  "priority":         [{"id": 10, "name": "none"}, {"id": 30, "name": "normal"}, ...],
+  "resolution":       [{"id": 10, "name": "open"}, {"id": 20, "name": "fixed"}, ...],
+  "reproducibility":  [{"id": 10, "name": "always"}, {"id": 70, "name": "have not tried"}, ...]
+}
+
+The "name" field is the value to pass to create_issue or update_issue.`,
+      inputSchema: z.object({}),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async () => {
+      try {
+        const enumOptions = [
+          'severity_enum_string',
+          'status_enum_string',
+          'priority_enum_string',
+          'resolution_enum_string',
+          'reproducibility_enum_string',
+        ];
+        const params: Record<string, string | number | boolean | undefined> = {};
+        enumOptions.forEach((opt, i) => {
+          params[`option[${i}]`] = opt;
+        });
+
+        const result = await client.get<{ configs: Array<{ option: string; value: string }> }>('config', params);
+        const configs = result.configs ?? [];
+
+        const keyMap: Record<string, string> = {
+          severity_enum_string: 'severity',
+          status_enum_string: 'status',
+          priority_enum_string: 'priority',
+          resolution_enum_string: 'resolution',
+          reproducibility_enum_string: 'reproducibility',
+        };
+
+        const enums: Record<string, Array<{ id: number; name: string }>> = {};
+        for (const { option, value } of configs) {
+          const key = keyMap[option];
+          if (key && typeof value === 'string') {
+            enums[key] = parseEnumString(value);
+          }
+        }
+
+        return {
+          content: [{ type: 'text', text: JSON.stringify(enums, null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);

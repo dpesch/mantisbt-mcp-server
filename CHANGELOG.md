@@ -10,11 +10,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## [1.3.0] – 2026-03-16
 
 ### Added
+- New tool `get_issue_enums`: returns structured ID/name pairs for all issue enum fields (severity, status, priority, resolution, reproducibility) — ready for direct use in `create_issue` / `update_issue` without requiring knowledge of MantisBT-internal config option names.
 - New tool `get_search_index_status`: returns the current fill level of the semantic search index — how many issues are indexed vs. total, plus the timestamp of the last sync. Only active when `MANTIS_SEARCH_ENABLED=true`.
 - New tool `get_mcp_version`: returns the version of the running mantisbt-mcp-server instance.
-- `sync_metadata` now fetches and caches all tags globally (`tags` field at root level of the cached metadata).
+- `sync_metadata` now fetches and caches all tags globally (`tags` field at root level of the cached metadata). When the dedicated `GET /tags` endpoint is unavailable (MantisBT < 2.26), tags are collected by scanning all issues across all projects (`select=id,tags`).
 
 ### Fixed
+- `list_tags` now falls back to the metadata cache when `GET /tags` returns 404 instead of returning an error. Run `sync_metadata` first to populate the cache.
 - Numeric ID parameters now accept string inputs (e.g. `"1940"`) — MCP clients that pass IDs as strings no longer receive error -32602.
 - `create_issue` now always sends a `severity` to MantisBT (default: `"minor"`). Previously omitting severity caused MantisBT to store `0`, which was displayed as `@0@`.
 - `get_search_index_status` now correctly reports the total issue count on MantisBT installations that do not return `total_count` in the issues list API. The total is persisted after every sync: `total_count` from the API takes precedence, otherwise the current store size is used as a best-effort estimate. The status tool will therefore no longer show "total unknown" after any sync has completed.
