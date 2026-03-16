@@ -17,6 +17,7 @@ export function registerRelationshipTools(server: McpServer, client: MantisClien
   // add_relationship
   // ---------------------------------------------------------------------------
 
+
   server.registerTool(
     'add_relationship',
     {
@@ -55,6 +56,40 @@ Important: The API only accepts numeric type IDs, not string names.`,
         const result = await client.post<unknown>(`issues/${issue_id}/relationships`, body);
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
+      }
+    }
+  );
+
+  // ---------------------------------------------------------------------------
+  // remove_relationship
+  // ---------------------------------------------------------------------------
+
+  server.registerTool(
+    'remove_relationship',
+    {
+      title: 'Remove Issue Relationship',
+      description: `Remove a relationship from a MantisBT issue.
+
+Use get_issue first to retrieve the relationship IDs. The relationship_id is the numeric id field of a relationship object in the issue's relationships array (not the type ID).`,
+      inputSchema: z.object({
+        issue_id: z.number().int().positive().describe('The issue ID the relationship belongs to'),
+        relationship_id: z.number().int().positive().describe('The numeric ID of the relationship to remove (from the relationships array in get_issue)'),
+      }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+      },
+    },
+    async ({ issue_id, relationship_id }) => {
+      try {
+        await client.delete<unknown>(`issues/${issue_id}/relationships/${relationship_id}`);
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ success: true }, null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
