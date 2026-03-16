@@ -1,7 +1,7 @@
 {
   "issues": [
     {
-      "id": 7857,
+      "id": 7860,
       "summary": "Issue summary 1",
       "description": "Issue description 1",
       "project": {
@@ -9,8 +9,8 @@
         "name": "Project 2"
       },
       "category": {
-        "id": 394,
-        "name": "Hooks"
+        "id": 393,
+        "name": "Skills"
       },
       "reporter": {
         "id": 51,
@@ -25,15 +25,15 @@
         "email": "user1@example.com"
       },
       "status": {
-        "id": 80,
-        "name": "resolved",
-        "label": "erledigt",
-        "color": "#e8e8e8"
+        "id": 50,
+        "name": "assigned",
+        "label": "zugewiesen",
+        "color": "#afbed5"
       },
       "resolution": {
-        "id": 20,
-        "name": "fixed",
-        "label": "erledigt"
+        "id": 10,
+        "name": "open",
+        "label": "offen"
       },
       "view_state": {
         "id": 10,
@@ -46,9 +46,9 @@
         "label": "normal"
       },
       "severity": {
-        "id": 0,
-        "name": "@0@",
-        "label": "@0@"
+        "id": 200,
+        "name": "Technische Schuld",
+        "label": "Technische Schuld"
       },
       "reproducibility": {
         "id": 70,
@@ -56,53 +56,19 @@
         "label": "nicht getestet"
       },
       "sticky": false,
-      "created_at": "2026-03-15T22:11:31+01:00",
-      "updated_at": "2026-03-15T22:23:08+01:00",
+      "created_at": "2026-03-16T15:40:38+01:00",
+      "updated_at": "2026-03-16T15:40:38+01:00",
       "history": [
         {
-          "created_at": "2026-03-15T22:11:31+01:00",
+          "created_at": "2026-03-16T15:40:38+01:00",
           "user": {
             "id": 51,
             "name": "user_1",
             "real_name": "User One",
             "email": "user1@example.com"
           },
-          "type": {
-            "id": 1,
-            "name": "issue-new"
-          },
+          "type": { "id": 1, "name": "issue-new" },
           "message": "Neuer Eintrag"
-        },
-        {
-          "created_at": "2026-03-15T22:23:08+01:00",
-          "user": {
-            "id": 51,
-            "name": "user_1",
-            "real_name": "User One",
-            "email": "user1@example.com"
-          },
-          "field": {
-            "name": "status",
-            "label": "Status"
-          },
-          "type": {
-            "id": 0,
-            "name": "field-updated"
-          },
-          "old_value": {
-            "id": 50,
-            "name": "assigned",
-            "label": "zugewiesen",
-            "color": "#afbed5"
-          },
-          "new_value": {
-            "id": 80,
-            "name": "resolved",
-            "label": "erledigt",
-            "color": "#e8e8e8"
-          },
-          "message": "Status",
-          "change": "zugewiesen => erledigt"
         }
       ]
     }

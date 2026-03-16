@@ -1,101 +1,95 @@
 {
   "issues": [
     {
-      "id": 7856,
+      "id": 7860,
       "summary": "Issue summary 1",
       "description": "Issue description 1",
       "project": { "id": 54, "name": "Project 2" },
-      "category": { "id": 350, "name": "Konfiguration" },
-      "reporter": { "id": 52, "name": "user_2" },
+      "category": { "id": 393, "name": "Skills" },
+      "reporter": {
+        "id": 51,
+        "name": "user_1",
+        "real_name": "User One",
+        "email": "user1@example.com"
+      },
       "handler": {
         "id": 51,
         "name": "user_1",
         "real_name": "User One",
         "email": "user1@example.com"
       },
-      "status": { "id": 80, "name": "resolved", "label": "erledigt", "color": "#e8e8e8" },
-      "resolution": { "id": 20, "name": "fixed", "label": "erledigt" },
+      "status": { "id": 50, "name": "assigned", "label": "zugewiesen", "color": "#afbed5" },
+      "resolution": { "id": 10, "name": "open", "label": "offen" },
+      "view_state": { "id": 10, "name": "public", "label": "öffentlich" },
       "priority": { "id": 30, "name": "normal", "label": "normal" },
-      "severity": { "id": 210, "name": "Wartung", "label": "Wartung" },
+      "severity": { "id": 200, "name": "Technische Schuld", "label": "Technische Schuld" },
+      "reproducibility": { "id": 70, "name": "have not tried", "label": "nicht getestet" },
       "sticky": false,
-      "created_at": "2026-03-13T15:51:57+01:00",
-      "updated_at": "2026-03-15T08:35:48+01:00"
+      "created_at": "2026-03-16T15:40:38+01:00",
+      "updated_at": "2026-03-16T15:40:38+01:00"
     },
     {
-      "id": 7855,
+      "id": 7859,
       "summary": "Issue summary 2",
       "description": "Issue description 2",
       "project": { "id": 54, "name": "Project 2" },
       "category": { "id": 394, "name": "Hooks" },
-      "reporter": { "id": 52, "name": "user_2" },
+      "reporter": {
+        "id": 51,
+        "name": "user_1",
+        "real_name": "User One",
+        "email": "user1@example.com"
+      },
       "handler": {
         "id": 51,
         "name": "user_1",
         "real_name": "User One",
         "email": "user1@example.com"
       },
-      "status": { "id": 80, "name": "resolved", "label": "erledigt", "color": "#e8e8e8" },
-      "resolution": { "id": 20, "name": "fixed", "label": "erledigt" },
+      "status": { "id": 50, "name": "assigned", "label": "zugewiesen", "color": "#afbed5" },
+      "resolution": { "id": 10, "name": "open", "label": "offen" },
+      "view_state": { "id": 10, "name": "public", "label": "öffentlich" },
       "priority": { "id": 30, "name": "normal", "label": "normal" },
-      "severity": { "id": 210, "name": "Wartung", "label": "Wartung" },
+      "severity": { "id": 50, "name": "minor", "label": "minor" },
+      "reproducibility": { "id": 70, "name": "have not tried", "label": "nicht getestet" },
       "sticky": false,
-      "created_at": "2026-03-13T15:51:52+01:00",
-      "updated_at": "2026-03-13T16:22:49+01:00"
+      "created_at": "2026-03-16T14:43:52+01:00",
+      "updated_at": "2026-03-16T14:43:52+01:00"
     },
     {
-      "id": 7854,
+      "id": 7858,
       "summary": "Issue summary 3",
       "description": "Issue description 3",
       "project": { "id": 54, "name": "Project 2" },
-      "category": { "id": 393, "name": "Skills" },
-      "reporter": { "id": 53, "name": "user_3" },
-      "handler": {
-        "id": 51,
-        "name": "user_1",
-        "real_name": "User One",
-        "email": "user1@example.com"
-      },
-      "status": { "id": 80, "name": "resolved", "label": "erledigt", "color": "#e8e8e8" },
-      "resolution": { "id": 20, "name": "fixed", "label": "erledigt" },
-      "priority": { "id": 30, "name": "normal", "label": "normal" },
-      "severity": { "id": 50, "name": "kleinerer Fehler", "label": "kleinerer Fehler" },
-      "sticky": false,
-      "created_at": "2026-03-13T09:58:23+01:00",
-      "updated_at": "2026-03-13T11:25:19+01:00"
-    },
-    {
-      "id": 7900,
-      "summary": "Issue summary 4 (open)",
-      "description": "Issue description 4",
-      "project": { "id": 54, "name": "Project 2" },
-      "category": { "id": 350, "name": "Konfiguration" },
+      "category": { "id": 395, "name": "Installer" },
       "reporter": { "id": 52, "name": "user_2" },
-      "handler": {
-        "id": 51,
-        "name": "user_1",
-        "real_name": "User One",
-        "email": "user1@example.com"
-      },
-      "status": { "id": 50, "name": "assigned", "label": "zugewiesen", "color": "#e8e8e8" },
+      "handler": { "id": 52, "name": "user_2" },
+      "status": { "id": 20, "name": "feedback", "label": "Rückmeldung", "color": "#f5e5b8" },
+      "resolution": { "id": 10, "name": "open", "label": "offen" },
+      "view_state": { "id": 10, "name": "public", "label": "öffentlich" },
       "priority": { "id": 30, "name": "normal", "label": "normal" },
-      "severity": { "id": 210, "name": "Wartung", "label": "Wartung" },
+      "severity": { "id": 50, "name": "minor", "label": "minor" },
+      "reproducibility": { "id": 70, "name": "have not tried", "label": "nicht getestet" },
       "sticky": false,
-      "created_at": "2026-03-14T10:00:00+01:00",
-      "updated_at": "2026-03-14T10:00:00+01:00"
-    },
-    {
-      "id": 7901,
-      "summary": "Issue summary 5 (open, new)",
-      "description": "Issue description 5",
-      "project": { "id": 54, "name": "Project 2" },
-      "category": { "id": 350, "name": "Konfiguration" },
-      "reporter": { "id": 52, "name": "user_2" },
-      "status": { "id": 10, "name": "new", "label": "neu", "color": "#fcbdbd" },
-      "priority": { "id": 30, "name": "normal", "label": "normal" },
-      "severity": { "id": 210, "name": "Wartung", "label": "Wartung" },
-      "sticky": false,
-      "created_at": "2026-03-14T11:00:00+01:00",
-      "updated_at": "2026-03-14T11:00:00+01:00"
+      "created_at": "2026-03-16T12:33:12+01:00",
+      "updated_at": "2026-03-16T12:54:59+01:00",
+      "notes": [
+        {
+          "id": 3985,
+          "reporter": {
+            "id": 51,
+            "name": "user_1",
+            "real_name": "User One",
+            "email": "user1@example.com"
+          },
+          "text": "Note text 1",
+          "view_state": { "id": 10, "name": "public", "label": "öffentlich" },
+          "attachments": [],
+          "type": "note",
+          "created_at": "2026-03-16T12:54:56+01:00",
+          "updated_at": "2026-03-16T12:54:56+01:00"
+        }
+      ]
     }
   ]
 }

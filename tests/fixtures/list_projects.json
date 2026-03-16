@@ -5,30 +5,10 @@
       "name": "Project 1",
       "status": { "id": 10, "name": "development" },
       "enabled": true,
-      "view_state": { "id": 10, "name": "public" },
-      "access_level": { "id": 10, "label": "viewer" },
-      "categories": [
-        {
-          "id": 369,
-          "name": "API",
-          "project": { "id": 0, "name": null },
-          "status": "1"
-        },
-        {
-          "id": 176,
-          "name": "Außenbereich / GaLaBau",
-          "project": { "id": 30, "name": "Project 1" },
-          "status": "1",
-          "default_handler": { "id": 4, "name": "user_4" }
-        },
-        {
-          "id": 350,
-          "name": "Konfiguration",
-          "project": { "id": 0, "name": null },
-          "status": "1"
-        }
-      ],
+      "view_state": { "id": 50, "name": "private" },
+      "access_level": { "id": 70, "name": "manager" },
       "versions": [],
+      "categories": [],
       "subprojects": []
     },
     {
@@ -37,29 +17,49 @@
       "status": { "id": 10, "name": "development" },
       "enabled": true,
       "view_state": { "id": 10, "name": "public" },
-      "access_level": { "id": 10, "label": "viewer" },
-      "categories": [
-        {
-          "id": 350,
-          "name": "Konfiguration",
-          "project": { "id": 0, "name": null },
-          "status": "1"
-        },
-        {
-          "id": 393,
-          "name": "Skills",
-          "project": { "id": 54, "name": "Project 2" },
-          "status": "1"
-        },
-        {
-          "id": 394,
-          "name": "Hooks",
-          "project": { "id": 54, "name": "Project 2" },
-          "status": "1"
-        }
-      ],
+      "access_level": { "id": 70, "name": "manager" },
       "versions": [],
+      "categories": [],
       "subprojects": []
-    }
+    },
+    {
+      "id": 2,
+      "name": "Project 3",
+      "status": { "id": 10, "name": "development" },
+      "enabled": true,
+      "view_state": { "id": 10, "name": "public" },
+      "access_level": { "id": 70, "name": "manager" },
+      "versions": [
+        { "id": 416, "name": "5.x", "description": "", "released": false, "obsolete": false, "timestamp": "2025-12-31T08:02:00+01:00" },
+        { "id": 332, "name": "4.x", "description": "", "released": false, "obsolete": false, "timestamp": "2024-12-31T13:31:00+01:00" },
+        { "id": 148, "name": "3.x", "description": "", "released": false, "obsolete": false, "timestamp": "2022-10-31T22:31:00+01:00" },
+        { "id": 17,  "name": "2.x", "description": "", "released": true,  "obsolete": true,  "timestamp": "2009-09-18T07:20:00+02:00" },
+        { "id": 9,   "name": "1.x", "description": "", "released": true,  "obsolete": true,  "timestamp": "2008-09-04T09:26:00+02:00" },
+        { "id": 10,  "name": "2.0", "description": "", "released": true,  "obsolete": true,  "timestamp": "2008-09-04T09:26:00+02:00" }
+      ],
+      "categories": [],
+      "subprojects": []
+    },
+    { "id": 48, "name": "Project 4",  "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 25, "name": "Project 5",  "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 39, "name": "Project 6",  "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 44, "name": "Project 7",  "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 52, "name": "Project 8",  "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 5,  "name": "Project 9",  "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 27, "name": "Project 10", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 3,  "name": "Project 11", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 11, "name": "Project 12", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 38, "name": "Project 13", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 28, "name": "Project 14", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 45, "name": "Project 15", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 40, "name": "Project 16", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 26, "name": "Project 17", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 8,  "name": "Project 18", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 14, "name": "Project 19", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 42, "name": "Project 20", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 49, "name": "Project 21", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 21, "name": "Project 22", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 53, "name": "Project 23", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] },
+    { "id": 47, "name": "Project 24", "status": { "id": 10, "name": "development" }, "enabled": true, "view_state": { "id": 10, "name": "public" }, "access_level": { "id": 70, "name": "manager" }, "versions": [], "categories": [], "subprojects": [] }
   ]
 }

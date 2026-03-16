@@ -11,7 +11,7 @@
       "name": "Außenbereich / GaLaBau",
       "project": { "id": 30, "name": "Project 1" },
       "status": "1",
-      "default_handler": { "id": 4, "name": "user_4" }
+      "default_handler": { "id": 4, "name": "user_3" }
     },
     {
       "id": 170,
@@ -32,11 +32,78 @@
       "status": "1"
     },
     {
+      "id": 352,
+      "name": "CI (Jenkins)",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
+      "id": 349,
+      "name": "code cleanup",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
+      "id": 366,
+      "name": "Code-Review",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
+      "id": 177,
+      "name": "Dach",
+      "project": { "id": 30, "name": "Project 1" },
+      "status": "1"
+    },
+    {
+      "id": 371,
+      "name": "Datenbank",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
+      "id": 367,
+      "name": "Datenschutz",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
+      "id": 391,
+      "name": "E-Mail / Kommunikation",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
       "id": 171,
       "name": "Elektro",
       "project": { "id": 30, "name": "Project 1" },
       "status": "1",
-      "default_handler": { "id": 2, "name": "user_5" }
+      "default_handler": { "id": 2, "name": "user_4" }
+    },
+    {
+      "id": 174,
+      "name": "Fliesen/Bodenbeläge",
+      "project": { "id": 30, "name": "Project 1" },
+      "status": "1"
+    },
+    {
+      "id": 172,
+      "name": "Heizung",
+      "project": { "id": 30, "name": "Project 1" },
+      "status": "1"
+    },
+    {
+      "id": 392,
+      "name": "IT-Sicherheit/Security",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
+      "id": 169,
+      "name": "KNX/Bussystem",
+      "project": { "id": 30, "name": "Project 1" },
+      "status": "1",
+      "default_handler": { "id": 2, "name": "user_4" }
     },
     {
       "id": 350,
@@ -45,9 +112,39 @@
       "status": "1"
     },
     {
+      "id": 353,
+      "name": "Modell",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
       "id": 364,
       "name": "QS (Qualitätssicherung)",
       "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
+      "id": 173,
+      "name": "Sanitär",
+      "project": { "id": 30, "name": "Project 1" },
+      "status": "1"
+    },
+    {
+      "id": 398,
+      "name": "TODO: passende Kategorie zuordnen",
+      "project": { "id": 0, "name": null },
+      "status": "1"
+    },
+    {
+      "id": 178,
+      "name": "Türen / Fenster",
+      "project": { "id": 30, "name": "Project 1" },
+      "status": "1"
+    },
+    {
+      "id": 175,
+      "name": "Wände/Decken",
+      "project": { "id": 30, "name": "Project 1" },
       "status": "1"
     },
     {

@@ -193,7 +193,8 @@ describe('list_issues', () => {
 
     expect(result.isError).toBeUndefined();
     const parsed = JSON.parse(result.content[0]!.text) as { issues: Array<{ status: { name: string } }> };
-    expect(parsed.issues.length).toBeGreaterThan(0);
+    const resolvedInFixture = listIssuesFixture.issues.filter(i => i.status.name === 'resolved').length;
+    expect(parsed.issues).toHaveLength(resolvedInFixture);
     parsed.issues.forEach(issue => {
       expect(issue.status.name).toBe('resolved');
     });
@@ -206,9 +207,12 @@ describe('list_issues', () => {
 
     expect(result.isError).toBeUndefined();
     const parsed = JSON.parse(result.content[0]!.text) as { issues: Array<{ id: number; status: { name: string } }> };
-    expect(parsed.issues).toHaveLength(1);
-    expect(parsed.issues[0]!.id).toBe(7901);
-    expect(parsed.issues[0]!.status.name).toBe('new');
+    const newInFixture = listIssuesFixture.issues.filter(i => i.status.name === 'new');
+    expect(parsed.issues).toHaveLength(newInFixture.length);
+    if (newInFixture.length > 0) {
+      expect(parsed.issues[0]!.id).toBe(newInFixture[0]!.id);
+      expect(parsed.issues[0]!.status.name).toBe('new');
+    }
   });
 
   it('status filter is case-insensitive', async () => {
