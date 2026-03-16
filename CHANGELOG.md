@@ -12,6 +12,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 - New tool `get_search_index_status`: returns the current fill level of the semantic search index — how many issues are indexed vs. total, plus the timestamp of the last sync. Only active when `MANTIS_SEARCH_ENABLED=true`.
 
+### Fixed
+- Numeric ID parameters now accept string inputs (e.g. `"1940"`) — MCP clients that pass IDs as strings no longer receive error -32602.
+
 ---
 
 ## [1.2.0] – 2026-03-16
