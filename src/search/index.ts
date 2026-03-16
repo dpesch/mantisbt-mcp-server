@@ -22,6 +22,13 @@ export async function initializeSearchModule(
 
   registerSearchTools(server, client, store, embedder);
 
+  // Pre-initialize lastKnownTotal so get_search_index_status shows a value
+  // immediately on startup, even while the background sync is still running.
+  const [startupCount, startupTotal] = await Promise.all([store.count(), store.getLastKnownTotal()]);
+  if (startupTotal === null && startupCount > 0) {
+    await store.setLastKnownTotal(startupCount);
+  }
+
   // Non-blocking background sync on startup
   const syncService = new SearchSyncService(client, store, embedder);
   syncService.sync().catch((err: unknown) => {
