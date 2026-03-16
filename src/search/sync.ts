@@ -32,10 +32,10 @@ export class SearchSyncService {
     private readonly embedder: Embedder,
   ) {}
 
-  async sync(projectId?: number): Promise<{ indexed: number; skipped: number }> {
+  async sync(projectId?: number): Promise<{ indexed: number; skipped: number; total: number | null }> {
     const lastSyncedAt = await this.store.getLastSyncedAt();
 
-    const allIssues = await this.fetchAllIssues(lastSyncedAt ?? undefined, projectId);
+    const { issues: allIssues, totalFromApi } = await this.fetchAllIssues(lastSyncedAt ?? undefined, projectId);
 
     let indexed = 0;
     let skipped = 0;
@@ -72,14 +72,24 @@ export class SearchSyncService {
     }
 
     await this.store.setLastSyncedAt(new Date().toISOString());
-    return { indexed, skipped };
+
+    // Persist the best known total for get_search_index_status.
+    // API total takes precedence; for a full rebuild (no updatedAfter) we
+    // know the total equals all issues we just fetched.
+    const total = totalFromApi ?? (lastSyncedAt === null ? indexed + skipped : null);
+    if (total !== null) {
+      await this.store.setLastKnownTotal(total);
+    }
+
+    return { indexed, skipped, total };
   }
 
   private async fetchAllIssues(
     updatedAfter: string | undefined,
     projectId: number | undefined,
-  ): Promise<IssueListItem[]> {
+  ): Promise<{ issues: IssueListItem[]; totalFromApi: number | null }> {
     const allIssues: IssueListItem[] = [];
+    let totalFromApi: number | null = null;
     let page = 1;
 
     while (true) {
@@ -103,12 +113,16 @@ export class SearchSyncService {
       const pageIssues = response.issues ?? [];
       allIssues.push(...pageIssues);
 
+      // Capture total_count from the first page that provides it
+      if (totalFromApi === null && response.total_count != null) {
+        totalFromApi = response.total_count;
+      }
+
       // Stop when we have fetched all issues:
       // - total_count is provided and reached, or
       // - page returned fewer items than requested (last page)
-      const total = response.total_count;
-      if (total !== undefined && total !== null) {
-        if (allIssues.length >= total) break;
+      if (totalFromApi !== null) {
+        if (allIssues.length >= totalFromApi) break;
       } else if (pageIssues.length < PAGE_SIZE) {
         break;
       }
@@ -116,6 +130,6 @@ export class SearchSyncService {
       page++;
     }
 
-    return allIssues;
+    return { issues: allIssues, totalFromApi };
   }
 }

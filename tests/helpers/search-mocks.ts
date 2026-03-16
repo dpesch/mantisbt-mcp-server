@@ -12,7 +12,7 @@ export const MOCK_VECTOR = Array(384).fill(0.1) as number[];
 // makeMockStore
 // ---------------------------------------------------------------------------
 
-export function makeMockStore(options?: { lastSyncedAt?: string | null; itemCount?: number }): VectorStore {
+export function makeMockStore(options?: { lastSyncedAt?: string | null; itemCount?: number; lastKnownTotal?: number | null }): VectorStore {
   const lastSyncedAt = options?.lastSyncedAt ?? null;
   const addedItems: VectorStoreItem[] = [];
   let count = options?.itemCount ?? 0;
@@ -43,6 +43,8 @@ export function makeMockStore(options?: { lastSyncedAt?: string | null; itemCoun
     getLastSyncedAt: vi.fn(async () => lastSyncedAt),
     setLastSyncedAt: vi.fn(async () => {}),
     resetLastSyncedAt: vi.fn(async () => {}),
+    getLastKnownTotal: vi.fn(async () => options?.lastKnownTotal ?? null),
+    setLastKnownTotal: vi.fn(async () => {}),
   };
 }
 

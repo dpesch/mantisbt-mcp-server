@@ -1,7 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { MantisClient } from '../client.js';
-import type { MantisPaginatedIssues } from '../types.js';
 import type { VectorStore } from './store.js';
 import type { Embedder } from './embedder.js';
 import { SearchSyncService } from './sync.js';
@@ -100,13 +99,12 @@ export function registerSearchTools(
     },
     async () => {
       try {
-        const [indexed, lastSyncedAt, totalResponse] = await Promise.all([
+        const [indexed, lastSyncedAt, total] = await Promise.all([
           store.count(),
           store.getLastSyncedAt(),
-          client.get<MantisPaginatedIssues>('issues', { page_size: 1, page: 1 }),
+          store.getLastKnownTotal(),
         ]);
 
-        const total = totalResponse.total_count ?? null;
         const percent = total !== null
           ? (total > 0 ? Math.round((indexed / total) * 100) : 0)
           : null;
@@ -172,14 +170,14 @@ export function registerSearchTools(
 
         const startMs = Date.now();
         const syncService = new SearchSyncService(client, store, embedder);
-        const { indexed, skipped } = await syncService.sync(project_id);
+        const { indexed, skipped, total } = await syncService.sync(project_id);
         const duration_ms = Date.now() - startMs;
 
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ indexed, skipped, duration_ms }, null, 2),
+              text: JSON.stringify({ indexed, skipped, total, duration_ms }, null, 2),
             },
           ],
         };

@@ -21,6 +21,8 @@ export interface VectorStore {
   getLastSyncedAt(): Promise<string | null>;
   setLastSyncedAt(ts: string): Promise<void>;
   resetLastSyncedAt(): Promise<void>;
+  getLastKnownTotal(): Promise<number | null>;
+  setLastKnownTotal(total: number): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -30,12 +32,14 @@ export interface VectorStore {
 export class VectraStore implements VectorStore {
   private readonly vectraDir: string;
   private readonly lastSyncFile: string;
+  private readonly lastTotalFile: string;
   private items: Map<number, VectorStoreItem> = new Map();
   private loaded = false;
 
   constructor(private readonly dir: string) {
     this.vectraDir = join(dir, 'vectra');
     this.lastSyncFile = join(dir, 'last_sync.txt');
+    this.lastTotalFile = join(dir, 'last_total.txt');
   }
 
   private async ensureLoaded(): Promise<void> {
@@ -123,6 +127,21 @@ export class VectraStore implements VectorStore {
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
     }
+  }
+
+  async getLastKnownTotal(): Promise<number | null> {
+    try {
+      const content = await readFile(this.lastTotalFile, 'utf-8');
+      const parsed = parseInt(content.trim(), 10);
+      return isNaN(parsed) ? null : parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  async setLastKnownTotal(total: number): Promise<void> {
+    await mkdir(this.dir, { recursive: true });
+    await writeFile(this.lastTotalFile, String(total), 'utf-8');
   }
 }
 

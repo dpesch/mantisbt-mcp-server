@@ -172,17 +172,17 @@ describe('get_search_index_status – registration', () => {
 });
 
 // ---------------------------------------------------------------------------
-// get_search_index_status – normal case
+// get_search_index_status – reads from store, no API call
 // ---------------------------------------------------------------------------
 
-describe('get_search_index_status – with data', () => {
-  it('returns summary, indexed, total, percent and last_synced_at', async () => {
-    const store = makeMockStore({ itemCount: 42, lastSyncedAt: '2026-03-16T10:00:00.000Z' });
+describe('get_search_index_status – with stored total', () => {
+  it('returns summary, indexed, total, percent and last_synced_at from store', async () => {
+    const store = makeMockStore({
+      itemCount: 42,
+      lastSyncedAt: '2026-03-16T10:00:00.000Z',
+      lastKnownTotal: 100,
+    });
     registerSearchTools(mockServer as never, client, store, embedder);
-
-    vi.mocked(fetch).mockResolvedValue(
-      makeResponse(200, JSON.stringify({ issues: [], total_count: 100 }))
-    );
 
     const result = await mockServer.callTool('get_search_index_status', {});
 
@@ -201,18 +201,13 @@ describe('get_search_index_status – with data', () => {
     expect(parsed.last_synced_at).toBe('2026-03-16T10:00:00.000Z');
   });
 
-  it('requests only page_size: 1 to minimise API payload', async () => {
-    const store = makeMockStore({ itemCount: 0 });
+  it('makes no API call', async () => {
+    const store = makeMockStore({ itemCount: 0, lastKnownTotal: 50 });
     registerSearchTools(mockServer as never, client, store, embedder);
-
-    vi.mocked(fetch).mockResolvedValue(
-      makeResponse(200, JSON.stringify({ issues: [], total_count: 50 }))
-    );
 
     await mockServer.callTool('get_search_index_status', {});
 
-    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
-    expect(calledUrl).toContain('page_size=1');
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
 
@@ -221,13 +216,9 @@ describe('get_search_index_status – with data', () => {
 // ---------------------------------------------------------------------------
 
 describe('get_search_index_status – edge cases', () => {
-  it('returns 0 % when total is 0 (not null)', async () => {
-    const store = makeMockStore({ itemCount: 0 });
+  it('returns 0 % when stored total is 0', async () => {
+    const store = makeMockStore({ itemCount: 0, lastKnownTotal: 0 });
     registerSearchTools(mockServer as never, client, store, embedder);
-
-    vi.mocked(fetch).mockResolvedValue(
-      makeResponse(200, JSON.stringify({ issues: [], total_count: 0 }))
-    );
 
     const result = await mockServer.callTool('get_search_index_status', {});
 
@@ -237,12 +228,8 @@ describe('get_search_index_status – edge cases', () => {
   });
 
   it('returns 100 % when all issues are indexed', async () => {
-    const store = makeMockStore({ itemCount: 7842 });
+    const store = makeMockStore({ itemCount: 7842, lastKnownTotal: 7842 });
     registerSearchTools(mockServer as never, client, store, embedder);
-
-    vi.mocked(fetch).mockResolvedValue(
-      makeResponse(200, JSON.stringify({ issues: [], total_count: 7842 }))
-    );
 
     const result = await mockServer.callTool('get_search_index_status', {});
 
@@ -251,13 +238,9 @@ describe('get_search_index_status – edge cases', () => {
     expect(parsed.summary).toBe('7842/7842 (100 %)');
   });
 
-  it('handles missing total_count (null) gracefully', async () => {
-    const store = makeMockStore({ itemCount: 5 });
+  it('returns total unknown when no sync has run yet', async () => {
+    const store = makeMockStore({ itemCount: 5, lastKnownTotal: null });
     registerSearchTools(mockServer as never, client, store, embedder);
-
-    vi.mocked(fetch).mockResolvedValue(
-      makeResponse(200, JSON.stringify({ issues: [] })) // no total_count
-    );
 
     const result = await mockServer.callTool('get_search_index_status', {});
 
@@ -270,19 +253,5 @@ describe('get_search_index_status – edge cases', () => {
     expect(parsed.total).toBeNull();
     expect(parsed.percent).toBeNull();
     expect(parsed.summary).toContain('total unknown');
-  });
-
-  it('returns isError on API failure', async () => {
-    const store = makeMockStore({ itemCount: 0 });
-    registerSearchTools(mockServer as never, client, store, embedder);
-
-    vi.mocked(fetch).mockResolvedValue(
-      makeResponse(500, JSON.stringify({ message: 'Internal Server Error' }))
-    );
-
-    const result = await mockServer.callTool('get_search_index_status', {});
-
-    expect(result.isError).toBe(true);
-    expect(result.content[0]!.text).toContain('Error:');
   });
 });
