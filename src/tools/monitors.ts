@@ -44,4 +44,36 @@ export function registerMonitorTools(server: McpServer, client: MantisClient): v
       }
     }
   );
+
+  // ---------------------------------------------------------------------------
+  // remove_monitor
+  // ---------------------------------------------------------------------------
+
+  server.registerTool(
+    'remove_monitor',
+    {
+      title: 'Remove Issue Monitor',
+      description: 'Remove a user from the monitor list of a MantisBT issue. The user will no longer receive email notifications for updates to this issue.',
+      inputSchema: z.object({
+        issue_id: z.number().int().positive().describe('Numeric issue ID'),
+        username: z.string().min(1).describe('Username of the monitor to remove'),
+      }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+      },
+    },
+    async ({ issue_id, username }) => {
+      try {
+        await client.delete<unknown>(`issues/${issue_id}/monitors/${username}`);
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ success: true }, null, 2) }],
+        };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
+      }
+    }
+  );
 }
