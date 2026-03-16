@@ -76,7 +76,7 @@ async function fetchAndCacheMetadata(client: MantisClient, cache: MetadataCache)
     projects.map(async (project) => {
       const [usersResult, versionsResult, projectDetailResult] = await Promise.allSettled([
         client.get<{ users: MantisUser[] }>(`projects/${project.id}/users`),
-        client.get<{ versions: MantisVersion[] }>(`projects/${project.id}/versions`),
+        client.get<{ versions: MantisVersion[] }>(`projects/${project.id}/versions`, { obsolete: 1, inherit: 1 }),
         // Categories are embedded in the project detail response — same source as get_project_categories
         client.get<{ projects: Array<{ categories?: MantisCategory[] }> }>(`projects/${project.id}`),
       ]);

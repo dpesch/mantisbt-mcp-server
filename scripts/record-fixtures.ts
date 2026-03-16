@@ -128,7 +128,7 @@ async function recordFixtures(): Promise<void> {
   if (firstProjectId !== undefined) {
     const versionProjectId = projectIdWithVersions ?? firstProjectId;
     try {
-      const versionsResult = await client.get<unknown>(`projects/${versionProjectId}/versions`);
+      const versionsResult = await client.get<unknown>(`projects/${versionProjectId}/versions`, { obsolete: 1, inherit: 1 });
       saveFixture('get_project_versions.json', versionsResult);
     } catch (err) {
       console.error(`Failed to fetch projects/${versionProjectId}/versions:`, err instanceof Error ? err.message : String(err));

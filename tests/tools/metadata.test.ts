@@ -158,6 +158,29 @@ describe('sync_metadata', () => {
     expect(written.data.tags).toHaveLength(2);
   });
 
+  it('fetches versions with obsolete=1 and inherit=1', async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+
+    const projectsResponse = { projects: [{ id: 1, name: 'Test Project' }] };
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(projectsResponse)))
+      .mockResolvedValue(makeResponse(200, JSON.stringify({ users: [], versions: [], projects: [{ id: 1, categories: [] }], tags: [] })));
+
+    await mockServer.callTool('sync_metadata', {});
+
+    // The versions call must include obsolete=1 and inherit=1
+    const versionCall = vi.mocked(fetch).mock.calls.find(
+      call => String(call[0]).includes('/versions')
+    );
+    expect(versionCall).toBeDefined();
+    const url = new URL(versionCall![0] as string);
+    expect(url.searchParams.get('obsolete')).toBe('1');
+    expect(url.searchParams.get('inherit')).toBe('1');
+  });
+
   it('stores categories from GET /projects/{id} response (not from /categories sub-path)', async () => {
     // Regression: sync_metadata called projects/{id}/categories which returned []
     // on this MantisBT installation. The correct source is projects/{id}.projects[0].categories,

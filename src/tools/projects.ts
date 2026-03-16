@@ -89,6 +89,8 @@ export function registerProjectTools(server: McpServer, client: MantisClient): v
       description: 'List all versions defined for a MantisBT project.',
       inputSchema: z.object({
         project_id: z.coerce.number().int().positive().describe('Numeric project ID'),
+        obsolete: z.boolean().default(false).describe('Include obsolete (deprecated) versions (default: false)'),
+        inherit: z.boolean().default(false).describe('Include versions inherited from parent projects (default: false)'),
       }),
       annotations: {
         readOnlyHint: true,
@@ -96,9 +98,12 @@ export function registerProjectTools(server: McpServer, client: MantisClient): v
         idempotentHint: true,
       },
     },
-    async ({ project_id }) => {
+    async ({ project_id, obsolete, inherit }) => {
       try {
-        const result = await client.get<{ versions: MantisVersion[] }>(`projects/${project_id}/versions`);
+        const params: Record<string, number> = {};
+        if (obsolete) params.obsolete = 1;
+        if (inherit) params.inherit = 1;
+        const result = await client.get<{ versions: MantisVersion[] }>(`projects/${project_id}/versions`, params);
         return {
           content: [{ type: 'text', text: JSON.stringify(result.versions ?? result, null, 2) }],
         };

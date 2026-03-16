@@ -90,6 +90,37 @@ describe('get_project_versions', () => {
     expect(calledUrl).toContain(`projects/${firstProjectId}/versions`);
   });
 
+  it('does not pass obsolete/inherit by default', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ versions: [] })));
+
+    await mockServer.callTool('get_project_versions', { project_id: firstProjectId }, { validate: true });
+
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
+    const url = new URL(calledUrl);
+    expect(url.searchParams.has('obsolete')).toBe(false);
+    expect(url.searchParams.has('inherit')).toBe(false);
+  });
+
+  it('passes obsolete=1 when obsolete: true', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ versions: [] })));
+
+    await mockServer.callTool('get_project_versions', { project_id: firstProjectId, obsolete: true }, { validate: true });
+
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
+    const url = new URL(calledUrl);
+    expect(url.searchParams.get('obsolete')).toBe('1');
+  });
+
+  it('passes inherit=1 when inherit: true', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ versions: [] })));
+
+    await mockServer.callTool('get_project_versions', { project_id: firstProjectId, inherit: true }, { validate: true });
+
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
+    const url = new URL(calledUrl);
+    expect(url.searchParams.get('inherit')).toBe('1');
+  });
+
   it('gibt leeres Array zurück wenn keine Versionen vorhanden', async () => {
     const fixture = JSON.parse(readFileSync(join(fixturesDir, 'get_project_versions.json'), 'utf-8')) as { versions: unknown[] };
     vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(fixture)));
