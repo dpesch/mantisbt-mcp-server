@@ -65,7 +65,7 @@ async function createMcpServer(): Promise<McpServer> {
   registerProjectTools(server, client);
   registerUserTools(server, client);
   registerFilterTools(server, client);
-  registerConfigTools(server, client);
+  registerConfigTools(server, client, cache);
   registerMetadataTools(server, client, cache);
   registerTagTools(server, client);
   registerVersionTools(server, client, versionHint, version);

@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MantisClient } from '../client.js';
+import { MetadataCache } from '../cache.js';
 import { getVersionHint } from '../version-hint.js';
 
 function errorText(msg: string): string {
@@ -10,7 +11,7 @@ function errorText(msg: string): string {
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
 
-export function registerConfigTools(server: McpServer, client: MantisClient): void {
+export function registerConfigTools(server: McpServer, client: MantisClient, cache: MetadataCache): void {
 
   // ---------------------------------------------------------------------------
   // get_config
@@ -95,9 +96,9 @@ Common option names:
       title: 'List Tags',
       description: `List all tags defined in the MantisBT installation.
 
-Note: The GET /tags endpoint is not available in MantisBT 2.25 and earlier.
-If your MantisBT version does not support this endpoint, you will receive an error.
-In that case, use get_issue to read the tags of a specific issue instead.`,
+The MantisBT REST API exposes a GET /tags endpoint on some installations.
+If that endpoint is not available, this tool falls back to the local metadata
+cache populated by sync_metadata.`,
       inputSchema: z.object({
         page: z.coerce.number().int().positive().default(1).describe('Page number (default: 1)'),
         page_size: z.coerce.number().int().min(1).max(200).default(50).describe('Tags per page (default: 50)'),
@@ -116,10 +117,28 @@ In that case, use get_issue to read the tags of a specific issue instead.`,
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        const hint = msg.includes('404')
-          ? `${msg}\n\nThe GET /tags endpoint is not supported by this MantisBT version. Use get_issue to read tags of a specific issue instead.`
-          : msg;
-        return { content: [{ type: 'text', text: `Error: ${hint}` }], isError: true };
+        if (msg.includes('404')) {
+          // GET /tags endpoint not available — fall back to metadata cache
+          const metadata = await cache.load();
+          if (metadata && Array.isArray(metadata.tags) && metadata.tags.length > 0) {
+            const start = (page - 1) * page_size;
+            const paginated = metadata.tags.slice(start, start + page_size);
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({ tags: paginated, source: 'cache' }, null, 2),
+              }],
+            };
+          }
+          return {
+            content: [{
+              type: 'text',
+              text: `Error: ${msg}\n\nThe GET /tags endpoint is not available in this MantisBT installation. No cached tags found either — run sync_metadata to populate the cache if your installation provides this endpoint.`,
+            }],
+            isError: true,
+          };
+        }
+        return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
       }
     }
   );

@@ -64,6 +64,35 @@ function errorText(msg: string): string {
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
 
+async function collectTagsFromIssues(client: MantisClient, projects: MantisProject[]): Promise<MantisTag[]> {
+  const tagMap = new Map<number, MantisTag>();
+  const PAGE_SIZE = 50;
+
+  for (const project of projects) {
+    let page = 1;
+    while (true) {
+      const result = await client.get<MantisPaginatedIssues>('issues', {
+        project_id: project.id,
+        select: 'id,tags',
+        page,
+        page_size: PAGE_SIZE,
+      });
+      const issues = result.issues ?? [];
+      for (const issue of issues) {
+        for (const tag of (issue.tags ?? [])) {
+          if (!tagMap.has(tag.id)) {
+            tagMap.set(tag.id, { id: tag.id, name: tag.name });
+          }
+        }
+      }
+      if (issues.length < PAGE_SIZE) break;
+      page++;
+    }
+  }
+
+  return Array.from(tagMap.values()).sort((a, b) => a.id - b.id);
+}
+
 async function fetchAndCacheMetadata(client: MantisClient, cache: MetadataCache): Promise<CachedMetadata> {
   // Fetch all projects
   const projectResult = await client.get<{ projects: MantisProject[] }>('projects');
@@ -104,13 +133,14 @@ async function fetchAndCacheMetadata(client: MantisClient, cache: MetadataCache)
     })
   );
 
-  // Fetch all tags globally (single call, no per-project overhead)
+  // Fetch all tags — try the dedicated endpoint first, fall back to collecting
+  // from issues when the endpoint is not available (e.g. MantisBT < 2.26)
   let tags: MantisTag[] = [];
   try {
     const tagsResult = await client.get<{ tags: MantisTag[] }>('tags');
     tags = tagsResult.tags ?? [];
   } catch {
-    // Tags endpoint may not be available on all MantisBT versions — degrade gracefully
+    tags = await collectTagsFromIssues(client, projects);
   }
 
   const data: CachedMetadata = {
@@ -134,10 +164,12 @@ export function registerMetadataTools(server: McpServer, client: MantisClient, c
     'sync_metadata',
     {
       title: 'Sync Metadata Cache',
-      description: `Fetch all projects and their associated users, versions, and categories from MantisBT and store them in the local metadata cache.
+      description: `Fetch all projects and their associated users, versions, categories, and tags from MantisBT and store them in the local metadata cache.
+
+Tags are fetched via the dedicated GET /tags endpoint when available. On installations where that endpoint is missing (MantisBT < 2.26), tags are collected by scanning all issues across all projects.
 
 This is useful for getting a complete overview of your MantisBT installation.
-The cache is valid for 1 hour by default (configurable via MANTIS_CACHE_TTL env var).
+The cache is valid for 24 hours by default (configurable via MANTIS_CACHE_TTL env var).
 Use this tool to refresh stale data.`,
       inputSchema: z.object({}),
       annotations: {
