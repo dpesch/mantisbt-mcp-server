@@ -167,7 +167,7 @@ Activate with `MANTIS_SEARCH_ENABLED=true`.
 |---|---|---|
 | Dependencies | None (pure JS) | Requires native build tools |
 | Install | Included | `npm install sqlite-vec better-sqlite3` |
-| Best for | Up to ~5,000 issues | Large installations (10,000+) |
+| Best for | Up to ~10,000 issues | 10,000+ issues |
 | Performance | Fast enough for most setups | Faster for large corpora |
 
 Start with `vectra`. Switch to `sqlite-vec` if indexing or query times become noticeably slow.
