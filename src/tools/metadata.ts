@@ -74,10 +74,11 @@ async function fetchAndCacheMetadata(client: MantisClient, cache: MetadataCache)
   // For each project, fetch users, versions, categories in parallel
   await Promise.all(
     projects.map(async (project) => {
-      const [usersResult, versionsResult, categoriesResult] = await Promise.allSettled([
+      const [usersResult, versionsResult, projectDetailResult] = await Promise.allSettled([
         client.get<{ users: MantisUser[] }>(`projects/${project.id}/users`),
         client.get<{ versions: MantisVersion[] }>(`projects/${project.id}/versions`),
-        client.get<{ categories: MantisCategory[] }>(`projects/${project.id}/categories`),
+        // Categories are embedded in the project detail response — same source as get_project_categories
+        client.get<{ projects: Array<{ categories?: MantisCategory[] }> }>(`projects/${project.id}`),
       ]);
 
       const users: MantisUser[] = usersResult.status === 'fulfilled'
@@ -89,17 +90,15 @@ async function fetchAndCacheMetadata(client: MantisClient, cache: MetadataCache)
         : [];
 
       const ALL_PROJECTS_PREFIX = '[All Projects] ';
-      const rawCategories: MantisCategory[] = categoriesResult.status === 'fulfilled'
-        ? (categoriesResult.value.categories ?? (categoriesResult.value as unknown as MantisCategory[]))
+      const rawCategories: MantisCategory[] = projectDetailResult.status === 'fulfilled'
+        ? (projectDetailResult.value.projects?.[0]?.categories ?? [])
         : [];
-      const categories = Array.isArray(rawCategories)
-        ? rawCategories.map((cat) => ({
-            ...cat,
-            name: cat.name.startsWith(ALL_PROJECTS_PREFIX)
-              ? cat.name.slice(ALL_PROJECTS_PREFIX.length)
-              : cat.name,
-          }))
-        : rawCategories;
+      const categories = rawCategories.map((cat) => ({
+        ...cat,
+        name: cat.name.startsWith(ALL_PROJECTS_PREFIX)
+          ? cat.name.slice(ALL_PROJECTS_PREFIX.length)
+          : cat.name,
+      }));
 
       byProject[project.id] = { users, versions, categories };
     })

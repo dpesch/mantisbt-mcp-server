@@ -133,15 +133,14 @@ describe('sync_metadata', () => {
     vi.mocked(writeFile).mockResolvedValue(undefined);
 
     const projectsResponse = { projects: [{ id: 1, name: 'Test Project' }] };
-    const emptyProjectMeta = { users: [], versions: [], categories: [] };
     const tagsResponse = { tags: [{ id: 1, name: 'regression' }, { id: 2, name: 'ui' }] };
 
     vi.mocked(fetch)
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(projectsResponse)))  // GET /projects
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(emptyProjectMeta)))  // GET /projects/1/users
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(emptyProjectMeta)))  // GET /projects/1/versions
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(emptyProjectMeta)))  // GET /projects/1/categories
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(tagsResponse)));     // GET /tags
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(projectsResponse)))                                   // GET /projects
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ users: [] })))                                     // GET /projects/1/users
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ versions: [] })))                                  // GET /projects/1/versions
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ projects: [{ id: 1, categories: [] }] })))         // GET /projects/1
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(tagsResponse)));                                     // GET /tags
 
     const result = await mockServer.callTool('sync_metadata', {});
 
@@ -157,6 +156,46 @@ describe('sync_metadata', () => {
     const written = JSON.parse(writeCall![1] as string) as { data: { tags: unknown[] } };
     expect(Array.isArray(written.data.tags)).toBe(true);
     expect(written.data.tags).toHaveLength(2);
+  });
+
+  it('stores categories from GET /projects/{id} response (not from /categories sub-path)', async () => {
+    // Regression: sync_metadata called projects/{id}/categories which returned []
+    // on this MantisBT installation. The correct source is projects/{id}.projects[0].categories,
+    // identical to what get_project_categories uses.
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+
+    const projectsResponse = { projects: [{ id: 1, name: 'Test Project' }] };
+    const usersResponse = { users: [] };
+    const versionsResponse = { versions: [] };
+    // GET /projects/1 returns categories embedded in the project object
+    const projectDetailResponse = {
+      projects: [{ id: 1, name: 'Test Project', categories: [{ id: 10, name: 'General' }, { id: 11, name: 'Bug' }] }],
+    };
+    const tagsResponse = { tags: [] };
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(projectsResponse)))      // GET /projects
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(usersResponse)))         // GET /projects/1/users
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(versionsResponse)))      // GET /projects/1/versions
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(projectDetailResponse))) // GET /projects/1
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(tagsResponse)));         // GET /tags
+
+    const result = await mockServer.callTool('sync_metadata', {});
+
+    expect(result.isError).toBeUndefined();
+    // Summary must report 2 categories for the project
+    expect(result.content[0]!.text).toContain('2 categories');
+
+    // Written cache must contain categories in byProject
+    const writeCall = vi.mocked(writeFile).mock.calls.find(
+      call => String(call[0]).includes('metadata.json')
+    );
+    const written = JSON.parse(writeCall![1] as string) as {
+      data: { byProject: Record<string, { categories: unknown[] }> };
+    };
+    expect(written.data.byProject[1]!.categories).toHaveLength(2);
   });
 
   it('stores empty tags array when tags endpoint fails (#7860)', async () => {
