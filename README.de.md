@@ -151,6 +151,7 @@ Aktivierung mit `MANTIS_SEARCH_ENABLED=true`. Beim ersten Start wird das Embeddi
 |---|---|
 | `search_issues` | Natürlichsprachige Suche über alle indizierten Issues – liefert Top-N-Ergebnisse mit Cosine-Similarity-Score |
 | `rebuild_search_index` | Suchindex aufbauen oder aktualisieren; `full: true` löscht und baut ihn vollständig neu |
+| `get_search_index_status` | Aktuellen Füllstand des Suchindex zurückgeben: wie viele Issues bereits indiziert sind im Verhältnis zur Gesamtanzahl, plus Zeitstempel der letzten Synchronisation |
 
 **`sqlite-vec`-Backend** (optional, schneller bei großen Instanzen):
 ```bash

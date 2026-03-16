@@ -151,6 +151,7 @@ Activate with `MANTIS_SEARCH_ENABLED=true`. On first start the embedding model (
 |---|---|
 | `search_issues` | Natural language search over all indexed issues — returns top-N results with cosine similarity score |
 | `rebuild_search_index` | Build or update the search index; `full: true` clears and rebuilds from scratch |
+| `get_search_index_status` | Return the current fill level of the search index: how many issues are indexed vs. total, and the timestamp of the last sync |
 
 **`sqlite-vec` backend** (optional, faster for large instances):
 ```bash
