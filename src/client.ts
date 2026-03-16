@@ -119,6 +119,20 @@ export class MantisClient {
     return this.handleResponse<T>(response);
   }
 
+  async postFormData<T>(path: string, formData: FormData): Promise<T> {
+    // Note: Content-Type must NOT be set here — fetch sets it automatically
+    // with the correct multipart/form-data boundary.
+    const response = await fetch(this.buildUrl(path), {
+      method: 'POST',
+      headers: {
+        'Authorization': this.apiKey,
+        'Accept': 'application/json',
+      },
+      body: formData,
+    });
+    return this.handleResponse<T>(response);
+  }
+
   async getVersion(): Promise<string> {
     const response = await fetch(this.buildUrl('users/me'), {
       method: 'GET',
