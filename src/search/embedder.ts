@@ -32,13 +32,11 @@ export class Embedder {
 
     let transformers: TransformersModule;
     try {
-      // @ts-expect-error -- optional peer dependency; not present in devDependencies
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       transformers = (await import('@huggingface/transformers')) as TransformersModule;
-    } catch {
-      throw new Error(
-        'Embedding model requires @huggingface/transformers: npm install @huggingface/transformers'
-      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed to load @huggingface/transformers: ${msg}`);
     }
 
     this.pipe = await transformers.pipeline('feature-extraction', this.modelName);

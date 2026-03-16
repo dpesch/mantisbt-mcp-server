@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
 // Config shape
@@ -19,6 +20,27 @@ export interface MantisConfig {
   cacheDir: string;
   cacheTtl: number;
   search: SearchConfig;
+}
+
+// ---------------------------------------------------------------------------
+// .env.local loader
+// ---------------------------------------------------------------------------
+
+async function loadDotEnvLocal(): Promise<void> {
+  try {
+    const envPath = join(dirname(fileURLToPath(import.meta.url)), '..', '.env.local');
+    const content = await readFile(envPath, 'utf-8');
+    for (const line of content.split('\n')) {
+      const match = line.match(/^([^#=\s][^=]*)=(.*)/);
+      if (match) {
+        const key = match[1]!.trim();
+        const value = match[2]!.trim().replace(/^["']|["']$/g, '');
+        if (!process.env[key]) process.env[key] = value;
+      }
+    }
+  } catch {
+    // .env.local not present — use environment variables directly
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -48,6 +70,8 @@ let cachedConfig: MantisConfig | null = null;
 
 export async function getConfig(): Promise<MantisConfig> {
   if (cachedConfig) return cachedConfig;
+
+  await loadDotEnvLocal();
 
   let baseUrl = process.env.MANTIS_BASE_URL ?? '';
   let apiKey = process.env.MANTIS_API_KEY ?? '';

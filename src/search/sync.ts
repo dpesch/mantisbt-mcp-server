@@ -81,9 +81,8 @@ export class SearchSyncService {
   ): Promise<IssueListItem[]> {
     const allIssues: IssueListItem[] = [];
     let page = 1;
-    let total: number | null = null;
 
-    do {
+    while (true) {
       const params: Record<string, string | number | boolean | undefined> = {
         page_size: PAGE_SIZE,
         page,
@@ -101,17 +100,21 @@ export class SearchSyncService {
       }
 
       const response = await this.client.get<IssueListResponse>('issues', params);
-      allIssues.push(...response.issues);
+      const pageIssues = response.issues ?? [];
+      allIssues.push(...pageIssues);
 
-      if (total === null) {
-        total = response.total_count;
-        if (total === null || total === undefined) {
-          throw new Error('MantisBT API response missing total_count field');
-        }
+      // Stop when we have fetched all issues:
+      // - total_count is provided and reached, or
+      // - page returned fewer items than requested (last page)
+      const total = response.total_count;
+      if (total !== undefined && total !== null) {
+        if (allIssues.length >= total) break;
+      } else if (pageIssues.length < PAGE_SIZE) {
+        break;
       }
 
       page++;
-    } while (allIssues.length < total);
+    }
 
     return allIssues;
   }
