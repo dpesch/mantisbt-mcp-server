@@ -143,3 +143,51 @@ describe('SearchSyncService.sync – project_id', () => {
     expect(url.searchParams.get('project_id')).toBe('7');
   });
 });
+
+// ---------------------------------------------------------------------------
+// total_count persistence (regression: MantisBT installations without total_count)
+// ---------------------------------------------------------------------------
+
+describe('SearchSyncService.sync – setLastKnownTotal persistence', () => {
+  it('persists total_count from API response', async () => {
+    const store = makeMockStore({ lastSyncedAt: null });
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: ISSUE_FIXTURE, total_count: 42 }))
+    );
+
+    const service = new SearchSyncService(client, store, embedder);
+    const result = await service.sync();
+
+    expect(store.setLastKnownTotal).toHaveBeenCalledWith(42);
+    expect(result.total).toBe(42);
+  });
+
+  it('uses indexed+skipped as fallback when API omits total_count (full rebuild)', async () => {
+    // Regression test: MantisBT installations that do not return total_count
+    const store = makeMockStore({ lastSyncedAt: null });
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: ISSUE_FIXTURE })) // no total_count field
+    );
+
+    const service = new SearchSyncService(client, store, embedder);
+    const result = await service.sync();
+
+    // ISSUE_FIXTURE: 2 indexed (have summary), 1 skipped (no summary) → total = 3
+    expect(result.total).toBe(3);
+    expect(store.setLastKnownTotal).toHaveBeenCalledWith(3);
+  });
+
+  it('does NOT persist total when API omits total_count and it is an incremental sync', async () => {
+    // For incremental syncs (lastSyncedAt set) we cannot infer the total from the partial result
+    const store = makeMockStore({ lastSyncedAt: '2024-03-01T00:00:00.000Z' });
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: [ISSUE_FIXTURE[0]!] })) // no total_count, partial result
+    );
+
+    const service = new SearchSyncService(client, store, embedder);
+    const result = await service.sync();
+
+    expect(result.total).toBeNull();
+    expect(store.setLastKnownTotal).not.toHaveBeenCalled();
+  });
+});
