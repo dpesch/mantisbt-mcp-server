@@ -106,18 +106,21 @@ If no environment variables are set, `~/.claude/mantis.json` is read:
 | Tool | Description |
 |---|---|
 | `list_issue_files` | List attachments of an issue |
+| `upload_file` | Upload a file to an issue — either by local `file_path` or Base64-encoded `content` + `filename` |
 
 ### Relationships
 
 | Tool | Description |
 |---|---|
 | `add_relationship` | Create a relationship between two issues |
+| `remove_relationship` | Remove a relationship from an issue (use the `id` from the relationship object, not the type) |
 
 ### Monitors
 
 | Tool | Description |
 |---|---|
 | `add_monitor` | Add yourself as a monitor of an issue |
+| `remove_monitor` | Remove a user as a monitor of an issue |
 
 ### Tags
 

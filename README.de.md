@@ -106,18 +106,21 @@ Falls keine Umgebungsvariablen gesetzt sind, wird `~/.claude/mantis.json` ausgel
 | Tool | Beschreibung |
 |---|---|
 | `list_issue_files` | Anhänge eines Issues auflisten |
+| `upload_file` | Datei an ein Issue anhängen – entweder per lokalem `file_path` oder Base64-kodiertem `content` + `filename` |
 
 ### Beziehungen
 
 | Tool | Beschreibung |
 |---|---|
 | `add_relationship` | Beziehung zwischen zwei Issues erstellen |
+| `remove_relationship` | Beziehung von einem Issue entfernen (die `id` aus dem Beziehungsobjekt verwenden, nicht die type-ID) |
 
 ### Beobachter
 
 | Tool | Beschreibung |
 |---|---|
 | `add_monitor` | Sich selbst als Beobachter eines Issues eintragen |
+| `remove_monitor` | Benutzer als Beobachter eines Issues austragen |
 
 ### Tags
 

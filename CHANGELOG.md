@@ -7,6 +7,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- New tool `remove_relationship`: removes a relationship from an issue. The `relationship_id` is the numeric `id` field on the relationship object returned by `get_issue` (not the type id).
+- New tool `remove_monitor`: removes a user as a monitor of an issue by username.
+- New tool `upload_file`: uploads a file to an issue via multipart/form-data. Supports two input modes: a local `file_path` (filename derived from path) or Base64-encoded `content` with an explicit `filename`. Optional parameters: `filename` (overrides derived name), `content_type` (default: `application/octet-stream`), `description`.
+
+---
+
 ## [1.1.0] – 2026-03-15
 
 ### Added
