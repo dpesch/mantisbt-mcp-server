@@ -21,6 +21,9 @@ export interface MantisConfig {
   cacheDir: string;
   cacheTtl: number;
   uploadDir?: string;
+  httpHost: string;
+  httpPort: number;
+  httpToken?: string;
   search: SearchConfig;
 }
 
@@ -118,6 +121,9 @@ export async function getConfig(): Promise<MantisConfig> {
   const searchNumThreads = Math.max(1, parseInt(process.env.MANTIS_SEARCH_THREADS ?? '', 10) || 1);
 
   const uploadDir = process.env.MANTIS_UPLOAD_DIR;
+  const httpHost = process.env.MCP_HTTP_HOST ?? '127.0.0.1';
+  const httpPort = parseInt(process.env.PORT ?? '3000', 10);
+  const httpToken = process.env.MCP_HTTP_TOKEN;
 
   cachedConfig = {
     baseUrl: baseUrl.replace(/\/$/, ''), // strip trailing slash
@@ -125,6 +131,9 @@ export async function getConfig(): Promise<MantisConfig> {
     cacheDir,
     cacheTtl,
     uploadDir,
+    httpHost,
+    httpPort,
+    httpToken,
     search: {
       enabled: searchEnabled,
       backend: searchBackend,

@@ -69,6 +69,8 @@ npm run build
 | `MANTIS_CACHE_TTL` | – | `3600` | Cache lifetime in seconds |
 | `TRANSPORT` | – | `stdio` | Transport mode: `stdio` or `http` |
 | `PORT` | – | `3000` | Port for HTTP mode |
+| `MCP_HTTP_HOST` | – | `127.0.0.1` | Bind address for HTTP mode. **Changed from `0.0.0.0` to `127.0.0.1`** — the server now listens on localhost only by default. Set to `0.0.0.0` for Docker or remote access. |
+| `MCP_HTTP_TOKEN` | – | – | When set, the `/mcp` endpoint requires `Authorization: Bearer <token>`. The `/health` endpoint is always public. |
 | `MANTIS_SEARCH_ENABLED` | – | `false` | Set to `true` to enable semantic search |
 | `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vector store backend: `vectra` (pure JS) or `sqlite-vec` (requires manual install) |
 | `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/search` | Directory for the search index |
@@ -200,9 +202,13 @@ For use as a standalone server (e.g. in remote setups):
 
 ```bash
 MANTIS_BASE_URL=... MANTIS_API_KEY=... TRANSPORT=http PORT=3456 node dist/index.js
+
+# With token authentication and explicit bind address (required for Docker/remote):
+# MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
+#   TRANSPORT=http PORT=3456 MCP_HTTP_HOST=0.0.0.0 node dist/index.js
 ```
 
-Health check: `GET http://localhost:3456/health`
+Health check: `GET http://localhost:3456/health` (always public, no token required)
 
 ## Development
 

@@ -96,11 +96,20 @@ async function runStdio(): Promise<void> {
 }
 
 async function runHttp(): Promise<void> {
+  const config = await getConfig();
   const server = await createMcpServer();
-  const port = parseInt(process.env.PORT ?? '3000', 10);
+  const port = config.httpPort;
 
   const httpServer = createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/mcp') {
+      if (config.httpToken) {
+        const auth = req.headers['authorization'];
+        if (auth !== `Bearer ${config.httpToken}`) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Unauthorized' }));
+          return;
+        }
+      }
       const chunks: Buffer[] = [];
       req.on('data', (chunk: Buffer) => chunks.push(chunk));
       req.on('end', async () => {
@@ -127,8 +136,8 @@ async function runHttp(): Promise<void> {
     }
   });
 
-  httpServer.listen(port, () => {
-    console.error(`MantisBT MCP Server v${version} running on http://localhost:${port}/mcp`);
+  httpServer.listen(port, config.httpHost, () => {
+    console.error(`MantisBT MCP Server v${version} running on http://${config.httpHost}:${port}/mcp`);
   });
 }
 

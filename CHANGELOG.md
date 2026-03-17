@@ -12,6 +12,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Security
 - Removed unused `vectra` dependency. The package was listed in `dependencies` but never imported — `VectraStore` is a self-contained implementation. Removing it eliminates three transitive CVEs in the `openai` → `axios` chain (GHSA-jr5f-v2jv-69x6 SSRF/credential-leakage, GHSA-43fc-jf86-j433 DoS, GHSA-wf5p-g6vw-rhxx CSRF).
 - `upload_file`: new optional `MANTIS_UPLOAD_DIR` environment variable restricts `file_path` uploads to a configured directory. When set, any path that resolves outside the directory (including `../` traversal attempts) is rejected before the file is read. Without the variable the behaviour is unchanged (no restriction). The resolved directory prefix is computed once at server start, not per request.
+- HTTP transport now binds to `127.0.0.1` (localhost only) by default instead of `0.0.0.0` (all interfaces). This prevents unintended exposure on network interfaces when the server is started without explicit network configuration. Set `MCP_HTTP_HOST=0.0.0.0` to restore the previous behaviour (required for Docker and remote access).
+- New optional `MCP_HTTP_TOKEN` environment variable: when set, the `/mcp` endpoint requires an `Authorization: Bearer <token>` header. Requests without a valid token receive HTTP 401. The `/health` endpoint remains public regardless of this setting.
+- New optional `MCP_HTTP_HOST` environment variable: overrides the bind address for HTTP mode (default: `127.0.0.1`).
 
 ---
 

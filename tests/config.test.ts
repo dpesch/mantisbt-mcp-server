@@ -147,6 +147,75 @@ describe('getConfig() – errors', () => {
 });
 
 // ---------------------------------------------------------------------------
+// HTTP transport configuration
+// ---------------------------------------------------------------------------
+
+describe('getConfig() – HTTP transport', () => {
+  it('uses 127.0.0.1 as default httpHost', async () => {
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com');
+    vi.stubEnv('MANTIS_API_KEY', 'key');
+
+    const getConfig = await freshGetConfig();
+    const config = await getConfig();
+
+    expect(config.httpHost).toBe('127.0.0.1');
+  });
+
+  it('uses 3000 as default httpPort', async () => {
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com');
+    vi.stubEnv('MANTIS_API_KEY', 'key');
+
+    const getConfig = await freshGetConfig();
+    const config = await getConfig();
+
+    expect(config.httpPort).toBe(3000);
+  });
+
+  it('uses PORT when set', async () => {
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com');
+    vi.stubEnv('MANTIS_API_KEY', 'key');
+    vi.stubEnv('PORT', '8080');
+
+    const getConfig = await freshGetConfig();
+    const config = await getConfig();
+
+    expect(config.httpPort).toBe(8080);
+  });
+
+  it('uses MCP_HTTP_HOST when set', async () => {
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com');
+    vi.stubEnv('MANTIS_API_KEY', 'key');
+    vi.stubEnv('MCP_HTTP_HOST', '0.0.0.0');
+
+    const getConfig = await freshGetConfig();
+    const config = await getConfig();
+
+    expect(config.httpHost).toBe('0.0.0.0');
+  });
+
+  it('leaves httpToken undefined when MCP_HTTP_TOKEN is not set', async () => {
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com');
+    vi.stubEnv('MANTIS_API_KEY', 'key');
+
+    const getConfig = await freshGetConfig();
+    const config = await getConfig();
+
+    expect(config.httpToken).toBeUndefined();
+  });
+
+  it('reads httpToken from MCP_HTTP_TOKEN', async () => {
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com');
+    vi.stubEnv('MANTIS_API_KEY', 'key');
+    vi.stubEnv('MCP_HTTP_TOKEN', 'secret-token');
+
+    const getConfig = await freshGetConfig();
+    const config = await getConfig();
+
+    expect(config.httpToken).toBe('secret-token');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Singleton caching
 // ---------------------------------------------------------------------------
 
