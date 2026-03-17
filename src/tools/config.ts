@@ -110,11 +110,17 @@ Example response (localized installation, e.g. German):
 
 Fields:
 - "id"    — numeric ID accepted by the API
-- "name"  — English string name accepted by the API
+- "name"  — the API value to pass to create_issue or update_issue; normally English, but may be
+            localized if the installation has customized enum values in the database
 - "label" — localized display label shown in the UI (only present when it differs from "name")
 
 Always pass either the "id" or the "name" value to create_issue or update_issue — never the "label".
-Use the "label" to map user input in the UI language back to the correct "name"/"id" for the API.`,
+Use the "label" to map user input in the UI language back to the correct "name"/"id" for the API.
+
+Note: on some installations enum values are customized at the database level. In that case "name"
+itself may be localized (e.g. "kleinerer Fehler" instead of "minor") and no "label" will be present
+because there is no separate English original. The "name" value returned is always the correct one
+to use for API calls — regardless of language.`,
       inputSchema: z.object({}),
       annotations: {
         readOnlyHint: true,
