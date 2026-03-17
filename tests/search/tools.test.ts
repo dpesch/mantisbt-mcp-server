@@ -160,6 +160,123 @@ describe('rebuild_search_index – full: false', () => {
 });
 
 // ---------------------------------------------------------------------------
+// search_issues – select parameter
+// ---------------------------------------------------------------------------
+
+describe('search_issues – select parameter', () => {
+  it('returns plain {id, score} array when select is not provided', async () => {
+    const store = makeMockStore({ itemCount: 2 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    const result = await mockServer.callTool('search_issues', { query: 'test', top_n: 2 });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as Array<{ id: number; score: number }>;
+    expect(parsed[0]).toEqual(expect.objectContaining({ id: expect.any(Number), score: expect.any(Number) }));
+    expect(Object.keys(parsed[0]!)).toEqual(['id', 'score']);
+  });
+
+  it('fetches issues and projects requested fields when select is provided', async () => {
+    const store = makeMockStore({ itemCount: 2 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        makeResponse(200, JSON.stringify({ issues: [{ id: 1, summary: 'Login bug', status: { id: 10, name: 'new' }, priority: { id: 30, name: 'normal' } }] }))
+      )
+      .mockResolvedValueOnce(
+        makeResponse(200, JSON.stringify({ issues: [{ id: 2, summary: 'Crash on save', status: { id: 50, name: 'assigned' }, priority: { id: 40, name: 'high' } }] }))
+      );
+
+    const result = await mockServer.callTool('search_issues', { query: 'test', top_n: 2, select: 'summary,status' });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as Array<Record<string, unknown>>;
+    expect(parsed).toHaveLength(2);
+    // id and score always present
+    expect(parsed[0]).toHaveProperty('id');
+    expect(parsed[0]).toHaveProperty('score');
+    // requested fields present
+    expect(parsed[0]).toHaveProperty('summary', 'Login bug');
+    expect(parsed[0]).toHaveProperty('status');
+    // non-requested field absent
+    expect(parsed[0]).not.toHaveProperty('priority');
+  });
+
+  it('id and score are always included even when not listed in select', async () => {
+    const store = makeMockStore({ itemCount: 1 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse(200, JSON.stringify({ issues: [{ id: 1, summary: 'Test issue' }] }))
+    );
+
+    const result = await mockServer.callTool('search_issues', { query: 'test', top_n: 1, select: 'summary' });
+
+    const parsed = JSON.parse(result.content[0]!.text) as Array<Record<string, unknown>>;
+    expect(parsed[0]).toHaveProperty('id', 1);
+    expect(parsed[0]).toHaveProperty('score');
+    expect(parsed[0]).toHaveProperty('summary', 'Test issue');
+  });
+
+  it('falls back to {id, score} when issue fetch fails', async () => {
+    const store = makeMockStore({ itemCount: 2 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 1, summary: 'OK issue' }] })))
+      .mockResolvedValueOnce(makeResponse(500, 'Internal Server Error'));
+
+    const result = await mockServer.callTool('search_issues', { query: 'test', top_n: 2, select: 'summary' });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as Array<Record<string, unknown>>;
+    expect(parsed).toHaveLength(2);
+    // First item enriched
+    expect(parsed[0]).toHaveProperty('summary');
+    // Second item fallback — only id and score
+    expect(Object.keys(parsed[1]!).sort()).toEqual(['id', 'score']);
+  });
+
+  it('omits non-existent fields silently', async () => {
+    const store = makeMockStore({ itemCount: 1 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse(200, JSON.stringify({ issues: [{ id: 1, summary: 'Test' }] }))
+    );
+
+    const result = await mockServer.callTool('search_issues', { query: 'test', top_n: 1, select: 'summary,nonexistent_field' });
+
+    const parsed = JSON.parse(result.content[0]!.text) as Array<Record<string, unknown>>;
+    expect(parsed[0]).toHaveProperty('summary', 'Test');
+    expect(parsed[0]).not.toHaveProperty('nonexistent_field');
+  });
+
+  it('makes one API call per result when select is provided', async () => {
+    const store = makeMockStore({ itemCount: 3 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: [{ id: 1, summary: 'Issue' }] }))
+    );
+
+    await mockServer.callTool('search_issues', { query: 'test', top_n: 3, select: 'summary' });
+
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('makes no API calls when select is not provided', async () => {
+    const store = makeMockStore({ itemCount: 3 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    await mockServer.callTool('search_issues', { query: 'test', top_n: 3 });
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // get_search_index_status – registration
 // ---------------------------------------------------------------------------
 

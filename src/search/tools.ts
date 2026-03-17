@@ -44,6 +44,11 @@ export function registerSearchTools(
           .max(50)
           .default(10)
           .describe('Number of results to return (default: 10, max: 50)'),
+        select: z.string().optional().describe(
+          'Comma-separated list of fields to include for each result (e.g. "id,summary,status,handler,priority"). ' +
+          'When provided, each matching issue is fetched from MantisBT and enriched with the requested fields. ' +
+          'The relevance score is always included. Without this parameter only id and score are returned.'
+        ),
       }),
       annotations: {
         readOnlyHint: true,
@@ -51,7 +56,7 @@ export function registerSearchTools(
         idempotentHint: true,
       },
     },
-    async ({ query, top_n }) => {
+    async ({ query, top_n, select }) => {
       try {
         const count = await store.count();
         if (count === 0) {
@@ -69,8 +74,33 @@ export function registerSearchTools(
         const queryVector = await embedder.embed(query);
         const results = await store.search(queryVector, top_n);
 
+        if (!select) {
+          return {
+            content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
+          };
+        }
+
+        const fields = select.split(',').map(f => f.trim()).filter(Boolean);
+        const enriched = await Promise.all(
+          results.map(async ({ id, score }) => {
+            try {
+              const issueResult = await client.get<{ issues: Array<Record<string, unknown>> }>(`issues/${id}`);
+              const issue = issueResult.issues?.[0] ?? {};
+              const projected: Record<string, unknown> = { id, score };
+              for (const field of fields) {
+                if (field !== 'id' && field in issue) {
+                  projected[field] = issue[field];
+                }
+              }
+              return projected;
+            } catch {
+              return { id, score };
+            }
+          })
+        );
+
         return {
-          content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
+          content: [{ type: 'text', text: JSON.stringify(enriched, null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);

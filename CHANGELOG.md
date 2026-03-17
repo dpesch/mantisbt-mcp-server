@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- `search_issues`: new optional `select` parameter. When provided, each matching issue is fetched from MantisBT and the response is enriched with the requested fields (comma-separated, e.g. `"id,summary,status,handler,priority"`). Without `select` the behaviour is unchanged — only `id` and `score` are returned. `id` and `score` are always included regardless of the `select` value. If an individual issue fetch fails, that result falls back silently to `{id, score}`.
+
+---
+
 ## [1.4.0] – 2026-03-17
 
 ### Added
