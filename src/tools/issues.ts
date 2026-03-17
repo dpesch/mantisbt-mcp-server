@@ -54,7 +54,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
     'list_issues',
     {
       title: 'List Issues',
-      description: 'List MantisBT issues with optional filtering. Returns a paginated list of issues. Use the "select" parameter to limit returned fields and reduce response size significantly.',
+      description: 'List MantisBT issues with optional filtering. Returns a paginated list of issues. Use the "select" parameter to limit returned fields and reduce response size significantly.\n\nNote: "assigned_to" and "reporter_id" filters are applied client-side after fetching (the MantisBT REST API does not reliably filter by these fields server-side). Combined with pagination this means a page may contain fewer results than page_size when these filters are active.',
       inputSchema: z.object({
         project_id: z.coerce.number().int().positive().optional().describe('Filter by project ID'),
         page: z.coerce.number().int().positive().default(1).describe('Page number (default: 1)'),
@@ -88,13 +88,21 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
         };
         const result = await client.get<MantisPaginatedIssues>('issues', params);
 
-        if (status && result.issues) {
-          const statusLower = status.toLowerCase();
-          result.issues = result.issues.filter(issue => {
-            if (!issue.status) return false;
-            if (statusLower === 'open') return (issue.status.id ?? 0) < MANTIS_RESOLVED_STATUS_ID;
-            return issue.status.name?.toLowerCase() === statusLower;
-          });
+        if (result.issues) {
+          if (status) {
+            const statusLower = status.toLowerCase();
+            result.issues = result.issues.filter(issue => {
+              if (!issue.status) return false;
+              if (statusLower === 'open') return (issue.status.id ?? 0) < MANTIS_RESOLVED_STATUS_ID;
+              return issue.status.name?.toLowerCase() === statusLower;
+            });
+          }
+          if (assigned_to) {
+            result.issues = result.issues.filter(issue => issue.handler?.id === assigned_to);
+          }
+          if (reporter_id) {
+            result.issues = result.issues.filter(issue => issue.reporter?.id === reporter_id);
+          }
         }
 
         return {

@@ -215,6 +215,44 @@ describe('list_issues', () => {
     }
   });
 
+  it('assigned_to filters issues by handler.id (client-side)', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(listIssuesFixture)));
+
+    const result = await mockServer.callTool('list_issues', { assigned_to: 51, page: 1, page_size: 50 });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { issues: Array<{ handler: { id: number } }> };
+    const expectedCount = listIssuesFixture.issues.filter(i => (i as { handler?: { id: number } }).handler?.id === 51).length;
+    expect(parsed.issues).toHaveLength(expectedCount);
+    parsed.issues.forEach(issue => {
+      expect(issue.handler.id).toBe(51);
+    });
+  });
+
+  it('assigned_to still sends the parameter to the API (server-side hint)', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(listIssuesFixture)));
+
+    await mockServer.callTool('list_issues', { assigned_to: 51, page: 1, page_size: 50 });
+
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
+    const url = new URL(calledUrl);
+    expect(url.searchParams.get('assigned_to')).toBe('51');
+  });
+
+  it('reporter_id filters issues by reporter.id (client-side)', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(listIssuesFixture)));
+
+    const result = await mockServer.callTool('list_issues', { reporter_id: 52, page: 1, page_size: 50 });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { issues: Array<{ reporter: { id: number } }> };
+    const expectedCount = listIssuesFixture.issues.filter(i => (i as { reporter?: { id: number } }).reporter?.id === 52).length;
+    expect(parsed.issues).toHaveLength(expectedCount);
+    parsed.issues.forEach(issue => {
+      expect(issue.reporter.id).toBe(52);
+    });
+  });
+
   it('status filter is case-insensitive', async () => {
     vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(listIssuesFixture)));
     const resultUpper = await mockServer.callTool('list_issues', { status: 'OPEN', page: 1, page_size: 50 });
