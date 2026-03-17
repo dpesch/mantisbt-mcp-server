@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+type EnumResult = Record<string, Array<{ id: number; name: string; label?: string }>>;
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -59,38 +61,63 @@ describe('get_issue_enums', () => {
     expect(mockServer.hasToolRegistered('get_issue_enums')).toBe(true);
   });
 
-  it('gibt strukturierte Enum-Arrays für alle 5 Felder zurück', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(enumFixture)));
+  describe('mit Array-Format (MantisBT 2.x)', () => {
+    let parsed: EnumResult;
 
-    const result = await mockServer.callTool('get_issue_enums', {});
+    beforeEach(async () => {
+      vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(enumFixture)));
+      const result = await mockServer.callTool('get_issue_enums', {});
+      parsed = JSON.parse(result.content[0]!.text) as EnumResult;
+    });
 
-    expect(result.isError).toBeUndefined();
-    const parsed = JSON.parse(result.content[0]!.text) as Record<string, Array<{ id: number; name: string }>>;
+    it('gibt strukturierte Enum-Arrays für alle 5 Felder zurück', () => {
+      expect(Array.isArray(parsed.severity)).toBe(true);
+      expect(Array.isArray(parsed.status)).toBe(true);
+      expect(Array.isArray(parsed.priority)).toBe(true);
+      expect(Array.isArray(parsed.resolution)).toBe(true);
+      expect(Array.isArray(parsed.reproducibility)).toBe(true);
+    });
 
-    expect(Array.isArray(parsed.severity)).toBe(true);
-    expect(Array.isArray(parsed.status)).toBe(true);
-    expect(Array.isArray(parsed.priority)).toBe(true);
-    expect(Array.isArray(parsed.resolution)).toBe(true);
-    expect(Array.isArray(parsed.reproducibility)).toBe(true);
-  });
+    it('id und name korrekt für alle Felder', () => {
+      expect(parsed.severity).toContainEqual(expect.objectContaining({ id: 50, name: 'kleinerer Fehler' }));
+      expect(parsed.severity).toContainEqual(expect.objectContaining({ id: 80, name: 'Blocker' }));
+      expect(parsed.severity).toContainEqual(expect.objectContaining({ id: 200, name: 'Technische Schuld' }));
+      expect(parsed.status).toContainEqual(expect.objectContaining({ id: 10, name: 'new' }));
+      expect(parsed.status).toContainEqual(expect.objectContaining({ id: 80, name: 'resolved' }));
+      expect(parsed.priority).toContainEqual(expect.objectContaining({ id: 30, name: 'normal' }));
+      expect(parsed.reproducibility).toContainEqual(expect.objectContaining({ id: 70, name: 'have not tried' }));
+    });
 
-  it('parst Array-Format (MantisBT 2.x): id und name korrekt, label wird verworfen', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(enumFixture)));
+    it('label wird ausgegeben wenn er sich von name unterscheidet (lokalisierte Installation)', () => {
+      // status: name="new", label="neu" → label muss im Output enthalten sein
+      expect(parsed.status).toContainEqual({ id: 10, name: 'new', label: 'neu' });
+      expect(parsed.status).toContainEqual({ id: 80, name: 'resolved', label: 'erledigt' });
+      // priority: name="none", label="keine" → label muss im Output enthalten sein
+      expect(parsed.priority).toContainEqual({ id: 10, name: 'none', label: 'keine' });
+      // reproducibility: name="always", label="immer" → label muss im Output enthalten sein
+      expect(parsed.reproducibility).toContainEqual({ id: 10, name: 'always', label: 'immer' });
+    });
 
-    const result = await mockServer.callTool('get_issue_enums', {});
+    it('label wird weggelassen wenn er identisch mit name ist', () => {
+      // severity: name === label (z.B. "Feature-Wunsch" === "Feature-Wunsch") → kein label-Feld
+      const severityFirst = parsed.severity.find(e => e.id === 10)!;
+      expect(severityFirst).toEqual({ id: 10, name: 'Feature-Wunsch' });
+      expect(severityFirst).not.toHaveProperty('label');
 
-    const parsed = JSON.parse(result.content[0]!.text) as Record<string, Array<{ id: number; name: string }>>;
+      // priority: name="normal", label="normal" → kein label-Feld
+      const priorityNormal = parsed.priority.find(e => e.id === 30)!;
+      expect(priorityNormal).toEqual({ id: 30, name: 'normal' });
+      expect(priorityNormal).not.toHaveProperty('label');
+    });
 
-    // Werte aus der echten Fixture prüfen
-    expect(parsed.severity).toContainEqual({ id: 50, name: 'kleinerer Fehler' });
-    expect(parsed.severity).toContainEqual({ id: 80, name: 'Blocker' });
-    expect(parsed.severity).toContainEqual({ id: 200, name: 'Technische Schuld' });
-    expect(parsed.status).toContainEqual({ id: 10, name: 'new' });
-    expect(parsed.status).toContainEqual({ id: 80, name: 'resolved' });
-    expect(parsed.priority).toContainEqual({ id: 30, name: 'normal' });
-    expect(parsed.reproducibility).toContainEqual({ id: 70, name: 'have not tried' });
-    // label darf nicht im Output enthalten sein
-    expect(Object.keys(parsed.severity[0]!)).toEqual(['id', 'name']);
+    it('fragt alle 5 Enum-Optionen ab', () => {
+      const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
+      expect(calledUrl).toContain('severity_enum_string');
+      expect(calledUrl).toContain('status_enum_string');
+      expect(calledUrl).toContain('priority_enum_string');
+      expect(calledUrl).toContain('resolution_enum_string');
+      expect(calledUrl).toContain('reproducibility_enum_string');
+    });
   });
 
   it('parst String-Format (Legacy): "id:name,..."-Strings korrekt', async () => {
@@ -98,24 +125,11 @@ describe('get_issue_enums', () => {
 
     const result = await mockServer.callTool('get_issue_enums', {});
 
-    const parsed = JSON.parse(result.content[0]!.text) as Record<string, Array<{ id: number; name: string }>>;
+    const parsed = JSON.parse(result.content[0]!.text) as EnumResult;
 
     expect(parsed.severity).toContainEqual({ id: 50, name: 'minor' });
     expect(parsed.status).toContainEqual({ id: 80, name: 'resolved' });
     expect(parsed.reproducibility).toContainEqual({ id: 70, name: 'have not tried' });
-  });
-
-  it('fragt alle 5 Enum-Optionen ab', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(enumFixture)));
-
-    await mockServer.callTool('get_issue_enums', {});
-
-    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
-    expect(calledUrl).toContain('severity_enum_string');
-    expect(calledUrl).toContain('status_enum_string');
-    expect(calledUrl).toContain('priority_enum_string');
-    expect(calledUrl).toContain('resolution_enum_string');
-    expect(calledUrl).toContain('reproducibility_enum_string');
   });
 
   it('gibt isError: true bei API-Fehler zurück', async () => {

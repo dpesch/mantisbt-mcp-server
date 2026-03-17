@@ -83,12 +83,12 @@ Common option names:
     'get_issue_enums',
     {
       title: 'Get Issue Enum Values',
-      description: `Return valid ID and name pairs for all issue enum fields.
+      description: `Return valid ID, name, and (if available) localized label for all issue enum fields.
 
 Use this tool before creating or updating issues to look up the correct value
 for severity, status, priority, resolution, or reproducibility.
 
-Example response:
+Example response (English installation):
 {
   "severity":         [{"id": 10, "name": "feature"}, {"id": 50, "name": "minor"}, ...],
   "status":           [{"id": 10, "name": "new"}, {"id": 20, "name": "feedback"}, ...],
@@ -97,7 +97,24 @@ Example response:
   "reproducibility":  [{"id": 10, "name": "always"}, {"id": 70, "name": "have not tried"}, ...]
 }
 
-The "name" field is the value to pass to create_issue or update_issue.`,
+Example response (localized installation, e.g. German):
+{
+  "status": [
+    {"id": 10, "name": "new",      "label": "Neu"},
+    {"id": 20, "name": "feedback", "label": "Feedback"},
+    {"id": 30, "name": "acknowledged", "label": "Bestätigt"},
+    ...
+  ],
+  ...
+}
+
+Fields:
+- "id"    — numeric ID accepted by the API
+- "name"  — English string name accepted by the API
+- "label" — localized display label shown in the UI (only present when it differs from "name")
+
+Always pass either the "id" or the "name" value to create_issue or update_issue — never the "label".
+Use the "label" to map user input in the UI language back to the correct "name"/"id" for the API.`,
       inputSchema: z.object({}),
       annotations: {
         readOnlyHint: true,
@@ -123,14 +140,18 @@ The "name" field is the value to pass to create_issue or update_issue.`,
           reproducibility_enum_string: 'reproducibility',
         };
 
-        const enums: Record<string, Array<{ id: number; name: string }>> = {};
+        const enums: Record<string, Array<{ id: number; name: string; label?: string }>> = {};
         for (const { option, value } of configs) {
           const key = keyMap[option];
           if (!key) continue;
           if (typeof value === 'string') {
             enums[key] = parseEnumString(value);
           } else if (Array.isArray(value)) {
-            enums[key] = value.map(({ id, name }) => ({ id, name }));
+            enums[key] = value.map(({ id, name, label }) => {
+              const entry: { id: number; name: string; label?: string } = { id, name };
+              if (label && label !== name) entry.label = label;
+              return entry;
+            });
           }
         }
 

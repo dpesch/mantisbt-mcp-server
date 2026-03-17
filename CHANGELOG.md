@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.3.2] – 2026-03-17
+
+### Improved
+- `get_issue_enums` now includes the `label` field in each enum entry when it differs from `name`. On localized MantisBT installations (e.g. German UI) this provides a translation table from the UI language back to the API name/id: `{"id": 10, "name": "new", "label": "Neu"}`. When `label` and `name` are identical, the field is omitted to keep the output compact.
+
+---
+
 ## [1.3.1] – 2026-03-16
 
 ### Fixed
