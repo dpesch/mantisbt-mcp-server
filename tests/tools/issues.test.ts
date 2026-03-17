@@ -215,6 +215,31 @@ describe('list_issues', () => {
     }
   });
 
+  it('assigned_to scans multiple API pages (small page_size does not miss results)', async () => {
+    // Regression: previously fetched only page_size items from the API before filtering,
+    // so assigned_to:X with page_size:1 returned 0 results when user's issue was not
+    // in the first page returned by the server.
+    // Now the tool always fetches API_PAGE_SIZE=50 internally when filters are active.
+    const fixtureWithUser51: typeof listIssuesFixture = {
+      ...listIssuesFixture,
+      issues: [
+        // first "slot" has a different user — previously this would have been the only
+        // item fetched with page_size:1, causing a false empty result
+        listIssuesFixture.issues.find(i => (i as { handler?: { id: number } }).handler?.id === 52)!,
+        ...listIssuesFixture.issues.filter(i => (i as { handler?: { id: number } }).handler?.id === 51),
+      ].filter(Boolean),
+    };
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(fixtureWithUser51)));
+
+    const result = await mockServer.callTool('list_issues', { assigned_to: 51, page: 1, page_size: 1 });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { issues: Array<{ handler: { id: number } }> };
+    // Must find results for user 51 despite page_size:1
+    expect(parsed.issues.length).toBeGreaterThan(0);
+    parsed.issues.forEach(issue => expect(issue.handler.id).toBe(51));
+  });
+
   it('assigned_to filters issues by handler.id (client-side)', async () => {
     vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(listIssuesFixture)));
 

@@ -54,7 +54,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
     'list_issues',
     {
       title: 'List Issues',
-      description: 'List MantisBT issues with optional filtering. Returns a paginated list of issues. Use the "select" parameter to limit returned fields and reduce response size significantly.\n\nNote: "assigned_to" and "reporter_id" filters are applied client-side after fetching (the MantisBT REST API does not reliably filter by these fields server-side). Combined with pagination this means a page may contain fewer results than page_size when these filters are active.',
+      description: 'List MantisBT issues with optional filtering. Returns a paginated list of issues. Use the "select" parameter to limit returned fields and reduce response size significantly.\n\nNote: "assigned_to", "reporter_id", and "status" filters are applied client-side (the MantisBT REST API does not reliably support these as server-side filters). When any of these filters are active the tool automatically fetches multiple pages internally until enough matching results are found (up to 500 issues scanned). The "page" and "page_size" parameters refer to the resulting filtered list.',
       inputSchema: z.object({
         project_id: z.coerce.number().int().positive().optional().describe('Filter by project ID'),
         page: z.coerce.number().int().positive().default(1).describe('Page number (default: 1)'),
@@ -75,9 +75,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
     },
     async ({ project_id, page, page_size, assigned_to, reporter_id, filter_id, sort, direction, select, status }) => {
       try {
-        const params: Record<string, string | number | boolean | undefined> = {
-          page,
-          page_size,
+        const baseParams: Record<string, string | number | boolean | undefined> = {
           project_id,
           assigned_to,
           reporter_id,
@@ -86,27 +84,62 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
           direction,
           select,
         };
-        const result = await client.get<MantisPaginatedIssues>('issues', params);
 
-        if (result.issues) {
-          if (status) {
-            const statusLower = status.toLowerCase();
-            result.issues = result.issues.filter(issue => {
-              if (!issue.status) return false;
-              if (statusLower === 'open') return (issue.status.id ?? 0) < MANTIS_RESOLVED_STATUS_ID;
-              return issue.status.name?.toLowerCase() === statusLower;
-            });
-          }
-          if (assigned_to) {
-            result.issues = result.issues.filter(issue => issue.handler?.id === assigned_to);
-          }
-          if (reporter_id) {
-            result.issues = result.issues.filter(issue => issue.reporter?.id === reporter_id);
-          }
+        const needsClientFilter = status !== undefined || assigned_to !== undefined || reporter_id !== undefined;
+
+        if (!needsClientFilter) {
+          // No client-side filtering — single API call, pass pagination as-is
+          const result = await client.get<MantisPaginatedIssues>('issues', { ...baseParams, page, page_size });
+          return {
+            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+          };
         }
 
+        // Client-side filtering active: scan multiple API pages until we have
+        // enough matching results for the requested logical page.
+        const API_PAGE_SIZE = 50; // always fetch max to minimise round-trips
+        const MAX_API_PAGES = 10; // hard cap: scan at most 500 issues
+        const neededTotal = page * page_size; // need this many matches to serve page N
+
+        const matching: MantisIssue[] = [];
+        let serverPage = 1;
+        let hasMore = true;
+
+        const statusLower = status?.toLowerCase();
+
+        while (matching.length < neededTotal && serverPage <= MAX_API_PAGES && hasMore) {
+          const batch = await client.get<MantisPaginatedIssues>('issues', {
+            ...baseParams,
+            page: serverPage,
+            page_size: API_PAGE_SIZE,
+          });
+
+          const issues = batch.issues ?? [];
+          hasMore = issues.length === API_PAGE_SIZE;
+
+          for (const issue of issues) {
+            if (statusLower) {
+              if (!issue.status) continue;
+              if (statusLower === 'open') {
+                if ((issue.status.id ?? 0) >= MANTIS_RESOLVED_STATUS_ID) continue;
+              } else if (issue.status.name?.toLowerCase() !== statusLower) {
+                continue;
+              }
+            }
+            if (assigned_to !== undefined && issue.handler?.id !== assigned_to) continue;
+            if (reporter_id !== undefined && issue.reporter?.id !== reporter_id) continue;
+            matching.push(issue);
+          }
+
+          serverPage++;
+        }
+
+        const start = (page - 1) * page_size;
         return {
-          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+          content: [{
+            type: 'text',
+            text: JSON.stringify({ issues: matching.slice(start, start + page_size) }, null, 2),
+          }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
