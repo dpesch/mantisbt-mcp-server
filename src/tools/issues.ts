@@ -210,9 +210,23 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         body.severity = { name: severity };
         if (resolvedHandlerId) body.handler = { id: resolvedHandlerId };
 
-        const result = await client.post<{ issue: MantisIssue }>('issues', body);
+        const raw = await client.post<Record<string, unknown>>('issues', body);
+        const partial = ('issue' in raw && typeof raw['issue'] === 'object' && raw['issue'] !== null)
+          ? raw['issue'] as MantisIssue
+          : raw as unknown as MantisIssue;
+        let issue: MantisIssue = partial;
+        if (!('summary' in (partial as unknown as Record<string, unknown>))) {
+          // Older MantisBT returned only { id: N } — fetch the full issue.
+          // Suppress GET errors: the issue was already created.
+          try {
+            const fetched = await client.get<{ issues: MantisIssue[] }>(`issues/${partial.id}`);
+            issue = fetched.issues?.[0] ?? partial;
+          } catch {
+            // unable to fetch details — return minimal object
+          }
+        }
         return {
-          content: [{ type: 'text', text: JSON.stringify(result.issue ?? result, null, 2) }],
+          content: [{ type: 'text', text: JSON.stringify(issue, null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);

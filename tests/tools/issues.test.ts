@@ -129,6 +129,57 @@ describe('create_issue', () => {
     expect(body.severity).toEqual({ name: 'minor' });
   });
 
+  it('returns full issue object when API responds with complete issue', async () => {
+    const fullIssue = { id: 100, summary: 'New issue', status: { id: 10, name: 'new' }, severity: { id: 50, name: 'minor' } };
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(201, JSON.stringify({ issue: fullIssue }))
+    );
+
+    const result = await mockServer.callTool('create_issue', {
+      summary: 'New issue', project_id: 1, category: 'General',
+    });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as typeof fullIssue;
+    expect(parsed.id).toBe(100);
+    expect(parsed.summary).toBe('New issue');
+    // Only one API call — no extra GET needed
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('fetches full issue via GET when API returns only an id (older MantisBT)', async () => {
+    const fullIssue = { id: 101, summary: 'Created issue', status: { id: 10, name: 'new' } };
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(201, JSON.stringify({ id: 101 })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [fullIssue] })));
+
+    const result = await mockServer.callTool('create_issue', {
+      summary: 'Created issue', project_id: 1, category: 'General',
+    });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as typeof fullIssue;
+    expect(parsed.summary).toBe('Created issue');
+    // Two API calls: POST + GET
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const getUrl = vi.mocked(fetch).mock.calls[1]![0] as string;
+    expect(getUrl).toContain('issues/101');
+  });
+
+  it('returns minimal object when GET fallback fails (issue was already created)', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(201, JSON.stringify({ id: 102 })))
+      .mockResolvedValueOnce(makeResponse(500, 'Server Error'));
+
+    const result = await mockServer.callTool('create_issue', {
+      summary: 'Test', project_id: 1, category: 'General',
+    });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { id: number };
+    expect(parsed.id).toBe(102);
+  });
+
   it('respects an explicitly passed severity', async () => {
     vi.mocked(fetch).mockResolvedValue(
       makeResponse(201, JSON.stringify({ issue: { id: 101, summary: 'Test' } }))
