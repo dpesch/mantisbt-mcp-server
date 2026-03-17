@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-type EnumResult = Record<string, Array<{ id: number; name: string; label?: string }>>;
+type EnumEntry = { id: number; name: string; label?: string; canonical_name?: string };
+type EnumResult = Record<string, Array<EnumEntry>>;
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -100,8 +101,9 @@ describe('get_issue_enums', () => {
 
     it('label wird weggelassen wenn er identisch mit name ist', () => {
       // severity: name === label (z.B. "Feature-Wunsch" === "Feature-Wunsch") → kein label-Feld
+      // canonical_name is present because "Feature-Wunsch" differs from English "feature"
       const severityFirst = parsed.severity.find(e => e.id === 10)!;
-      expect(severityFirst).toEqual({ id: 10, name: 'Feature-Wunsch' });
+      expect(severityFirst).toMatchObject({ id: 10, name: 'Feature-Wunsch', canonical_name: 'feature' });
       expect(severityFirst).not.toHaveProperty('label');
 
       // priority: name="normal", label="normal" → kein label-Feld
@@ -130,6 +132,73 @@ describe('get_issue_enums', () => {
     expect(parsed.severity).toContainEqual({ id: 50, name: 'minor' });
     expect(parsed.status).toContainEqual({ id: 80, name: 'resolved' });
     expect(parsed.reproducibility).toContainEqual({ id: 70, name: 'have not tried' });
+  });
+
+  describe('canonical_name für lokalisierte Installationen', () => {
+    it('fügt canonical_name hinzu wenn name von englischem Standardwert abweicht', async () => {
+      vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(enumFixture)));
+      const result = await mockServer.callTool('get_issue_enums', {});
+      const parsed = JSON.parse(result.content[0]!.text) as EnumResult;
+
+      // severity: names are German in fixture → canonical_name must be present
+      const minor = parsed.severity.find(e => e.id === 50)!;
+      expect(minor.name).toBe('kleinerer Fehler');
+      expect(minor.canonical_name).toBe('minor');
+
+      const block = parsed.severity.find(e => e.id === 80)!;
+      expect(block.name).toBe('Blocker');
+      expect(block.canonical_name).toBe('block');
+    });
+
+    it('lässt canonical_name weg wenn name bereits englischer Standardwert ist', async () => {
+      vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(enumFixture)));
+      const result = await mockServer.callTool('get_issue_enums', {});
+      const parsed = JSON.parse(result.content[0]!.text) as EnumResult;
+
+      // status: names are already English → no canonical_name
+      const statusNew = parsed.status.find(e => e.id === 10)!;
+      expect(statusNew.name).toBe('new');
+      expect(statusNew).not.toHaveProperty('canonical_name');
+
+      // priority: "normal" is already the canonical name
+      const priorityNormal = parsed.priority.find(e => e.id === 30)!;
+      expect(priorityNormal.name).toBe('normal');
+      expect(priorityNormal).not.toHaveProperty('canonical_name');
+    });
+
+    it('lässt canonical_name weg für unbekannte/benutzerdefinierte IDs', async () => {
+      vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(enumFixture)));
+      const result = await mockServer.callTool('get_issue_enums', {});
+      const parsed = JSON.parse(result.content[0]!.text) as EnumResult;
+
+      // severity ID 200 ("Technische Schuld") is a custom entry with no canonical mapping
+      const custom = parsed.severity.find(e => e.id === 200)!;
+      expect(custom).toBeDefined();
+      expect(custom).not.toHaveProperty('canonical_name');
+    });
+
+    it('fügt canonical_name auch im String-Format (Legacy) hinzu', async () => {
+      // Override: use German names in legacy string format
+      const germanStringFixture = {
+        configs: [
+          { option: 'severity_enum_string', value: '50:kleinerer Fehler,80:Blocker' },
+          { option: 'status_enum_string',   value: '10:new,80:resolved' },
+          { option: 'priority_enum_string', value: '30:normal' },
+          { option: 'resolution_enum_string', value: '20:fixed' },
+          { option: 'reproducibility_enum_string', value: '10:always' },
+        ],
+      };
+      vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(germanStringFixture)));
+      const result = await mockServer.callTool('get_issue_enums', {});
+      const parsed = JSON.parse(result.content[0]!.text) as EnumResult;
+
+      const minor = parsed.severity.find(e => e.id === 50)!;
+      expect(minor.canonical_name).toBe('minor');
+
+      // status "new" is already canonical — no canonical_name
+      const statusNew = parsed.status.find(e => e.id === 10)!;
+      expect(statusNew).not.toHaveProperty('canonical_name');
+    });
   });
 
   it('gibt isError: true bei API-Fehler zurück', async () => {

@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MantisClient } from '../client.js';
 import { MetadataCache } from '../cache.js';
-import { ISSUE_ENUM_OPTIONS } from '../constants.js';
+import { ISSUE_ENUM_OPTIONS, MANTIS_CANONICAL_ENUM_NAMES } from '../constants.js';
 import { getVersionHint } from '../version-hint.js';
 
 // MantisBT config API: enum values may be a pre-parsed array (2.x) or legacy "id:name,..." string
@@ -27,6 +27,11 @@ function parseEnumString(raw: string): Array<{ id: number; name: string }> {
       return isNaN(id) ? null : { id, name };
     })
     .filter((e): e is { id: number; name: string } => e !== null);
+}
+
+function resolveCanonicalName(id: number, name: string, canonicalMap: Record<number, string>): string | undefined {
+  const canonical = canonicalMap[id];
+  return canonical !== undefined && canonical !== name ? canonical : undefined;
 }
 
 export function registerConfigTools(server: McpServer, client: MantisClient, cache: MetadataCache): void {
@@ -146,16 +151,24 @@ to use for API calls — regardless of language.`,
           reproducibility_enum_string: 'reproducibility',
         };
 
-        const enums: Record<string, Array<{ id: number; name: string; label?: string }>> = {};
+        const enums: Record<string, Array<{ id: number; name: string; label?: string; canonical_name?: string }>> = {};
         for (const { option, value } of configs) {
           const key = keyMap[option];
           if (!key) continue;
+          const canonicalMap = MANTIS_CANONICAL_ENUM_NAMES[key] ?? {};
           if (typeof value === 'string') {
-            enums[key] = parseEnumString(value);
+            enums[key] = parseEnumString(value).map(({ id, name }) => {
+              const entry: { id: number; name: string; canonical_name?: string } = { id, name };
+              const canonical_name = resolveCanonicalName(id, name, canonicalMap);
+              if (canonical_name !== undefined) entry.canonical_name = canonical_name;
+              return entry;
+            });
           } else if (Array.isArray(value)) {
             enums[key] = value.map(({ id, name, label }) => {
-              const entry: { id: number; name: string; label?: string } = { id, name };
+              const entry: { id: number; name: string; label?: string; canonical_name?: string } = { id, name };
               if (label && label !== name) entry.label = label;
+              const canonical_name = resolveCanonicalName(id, name, canonicalMap);
+              if (canonical_name !== undefined) entry.canonical_name = canonical_name;
               return entry;
             });
           }

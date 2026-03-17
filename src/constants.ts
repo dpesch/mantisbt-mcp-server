@@ -48,6 +48,61 @@ export const RELATIONSHIP_NAME_TO_ID: Record<string, number> = {
 export const MANTIS_RESOLVED_STATUS_ID = 80;
 
 // ---------------------------------------------------------------------------
+// Canonical English enum names for standard MantisBT installations.
+// Keyed by the enum group name (without _enum_string suffix).
+// Used by get_issue_enums to add a canonical_name field on localized installs.
+// ---------------------------------------------------------------------------
+
+export const MANTIS_CANONICAL_ENUM_NAMES: Record<string, Record<number, string>> = {
+  severity: {
+    10: 'feature',
+    20: 'trivial',
+    30: 'text',
+    40: 'tweak',
+    50: 'minor',
+    60: 'major',
+    70: 'crash',
+    80: 'block',
+  },
+  status: {
+    10: 'new',
+    20: 'feedback',
+    30: 'acknowledged',
+    40: 'confirmed',
+    50: 'assigned',
+    80: 'resolved',
+    90: 'closed',
+  },
+  priority: {
+    10: 'none',
+    20: 'low',
+    30: 'normal',
+    40: 'high',
+    50: 'urgent',
+    60: 'immediate',
+  },
+  resolution: {
+    10: 'open',
+    20: 'fixed',
+    30: 'reopened',
+    40: 'unable to duplicate',
+    50: 'not fixable',
+    60: 'duplicate',
+    70: 'no change required',
+    80: 'suspended',
+    90: 'wont fix',
+  },
+  reproducibility: {
+    10: 'always',
+    30: 'sometimes',
+    50: 'random',
+    70: 'have not tried',
+    90: 'unable to reproduce',
+    100: 'N/A',
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Issue enum config option names
 // ---------------------------------------------------------------------------
 
