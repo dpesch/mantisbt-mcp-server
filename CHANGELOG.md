@@ -7,13 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [1.3.2] – 2026-03-17
+## [1.4.0] – 2026-03-17
+
+### Added
+- `get_issue_enums` now includes a `label` field in each enum entry when it differs from `name`. On localized MantisBT installations (e.g. German UI) this provides a translation table from the UI language back to the API name/id: `{"id": 10, "name": "new", "label": "Neu"}`. When `label` and `name` are identical the field is omitted to keep the output compact. The tool description also clarifies that `name` may itself be localized on installations where enum values have been customized at the database level.
 
 ### Fixed
 - `list_issues`: `assigned_to`, `reporter_id`, and `status` filters now reliably return matching issues regardless of the requested `page_size`. Previously, the tool fetched exactly `page_size` items from the API before filtering — so a small `page_size` combined with an active filter returned zero results if the matching issues were not at the top of the unfiltered list. The tool now internally fetches batches of 50 (API maximum) and scans up to 500 issues until enough matching results are found. All filter parameters are still forwarded to the API as a hint for installations that support server-side filtering.
-
-### Improved
-- `get_issue_enums` now includes the `label` field in each enum entry when it differs from `name`. On localized MantisBT installations (e.g. German UI) this provides a translation table from the UI language back to the API name/id: `{"id": 10, "name": "new", "label": "Neu"}`. When `label` and `name` are identical, the field is omitted to keep the output compact.
 
 ---
 
