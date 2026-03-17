@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { basename } from 'node:path';
+import { basename, resolve, sep } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MantisClient } from '../client.js';
@@ -13,7 +13,8 @@ function errorText(msg: string): string {
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
 
-export function registerFileTools(server: McpServer, client: MantisClient): void {
+export function registerFileTools(server: McpServer, client: MantisClient, uploadDir: string | undefined): void {
+  const normalizedUploadDir = uploadDir ? resolve(uploadDir) + sep : undefined;
 
   // ---------------------------------------------------------------------------
   // list_issue_files
@@ -95,6 +96,12 @@ The optional content_type parameter sets the MIME type (e.g. "image/png"). If om
         let fileName: string;
 
         if (file_path) {
+          if (normalizedUploadDir) {
+            const normalizedPath = resolve(file_path);
+            if (!normalizedPath.startsWith(normalizedUploadDir)) {
+              return { content: [{ type: 'text', text: errorText('file_path is not allowed — access restricted to the designated upload directory') }], isError: true };
+            }
+          }
           fileBuffer = await readFile(file_path);
           fileName = filename ?? basename(file_path);
         } else {

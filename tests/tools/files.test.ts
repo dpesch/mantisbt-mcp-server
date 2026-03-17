@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MantisClient } from '../../src/client.js';
 import { registerFileTools } from '../../src/tools/files.js';
@@ -20,7 +21,7 @@ let client: MantisClient;
 beforeEach(() => {
   mockServer = new MockMcpServer();
   client = new MantisClient('https://mantis.example.com', 'test-token');
-  registerFileTools(mockServer as never, client);
+  registerFileTools(mockServer as never, client, undefined);
   vi.stubGlobal('fetch', vi.fn());
 });
 
@@ -270,5 +271,74 @@ describe('upload_file (Base64)', () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0]!.text).toContain('Error:');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// upload_file – Path Traversal protection (uploadDir)
+// ---------------------------------------------------------------------------
+
+describe('upload_file (uploadDir restriction)', () => {
+  const uploadDir = path.resolve('/tmp/uploads');
+
+  beforeEach(() => {
+    // Override the server registered in the outer beforeEach with one that
+    // has uploadDir set.
+    mockServer = new MockMcpServer();
+    client = new MantisClient('https://mantis.example.com', 'test-token');
+    registerFileTools(mockServer as never, client, uploadDir);
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  it('allows file_path inside uploadDir', async () => {
+    vi.mocked(readFile).mockResolvedValue(Buffer.from('content') as never);
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 5 })));
+
+    const result = await mockServer.callTool('upload_file', {
+      issue_id: 42,
+      file_path: path.join(uploadDir, 'report.pdf'),
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(readFile).toHaveBeenCalled();
+  });
+
+  it('blocks file_path outside uploadDir', async () => {
+    const result = await mockServer.callTool('upload_file', {
+      issue_id: 42,
+      file_path: '/etc/passwd',
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('not allowed');
+    expect(readFile).not.toHaveBeenCalled();
+  });
+
+  it('blocks path traversal escaping uploadDir', async () => {
+    const result = await mockServer.callTool('upload_file', {
+      issue_id: 42,
+      file_path: path.join(uploadDir, '..', 'secret.txt'),
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('not allowed');
+    expect(readFile).not.toHaveBeenCalled();
+  });
+
+  it('allows any file_path when uploadDir is undefined (no restriction)', async () => {
+    // This uses the outer beforeEach server (uploadDir = undefined).
+    const unrestrictedServer = new MockMcpServer();
+    registerFileTools(unrestrictedServer as never, client, undefined);
+
+    vi.mocked(readFile).mockResolvedValue(Buffer.from('content') as never);
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 5 })));
+
+    const result = await unrestrictedServer.callTool('upload_file', {
+      issue_id: 42,
+      file_path: '/etc/passwd',
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(readFile).toHaveBeenCalledWith('/etc/passwd');
   });
 });

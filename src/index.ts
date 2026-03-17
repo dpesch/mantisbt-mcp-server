@@ -59,7 +59,7 @@ async function createMcpServer(): Promise<McpServer> {
 
   registerIssueTools(server, client, cache);
   registerNoteTools(server, client);
-  registerFileTools(server, client);
+  registerFileTools(server, client, config.uploadDir);
   registerRelationshipTools(server, client);
   registerMonitorTools(server, client);
   registerProjectTools(server, client);

@@ -20,6 +20,7 @@ export interface MantisConfig {
   apiKey: string;
   cacheDir: string;
   cacheTtl: number;
+  uploadDir?: string;
   search: SearchConfig;
 }
 
@@ -116,11 +117,14 @@ export async function getConfig(): Promise<MantisConfig> {
     'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
   const searchNumThreads = Math.max(1, parseInt(process.env.MANTIS_SEARCH_THREADS ?? '', 10) || 1);
 
+  const uploadDir = process.env.MANTIS_UPLOAD_DIR;
+
   cachedConfig = {
     baseUrl: baseUrl.replace(/\/$/, ''), // strip trailing slash
     apiKey,
     cacheDir,
     cacheTtl,
+    uploadDir,
     search: {
       enabled: searchEnabled,
       backend: searchBackend,

@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 - Removed unused `vectra` dependency. The package was listed in `dependencies` but never imported — `VectraStore` is a self-contained implementation. Removing it eliminates three transitive CVEs in the `openai` → `axios` chain (GHSA-jr5f-v2jv-69x6 SSRF/credential-leakage, GHSA-43fc-jf86-j433 DoS, GHSA-wf5p-g6vw-rhxx CSRF).
+- `upload_file`: new optional `MANTIS_UPLOAD_DIR` environment variable restricts `file_path` uploads to a configured directory. When set, any path that resolves outside the directory (including `../` traversal attempts) is rejected before the file is read. Without the variable the behaviour is unchanged (no restriction). The resolved directory prefix is computed once at server start, not per request.
 
 ---
 
