@@ -1,6 +1,6 @@
 {
   "name": "@dpesch/mantisbt-mcp-server",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "MCP server for MantisBT REST API – read and manage bug tracker issues",
   "author": "Dominik Pesch",
   "license": "MIT",
@@ -28,8 +28,7 @@
   "dependencies": {
     "@huggingface/transformers": "^3.0.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "vectra": "^0.4.0",
-    "zod": "^3.22.4"
+"zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

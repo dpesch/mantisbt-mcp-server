@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.3] – 2026-03-17
+
+### Security
+- Removed unused `vectra` dependency. The package was listed in `dependencies` but never imported — `VectraStore` is a self-contained implementation. Removing it eliminates three transitive CVEs in the `openai` → `axios` chain (GHSA-jr5f-v2jv-69x6 SSRF/credential-leakage, GHSA-43fc-jf86-j433 DoS, GHSA-wf5p-g6vw-rhxx CSRF).
+
+---
+
 ## [1.5.2] – 2026-03-17
 
 ### Fixed
