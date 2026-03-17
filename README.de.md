@@ -93,7 +93,7 @@ Falls keine Umgebungsvariablen gesetzt sind, wird `~/.claude/mantis.json` ausgel
 |---|---|
 | `get_issue` | Ein Issue anhand seiner ID abrufen |
 | `list_issues` | Issues nach Projekt, Status, Autor u.v.m. filtern; optionales `select` für Feldprojektion und `status` für clientseitige Statusfilterung |
-| `create_issue` | Neues Issue anlegen |
+| `create_issue` | Neues Issue anlegen; optionaler `handler`-Parameter akzeptiert einen Benutzernamen als Alternative zu `handler_id` (wird gegen die Projektmitglieder aufgelöst) |
 | `update_issue` | Bestehendes Issue bearbeiten |
 | `delete_issue` | Issue löschen |
 
@@ -116,7 +116,7 @@ Falls keine Umgebungsvariablen gesetzt sind, wird `~/.claude/mantis.json` ausgel
 
 | Tool | Beschreibung |
 |---|---|
-| `add_relationship` | Beziehung zwischen zwei Issues erstellen |
+| `add_relationship` | Beziehung zwischen zwei Issues erstellen; optionaler `type_name`-Parameter akzeptiert einen String-Namen (z.B. `"related_to"`, `"duplicate_of"`) als Alternative zur numerischen `type_id` |
 | `remove_relationship` | Beziehung von einem Issue entfernen (die `id` aus dem Beziehungsobjekt verwenden, nicht die type-ID) |
 
 ### Beobachter
@@ -157,7 +157,7 @@ Aktivierung mit `MANTIS_SEARCH_ENABLED=true`.
 
 | Tool | Beschreibung |
 |---|---|
-| `search_issues` | Natürlichsprachige Suche über alle indizierten Issues – liefert Top-N-Ergebnisse mit Cosine-Similarity-Score |
+| `search_issues` | Natürlichsprachige Suche über alle indizierten Issues – liefert Top-N-Ergebnisse mit Cosine-Similarity-Score; optionales `select` (kommagetrennte Feldnamen) reichert jedes Ergebnis mit den angeforderten Issue-Feldern an |
 | `rebuild_search_index` | Suchindex aufbauen oder aktualisieren; `full: true` löscht und baut ihn vollständig neu |
 | `get_search_index_status` | Aktuellen Füllstand des Suchindex zurückgeben: wie viele Issues bereits indiziert sind im Verhältnis zur Gesamtanzahl, plus Zeitstempel der letzten Synchronisation |
 
@@ -188,7 +188,7 @@ npm install sqlite-vec better-sqlite3
 | `get_current_user` | Eigenes Benutzerprofil abrufen |
 | `list_languages` | Verfügbare Sprachen auflisten |
 | `get_config` | Server-Konfiguration (Basis-URL, Cache-TTL) anzeigen |
-| `get_issue_enums` | Gültige ID/Name-Paare für alle Enum-Felder zurückgeben (Severity, Status, Priority, Resolution, Reproducibility) — vor `create_issue` / `update_issue` verwenden, um korrekte Werte nachzuschlagen |
+| `get_issue_enums` | Gültige ID/Name-Paare für alle Enum-Felder zurückgeben (Severity, Status, Priority, Resolution, Reproducibility) — vor `create_issue` / `update_issue` verwenden, um korrekte Werte nachzuschlagen; auf lokalisierten Installationen kann jeder Eintrag ein `canonical_name`-Feld mit dem englischen Standard-API-Namen enthalten |
 | `get_mantis_version` | MantisBT-Version abrufen und auf Updates prüfen |
 | `get_mcp_version` | Version dieser mantisbt-mcp-server-Instanz zurückgeben |
 

@@ -7,7 +7,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [1.5.0] – 2026-03-17
 
 ### Added
 - `create_issue`: always returns the complete issue object. Older MantisBT versions returned only `{ id: N }` on `POST /issues`; the tool now detects this and performs an automatic `GET /issues/{id}` to retrieve the full issue. If that fetch fails the minimal object is returned instead (the issue was already created).

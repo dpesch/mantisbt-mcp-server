@@ -93,7 +93,7 @@ If no environment variables are set, `~/.claude/mantis.json` is read:
 |---|---|
 | `get_issue` | Retrieve an issue by its numeric ID |
 | `list_issues` | Filter issues by project, status, author, and more; optional `select` for field projection and `status` for client-side status filtering |
-| `create_issue` | Create a new issue |
+| `create_issue` | Create a new issue; optional `handler` parameter accepts a username as alternative to `handler_id` (resolved against project members) |
 | `update_issue` | Update an existing issue |
 | `delete_issue` | Delete an issue |
 
@@ -116,7 +116,7 @@ If no environment variables are set, `~/.claude/mantis.json` is read:
 
 | Tool | Description |
 |---|---|
-| `add_relationship` | Create a relationship between two issues |
+| `add_relationship` | Create a relationship between two issues; optional `type_name` parameter accepts a string name (e.g. `"related_to"`, `"duplicate_of"`) as alternative to numeric `type_id` |
 | `remove_relationship` | Remove a relationship from an issue (use the `id` from the relationship object, not the type) |
 
 ### Monitors
@@ -157,7 +157,7 @@ Activate with `MANTIS_SEARCH_ENABLED=true`.
 
 | Tool | Description |
 |---|---|
-| `search_issues` | Natural language search over all indexed issues — returns top-N results with cosine similarity score |
+| `search_issues` | Natural language search over all indexed issues — returns top-N results with cosine similarity score; optional `select` (comma-separated field names) enriches each result with the requested issue fields |
 | `rebuild_search_index` | Build or update the search index; `full: true` clears and rebuilds from scratch |
 | `get_search_index_status` | Return the current fill level of the search index: how many issues are indexed vs. total, and the timestamp of the last sync |
 
@@ -188,7 +188,7 @@ npm install sqlite-vec better-sqlite3
 | `get_current_user` | Retrieve your own user profile |
 | `list_languages` | List available languages |
 | `get_config` | Show server configuration (base URL, cache TTL) |
-| `get_issue_enums` | Return valid ID/name pairs for all issue enum fields (severity, status, priority, resolution, reproducibility) — use before `create_issue` / `update_issue` to look up correct values |
+| `get_issue_enums` | Return valid ID/name pairs for all issue enum fields (severity, status, priority, resolution, reproducibility) — use before `create_issue` / `update_issue` to look up correct values; on localized installations each entry may include a `canonical_name` with the standard English API name |
 | `get_mantis_version` | Get MantisBT version and check for updates |
 | `get_mcp_version` | Return the version of this mantisbt-mcp-server instance |
 
