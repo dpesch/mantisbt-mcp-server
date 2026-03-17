@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `create_issue`: new optional `handler` parameter accepts a username string as alternative to `handler_id`. The server resolves the name against the project members list (from the metadata cache when available, otherwise via a direct API call). If the username is not found, an error is returned with a list of available users.
 - `add_relationship`: new optional `type_name` parameter accepts string names as alternative to the numeric `type_id` (e.g. `"related_to"`, `"duplicate_of"`, `"depends_on"`, `"blocks"`). Dash variants (`"related-to"`) are also accepted. `type_id` becomes optional — at least one of the two must be provided; `type_id` takes precedence when both are given.
 - `search_issues`: new optional `select` parameter. When provided, each matching issue is fetched from MantisBT and the response is enriched with the requested fields (comma-separated, e.g. `"id,summary,status,handler,priority"`). Without `select` the behaviour is unchanged — only `id` and `score` are returned. `id` and `score` are always included regardless of the `select` value. If an individual issue fetch fails, that result falls back silently to `{id, score}`.
 

@@ -4,8 +4,20 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MantisClient } from '../../src/client.js';
 import { registerIssueTools } from '../../src/tools/issues.js';
+import { MetadataCache } from '../../src/cache.js';
 import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
 import { MANTIS_RESOLVED_STATUS_ID } from '../../src/constants.js';
+
+function makeStubCache(projectUsers?: Array<{ id: number; name: string; real_name?: string }>): MetadataCache {
+  return {
+    loadIfValid: vi.fn(async () => projectUsers ? {
+      timestamp: Date.now(),
+      projects: [],
+      tags: [],
+      byProject: { 1: { users: projectUsers, versions: [], categories: [] } },
+    } : null),
+  } as unknown as MetadataCache;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -41,7 +53,7 @@ let client: MantisClient;
 beforeEach(() => {
   mockServer = new MockMcpServer();
   client = new MantisClient('https://mantis.example.com', 'test-token');
-  registerIssueTools(mockServer as never, client);
+  registerIssueTools(mockServer as never, client, makeStubCache());
   vi.stubGlobal('fetch', vi.fn());
 });
 
@@ -131,6 +143,98 @@ describe('create_issue', () => {
 
     const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<string, unknown>;
     expect(body.severity).toEqual({ name: 'crash' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// create_issue – handler username
+// ---------------------------------------------------------------------------
+
+describe('create_issue – handler username', () => {
+  it('resolves handler username to id from cache and sets handler in body', async () => {
+    const cache = makeStubCache([{ id: 7, name: 'dom' }, { id: 8, name: 'jane' }]);
+    const server = new MockMcpServer();
+    registerIssueTools(server as never, client, cache);
+
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(201, JSON.stringify({ issue: { id: 200, summary: 'New issue', handler: { id: 7, name: 'dom' } } }))
+    );
+
+    await server.callTool('create_issue', {
+      summary: 'Test', project_id: 1, category: 'General', handler: 'dom',
+    });
+
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as { handler: { id: number } };
+    expect(body.handler).toEqual({ id: 7 });
+  });
+
+  it('resolves handler by real_name when name does not match', async () => {
+    const cache = makeStubCache([{ id: 9, name: 'jdoe', real_name: 'John Doe' }]);
+    const server = new MockMcpServer();
+    registerIssueTools(server as never, client, cache);
+
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(201, JSON.stringify({ issue: { id: 201, summary: 'New' } }))
+    );
+
+    await server.callTool('create_issue', {
+      summary: 'Test', project_id: 1, category: 'General', handler: 'John Doe',
+    });
+
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as { handler: { id: number } };
+    expect(body.handler).toEqual({ id: 9 });
+  });
+
+  it('fetches users from API when cache returns null', async () => {
+    const cache = makeStubCache(); // returns null from loadIfValid
+    const server = new MockMcpServer();
+    registerIssueTools(server as never, client, cache);
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ users: [{ id: 42, name: 'alice' }] })))
+      .mockResolvedValueOnce(makeResponse(201, JSON.stringify({ issue: { id: 202, summary: 'New' } })));
+
+    await server.callTool('create_issue', {
+      summary: 'Test', project_id: 1, category: 'General', handler: 'alice',
+    });
+
+    const projectUsersCall = vi.mocked(fetch).mock.calls[0]![0] as string;
+    expect(projectUsersCall).toContain('projects/1/users');
+
+    const createBody = JSON.parse(vi.mocked(fetch).mock.calls[1]![1]!.body as string) as { handler: { id: number } };
+    expect(createBody.handler).toEqual({ id: 42 });
+  });
+
+  it('returns error when handler username is not found', async () => {
+    const cache = makeStubCache([{ id: 7, name: 'dom' }]);
+    const server = new MockMcpServer();
+    registerIssueTools(server as never, client, cache);
+
+    const result = await server.callTool('create_issue', {
+      summary: 'Test', project_id: 1, category: 'General', handler: 'nonexistent',
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('nonexistent');
+    expect(result.content[0]!.text).toContain('dom');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('handler_id takes precedence over handler username', async () => {
+    const cache = makeStubCache([{ id: 7, name: 'dom' }]);
+    const server = new MockMcpServer();
+    registerIssueTools(server as never, client, cache);
+
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(201, JSON.stringify({ issue: { id: 203, summary: 'New' } }))
+    );
+
+    await server.callTool('create_issue', {
+      summary: 'Test', project_id: 1, category: 'General', handler_id: 99, handler: 'dom',
+    });
+
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as { handler: { id: number } };
+    expect(body.handler).toEqual({ id: 99 });
   });
 });
 

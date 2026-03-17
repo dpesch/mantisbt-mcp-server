@@ -12,6 +12,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MantisClient } from '../../src/client.js';
 import { registerIssueTools } from '../../src/tools/issues.js';
+import { MetadataCache } from '../../src/cache.js';
 import { registerNoteTools } from '../../src/tools/notes.js';
 import { registerFileTools } from '../../src/tools/files.js';
 import { registerMonitorTools } from '../../src/tools/monitors.js';
@@ -30,7 +31,8 @@ let client: MantisClient;
 beforeEach(() => {
   mockServer = new MockMcpServer();
   client = new MantisClient('https://mantis.example.com', 'test-token');
-  registerIssueTools(mockServer as never, client);
+  const stubCache = { loadIfValid: vi.fn(async () => null) } as unknown as MetadataCache;
+  registerIssueTools(mockServer as never, client, stubCache);
   registerNoteTools(mockServer as never, client);
   registerFileTools(mockServer as never, client);
   registerMonitorTools(mockServer as never, client);

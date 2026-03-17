@@ -1,7 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MantisClient } from '../client.js';
-import type { MantisIssue, MantisPaginatedIssues } from '../types.js';
+import { MetadataCache } from '../cache.js';
+import type { MantisIssue, MantisUser, MantisPaginatedIssues } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
 import { MANTIS_RESOLVED_STATUS_ID } from '../constants.js';
 
@@ -12,7 +13,7 @@ function errorText(msg: string): string {
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
 
-export function registerIssueTools(server: McpServer, client: MantisClient): void {
+export function registerIssueTools(server: McpServer, client: MantisClient, cache: MetadataCache): void {
 
   // ---------------------------------------------------------------------------
   // get_issue
@@ -165,6 +166,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
         priority: z.string().optional().describe('Priority name (e.g. "normal", "high", "urgent", "immediate", "low", "none")'),
         severity: z.string().default('minor').describe('Severity name (e.g. "minor", "major", "crash", "block", "feature", "trivial", "text") — default: "minor"'),
         handler_id: z.coerce.number().int().positive().optional().describe('User ID of the person to assign the issue to'),
+        handler: z.string().optional().describe('Username (login name) of the person to assign the issue to. Alternative to handler_id — the server resolves the name to a user ID from the project members. Use get_project_users to see available users.'),
       }),
       annotations: {
         readOnlyHint: false,
@@ -172,7 +174,31 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
         idempotentHint: false,
       },
     },
-    async ({ summary, description, project_id, category, priority, severity, handler_id }) => {
+    async ({ summary, description, project_id, category, priority, severity, handler_id, handler }) => {
+      // Resolve handler username to handler_id when only a name is given
+      let resolvedHandlerId = handler_id;
+      if (resolvedHandlerId === undefined && handler !== undefined) {
+        const metadata = await cache.loadIfValid();
+        let users: MantisUser[] = metadata?.byProject[project_id]?.users ?? [];
+        if (users.length === 0) {
+          try {
+            const usersResult = await client.get<{ users: MantisUser[] }>(`projects/${project_id}/users`);
+            users = usersResult.users ?? [];
+          } catch {
+            users = [];
+          }
+        }
+        const user = users.find(u => u.name === handler || u.real_name === handler);
+        if (!user) {
+          const names = users.map(u => u.name).join(', ');
+          return {
+            content: [{ type: 'text', text: errorText(`User "${handler}" not found in project ${project_id}. Available users: ${names || 'none (run sync_metadata or check project_id)'}`) }],
+            isError: true,
+          };
+        }
+        resolvedHandlerId = user.id;
+      }
+
       try {
         const body: Record<string, unknown> = {
           summary,
@@ -182,7 +208,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient): voi
         };
         if (priority) body.priority = { name: priority };
         body.severity = { name: severity };
-        if (handler_id) body.handler = { id: handler_id };
+        if (resolvedHandlerId) body.handler = { id: resolvedHandlerId };
 
         const result = await client.post<{ issue: MantisIssue }>('issues', body);
         return {
