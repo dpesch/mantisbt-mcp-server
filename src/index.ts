@@ -88,6 +88,11 @@ async function runStdio(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error(`MantisBT MCP Server v${version} running (stdio)`);
+
+  // Exit when the parent process (Claude) closes stdin. Without this, a
+  // background search sync keeps the process alive after the session ends,
+  // causing multiple stale instances to accumulate over time.
+  process.stdin.once('close', () => process.exit(0));
 }
 
 async function runHttp(): Promise<void> {

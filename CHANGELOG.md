@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.2] – 2026-03-17
+
+### Fixed
+- Semantic search: stdio server processes no longer accumulate as zombie processes after the Claude session ends. Previously, a background index sync kept the Node.js event loop alive indefinitely after stdin was closed, causing a new process to pile up on every session start. The server now exits immediately when stdin closes.
+
+---
+
 ## [1.5.1] – 2026-03-17
 
 ### Fixed
