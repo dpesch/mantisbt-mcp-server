@@ -239,6 +239,10 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
   // update_issue
   // ---------------------------------------------------------------------------
 
+  // MantisBT reference shape: at least one of id or name must be provided
+  const ref = z.object({ id: z.number().optional(), name: z.string().optional() })
+    .refine(o => o.id !== undefined || o.name !== undefined, { message: "At least one of 'id' or 'name' must be provided" });
+
   server.registerTool(
     'update_issue',
     {
@@ -248,19 +252,40 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
 The "fields" object accepts any combination of:
 - summary (string)
 - description (string)
+- steps_to_reproduce (string)
+- additional_information (string)
 - status: { name: "new"|"feedback"|"acknowledged"|"confirmed"|"assigned"|"resolved"|"closed" }
 - resolution: { id: 20 }  (20 = fixed/resolved)
 - handler: { id: <user_id> } or { name: "<username>" }
 - priority: { name: "<priority_name>" }
 - severity: { name: "<severity_name>" }
+- reproducibility: { name: "<reproducibility_name>" }
 - category: { name: "<category_name>" }
+- version: { name: "<version_name>" }  (affected version)
 - target_version: { name: "<version_name>" }
 - fixed_in_version: { name: "<version_name>" }
+- view_state: { name: "public"|"private" }
 
 Important: when resolving an issue, always set BOTH status and resolution to avoid leaving resolution as "open".`,
       inputSchema: z.object({
         id: z.coerce.number().int().positive().describe('Numeric issue ID to update'),
-        fields: z.record(z.unknown()).describe('Object containing the fields to update (partial update — only provided fields are changed)'),
+        fields: z.object({
+          summary: z.string().optional(),
+          description: z.string().optional(),
+          steps_to_reproduce: z.string().optional(),
+          additional_information: z.string().optional(),
+          status: ref.optional(),
+          resolution: ref.optional(),
+          priority: ref.optional(),
+          severity: ref.optional(),
+          reproducibility: ref.optional(),
+          handler: ref.optional(),
+          category: ref.optional(),
+          version: ref.optional(),
+          target_version: ref.optional(),
+          fixed_in_version: ref.optional(),
+          view_state: ref.optional(),
+        }).strict().describe('Fields to update (partial update — only provided fields are changed; unknown keys are rejected)'),
       }),
       annotations: {
         readOnlyHint: false,

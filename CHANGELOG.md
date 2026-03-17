@@ -15,6 +15,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - HTTP transport now binds to `127.0.0.1` (localhost only) by default instead of `0.0.0.0` (all interfaces). This prevents unintended exposure on network interfaces when the server is started without explicit network configuration. Set `MCP_HTTP_HOST=0.0.0.0` to restore the previous behaviour (required for Docker and remote access).
 - New optional `MCP_HTTP_TOKEN` environment variable: when set, the `/mcp` endpoint requires an `Authorization: Bearer <token>` header. Requests without a valid token receive HTTP 401. The `/health` endpoint remains public regardless of this setting.
 - New optional `MCP_HTTP_HOST` environment variable: overrides the bind address for HTTP mode (default: `127.0.0.1`).
+- `update_issue`: the `fields` parameter now validates against an explicit allowlist of known MantisBT field names (`summary`, `description`, `steps_to_reproduce`, `additional_information`, `status`, `resolution`, `priority`, `severity`, `reproducibility`, `handler`, `category`, `version`, `fixed_in_version`, `target_version`, `view_state`, `tags`, `custom_fields`); unknown keys are rejected with a validation error. Reference objects (`status`, `handler`, `reproducibility`, `version`, `view_state`, etc.) must now contain at least `id` or `name` — empty objects `{}` are rejected. Previously any key was accepted and forwarded directly to the API.
 
 ---
 

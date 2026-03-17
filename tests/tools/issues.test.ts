@@ -474,3 +474,55 @@ describe('list_issues – recorded fixtures', () => {
     expect(parsed.issues).toHaveLength(resolvedInFixture);
   });
 });
+
+// ---------------------------------------------------------------------------
+// update_issue – fields allowlist
+// ---------------------------------------------------------------------------
+
+describe('update_issue – fields allowlist', () => {
+  it('accepts known string fields (summary, description)', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issue: { id: 1, summary: 'Updated' } })));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 1, fields: { summary: 'Updated', description: 'New desc' } },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+  });
+
+  it('accepts known object fields (status, resolution, handler)', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issue: { id: 1 } })));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 1, fields: { status: { name: 'resolved' }, resolution: { id: 20 }, handler: { id: 5 } } },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+  });
+
+  it('rejects unknown fields without calling the API', async () => {
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 1, fields: { reporter: { id: 99 } } },
+      { validate: true },
+    );
+
+    expect(result.isError).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('rejects fields with an unknown key mixed with known keys without calling the API', async () => {
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 1, fields: { summary: 'ok', unknown_field: 'bad' } },
+      { validate: true },
+    );
+
+    expect(result.isError).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+});
