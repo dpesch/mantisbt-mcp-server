@@ -73,6 +73,7 @@ npm run build
 | `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vektorspeicher: `vectra` (reines JS) oder `sqlite-vec` (manuelle Installation erforderlich) |
 | `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/search` | Verzeichnis für den Suchindex |
 | `MANTIS_SEARCH_MODEL` | – | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | Embedding-Modell (wird beim ersten Start einmalig heruntergeladen, ~80 MB) |
+| `MANTIS_SEARCH_THREADS` | – | `1` | Anzahl der ONNX-Intra-Op-Threads für das Embedding-Modell. Standard ist 1, um CPU-Sättigung auf Mehrkernsystemen und in WSL zu verhindern. Nur erhöhen, wenn die Indexierungsgeschwindigkeit kritisch ist und der Host ausschließlich für diese Last vorgesehen ist. |
 
 ### Config-Datei (Fallback)
 

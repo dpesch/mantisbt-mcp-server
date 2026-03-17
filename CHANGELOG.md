@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.1] – 2026-03-17
+
+### Fixed
+- Semantic search: ONNX thread pool now defaults to 1 thread (`intra_op_num_threads=1`) instead of auto-detecting all available CPU cores. On WSL and multi-core machines the unrestricted default caused CPU saturation (700%+ CPU, 12 GB VM) during the initial index build. The number of threads is configurable via the new `MANTIS_SEARCH_THREADS` environment variable (default: `1`). `inter_op_num_threads` is always kept at 1 because Transformer model graphs are sequential and inter-op parallelism provides no benefit.
+
+---
+
 ## [1.5.0] – 2026-03-17
 
 ### Added

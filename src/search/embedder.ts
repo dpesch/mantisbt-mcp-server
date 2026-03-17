@@ -16,19 +16,29 @@ interface Pipeline {
   (text: string | string[], options?: Record<string, unknown>): Promise<PipelineOutput | PipelineOutput[]>;
 }
 
+interface PipelineOptions {
+  session_options?: {
+    intra_op_num_threads?: number;
+    inter_op_num_threads?: number;
+  };
+}
+
 interface TransformersModule {
-  pipeline: (task: string, model: string) => Promise<Pipeline>;
+  pipeline: (task: string, model: string, options?: PipelineOptions) => Promise<Pipeline>;
 }
 
 export class Embedder {
   private pipe: Pipeline | null = null;
 
-  constructor(private readonly modelName: string) {}
+  constructor(
+    private readonly modelName: string,
+    private readonly numThreads: number = 1,
+  ) {}
 
   private async load(): Promise<Pipeline> {
     if (this.pipe) return this.pipe;
 
-    process.stderr.write(`[mantisbt-search] Loading embedding model ${this.modelName}...\n`);
+    process.stderr.write(`[mantisbt-search] Loading embedding model ${this.modelName} (threads: ${this.numThreads})...\n`);
 
     let transformers: TransformersModule;
     try {
@@ -39,7 +49,12 @@ export class Embedder {
       throw new Error(`Failed to load @huggingface/transformers: ${msg}`);
     }
 
-    this.pipe = await transformers.pipeline('feature-extraction', this.modelName);
+    this.pipe = await transformers.pipeline('feature-extraction', this.modelName, {
+      session_options: {
+        intra_op_num_threads: this.numThreads,
+        inter_op_num_threads: 1, // Transformer graphs are sequential — no benefit from inter-op parallelism
+      },
+    });
     return this.pipe;
   }
 

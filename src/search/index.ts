@@ -18,7 +18,7 @@ export async function initializeSearchModule(
   if (!config.enabled) return;
 
   const store = createVectorStore(config.backend, config.dir);
-  const embedder = new Embedder(config.modelName);
+  const embedder = new Embedder(config.modelName, config.numThreads);
 
   registerSearchTools(server, client, store, embedder);
 

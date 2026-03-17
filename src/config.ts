@@ -12,6 +12,7 @@ export interface SearchConfig {
   backend: 'vectra' | 'sqlite-vec';
   dir: string;
   modelName: string;
+  numThreads: number;
 }
 
 export interface MantisConfig {
@@ -113,6 +114,7 @@ export async function getConfig(): Promise<MantisConfig> {
   const searchModelName =
     process.env.MANTIS_SEARCH_MODEL ??
     'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
+  const searchNumThreads = Math.max(1, parseInt(process.env.MANTIS_SEARCH_THREADS ?? '', 10) || 1);
 
   cachedConfig = {
     baseUrl: baseUrl.replace(/\/$/, ''), // strip trailing slash
@@ -124,6 +126,7 @@ export async function getConfig(): Promise<MantisConfig> {
       backend: searchBackend,
       dir: searchDir,
       modelName: searchModelName,
+      numThreads: searchNumThreads,
     },
   };
 
