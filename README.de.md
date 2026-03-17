@@ -69,11 +69,14 @@ npm run build
 | `MANTIS_CACHE_TTL` | – | `3600` | Cache-Lebensdauer in Sekunden |
 | `TRANSPORT` | – | `stdio` | Transport-Modus: `stdio` oder `http` |
 | `PORT` | – | `3000` | Port für HTTP-Modus |
+| `MCP_HTTP_HOST` | – | `127.0.0.1` | Bind-Adresse für HTTP-Modus. **Geändert von `0.0.0.0` auf `127.0.0.1`** — der Server horcht standardmäßig nur auf localhost. Für Docker oder Remote-Zugriff `0.0.0.0` setzen. |
+| `MCP_HTTP_TOKEN` | – | – | Wenn gesetzt, muss jede `/mcp`-Anfrage den Header `Authorization: Bearer <token>` enthalten. `/health` ist immer öffentlich. |
 | `MANTIS_SEARCH_ENABLED` | – | `false` | Auf `true` setzen, um die semantische Suche zu aktivieren |
 | `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vektorspeicher: `vectra` (reines JS) oder `sqlite-vec` (manuelle Installation erforderlich) |
 | `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/search` | Verzeichnis für den Suchindex |
 | `MANTIS_SEARCH_MODEL` | – | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | Embedding-Modell (wird beim ersten Start einmalig heruntergeladen, ~80 MB) |
 | `MANTIS_SEARCH_THREADS` | – | `1` | Anzahl der ONNX-Intra-Op-Threads für das Embedding-Modell. Standard ist 1, um CPU-Sättigung auf Mehrkernsystemen und in WSL zu verhindern. Nur erhöhen, wenn die Indexierungsgeschwindigkeit kritisch ist und der Host ausschließlich für diese Last vorgesehen ist. |
+| `MANTIS_UPLOAD_DIR` | – | – | Schränkt `upload_file` auf Dateien in diesem Verzeichnis ein. Wenn gesetzt, wird jeder `file_path` außerhalb des Verzeichnisses abgelehnt (Pfad-Traversal-Versuche via `../` werden blockiert). Ohne diese Variable gilt keine Einschränkung. |
 
 ### Config-Datei (Fallback)
 
@@ -199,9 +202,13 @@ Für den Einsatz als eigenständiger Server (z.B. in Remote-Setups):
 
 ```bash
 MANTIS_BASE_URL=... MANTIS_API_KEY=... TRANSPORT=http PORT=3456 node dist/index.js
+
+# Mit Token-Authentifizierung und expliziter Bind-Adresse (erforderlich für Docker/Remote):
+# MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
+#   TRANSPORT=http PORT=3456 MCP_HTTP_HOST=0.0.0.0 node dist/index.js
 ```
 
-Healthcheck: `GET http://localhost:3456/health`
+Healthcheck: `GET http://localhost:3456/health` (immer öffentlich, kein Token erforderlich)
 
 ## Entwicklung
 
