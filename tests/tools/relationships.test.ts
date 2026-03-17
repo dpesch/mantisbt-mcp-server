@@ -61,6 +61,81 @@ describe('add_relationship', () => {
 });
 
 // ---------------------------------------------------------------------------
+// add_relationship – type_name parameter
+// ---------------------------------------------------------------------------
+
+describe('add_relationship – type_name', () => {
+  it('accepts "related_to" and sends type_id 1', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 5 })));
+
+    await mockServer.callTool('add_relationship', { issue_id: 10, target_id: 20, type_name: 'related_to' });
+
+    const body = JSON.parse((vi.mocked(fetch).mock.calls[0]![1] as RequestInit).body as string) as { type: { id: number } };
+    expect(body.type.id).toBe(1);
+  });
+
+  it('accepts "related-to" (dash variant) and sends type_id 1', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 5 })));
+
+    await mockServer.callTool('add_relationship', { issue_id: 10, target_id: 20, type_name: 'related-to' });
+
+    const body = JSON.parse((vi.mocked(fetch).mock.calls[0]![1] as RequestInit).body as string) as { type: { id: number } };
+    expect(body.type.id).toBe(1);
+  });
+
+  it('accepts "duplicate_of" and sends type_id 0', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 5 })));
+
+    await mockServer.callTool('add_relationship', { issue_id: 10, target_id: 20, type_name: 'duplicate_of' });
+
+    const body = JSON.parse((vi.mocked(fetch).mock.calls[0]![1] as RequestInit).body as string) as { type: { id: number } };
+    expect(body.type.id).toBe(0);
+  });
+
+  it('accepts "depends_on" as alias for parent_of (type_id 2)', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 5 })));
+
+    await mockServer.callTool('add_relationship', { issue_id: 10, target_id: 20, type_name: 'depends_on' });
+
+    const body = JSON.parse((vi.mocked(fetch).mock.calls[0]![1] as RequestInit).body as string) as { type: { id: number } };
+    expect(body.type.id).toBe(2);
+  });
+
+  it('accepts "blocks" as alias for child_of (type_id 3)', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 5 })));
+
+    await mockServer.callTool('add_relationship', { issue_id: 10, target_id: 20, type_name: 'blocks' });
+
+    const body = JSON.parse((vi.mocked(fetch).mock.calls[0]![1] as RequestInit).body as string) as { type: { id: number } };
+    expect(body.type.id).toBe(3);
+  });
+
+  it('type_id takes precedence when both type_id and type_name are given', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 5 })));
+
+    await mockServer.callTool('add_relationship', { issue_id: 10, target_id: 20, type_id: 4, type_name: 'related_to' });
+
+    const body = JSON.parse((vi.mocked(fetch).mock.calls[0]![1] as RequestInit).body as string) as { type: { id: number } };
+    expect(body.type.id).toBe(4);
+  });
+
+  it('returns error for unknown type_name', async () => {
+    const result = await mockServer.callTool('add_relationship', { issue_id: 10, target_id: 20, type_name: 'nonsense' });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('nonsense');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('returns error when neither type_id nor type_name is given', async () => {
+    const result = await mockServer.callTool('add_relationship', { issue_id: 10, target_id: 20 });
+
+    expect(result.isError).toBe(true);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // remove_relationship
 // ---------------------------------------------------------------------------
 

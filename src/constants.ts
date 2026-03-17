@@ -14,6 +14,32 @@ export const RELATIONSHIP_TYPES = {
 export type RelationshipTypeId = (typeof RELATIONSHIP_TYPES)[keyof typeof RELATIONSHIP_TYPES];
 
 // ---------------------------------------------------------------------------
+// Relationship type name → ID mapping (string aliases accepted by add_relationship)
+// ---------------------------------------------------------------------------
+
+export const RELATIONSHIP_NAME_TO_ID: Record<string, number> = {
+  'duplicate_of':  RELATIONSHIP_TYPES.DUPLICATE_OF,
+  'duplicate-of':  RELATIONSHIP_TYPES.DUPLICATE_OF,
+  'duplicateof':   RELATIONSHIP_TYPES.DUPLICATE_OF,
+  'related_to':    RELATIONSHIP_TYPES.RELATED_TO,
+  'related-to':    RELATIONSHIP_TYPES.RELATED_TO,
+  'relatedto':     RELATIONSHIP_TYPES.RELATED_TO,
+  'parent_of':     RELATIONSHIP_TYPES.PARENT_OF,
+  'parent-of':     RELATIONSHIP_TYPES.PARENT_OF,
+  'parentof':      RELATIONSHIP_TYPES.PARENT_OF,
+  'depends_on':    RELATIONSHIP_TYPES.PARENT_OF,
+  'depends-on':    RELATIONSHIP_TYPES.PARENT_OF,
+  'dependson':     RELATIONSHIP_TYPES.PARENT_OF,
+  'child_of':      RELATIONSHIP_TYPES.CHILD_OF,
+  'child-of':      RELATIONSHIP_TYPES.CHILD_OF,
+  'childof':       RELATIONSHIP_TYPES.CHILD_OF,
+  'blocks':        RELATIONSHIP_TYPES.CHILD_OF,
+  'has_duplicate': RELATIONSHIP_TYPES.HAS_DUPLICATE,
+  'has-duplicate': RELATIONSHIP_TYPES.HAS_DUPLICATE,
+  'hasduplicate':  RELATIONSHIP_TYPES.HAS_DUPLICATE,
+};
+
+// ---------------------------------------------------------------------------
 // Status names (internal English names used in API calls)
 // ---------------------------------------------------------------------------
 
