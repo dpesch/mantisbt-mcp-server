@@ -82,3 +82,14 @@ jobs:
               --arg name "${{ github.ref_name }}" \
               --rawfile body /tmp/release_notes.md \
               '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: false}')"
+
+      - name: Create GitHub release
+        run: |
+          curl -s -X POST "https://api.github.com/repos/dpesch/mantisbt-mcp-server/releases" \
+            -H "Authorization: Bearer ${{ secrets.GH_RELEASE_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg tag "${{ github.ref_name }}" \
+              --arg name "${{ github.ref_name }}" \
+              --rawfile body /tmp/release_notes.md \
+              '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: false}')"
