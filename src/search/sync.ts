@@ -24,6 +24,7 @@ interface IssueListResponse {
 
 const PAGE_SIZE = 50;
 const EMBED_BATCH_SIZE = 10;
+const CHECKPOINT_INTERVAL = 100; // flush to disk every N indexed issues
 
 export class SearchSyncService {
   constructor(
@@ -39,6 +40,7 @@ export class SearchSyncService {
 
     let indexed = 0;
     let skipped = 0;
+    let indexedSinceCheckpoint = 0;
 
     // Process in batches of EMBED_BATCH_SIZE
     for (let i = 0; i < allIssues.length; i += EMBED_BATCH_SIZE) {
@@ -69,6 +71,19 @@ export class SearchSyncService {
       }));
       await this.store.addBatch(batchItems);
       indexed += batchItems.length;
+      indexedSinceCheckpoint += batchItems.length;
+
+      // Checkpoint flush: persist every CHECKPOINT_INTERVAL issues to limit
+      // data loss if the process is killed before the final flush.
+      if (indexedSinceCheckpoint >= CHECKPOINT_INTERVAL) {
+        await this.store.flush();
+        indexedSinceCheckpoint = 0;
+      }
+    }
+
+    // Final flush for any remaining items not yet written by a checkpoint.
+    if (indexedSinceCheckpoint > 0) {
+      await this.store.flush();
     }
 
     await this.store.setLastSyncedAt(new Date().toISOString());

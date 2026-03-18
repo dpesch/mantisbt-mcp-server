@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
+import { readFile, writeFile, rename, mkdir, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 
 // ---------------------------------------------------------------------------
@@ -14,6 +14,7 @@ export interface VectorStoreItem {
 export interface VectorStore {
   add(item: VectorStoreItem): Promise<void>;
   addBatch(items: VectorStoreItem[]): Promise<void>;
+  flush(): Promise<void>;
   search(vector: number[], topN: number): Promise<Array<{ id: number; score: number }>>;
   delete(id: number): Promise<void>;
   count(): Promise<number>;
@@ -59,8 +60,10 @@ export class VectraStore implements VectorStore {
 
   private async persist(): Promise<void> {
     const indexFile = join(this.vectraDir, 'index.json');
+    const tmpFile = indexFile + '.tmp';
     const data = JSON.stringify([...this.items.values()]);
-    await writeFile(indexFile, data, 'utf-8');
+    await writeFile(tmpFile, data, 'utf-8');
+    await rename(tmpFile, indexFile);
   }
 
   async add(item: VectorStoreItem): Promise<void> {
@@ -74,6 +77,10 @@ export class VectraStore implements VectorStore {
     for (const item of items) {
       this.items.set(item.id, item);
     }
+    // No persist() here — call flush() once after all batches are processed.
+  }
+
+  async flush(): Promise<void> {
     await this.persist();
   }
 

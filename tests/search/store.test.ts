@@ -146,3 +146,48 @@ describe('VectraStore.resetLastSyncedAt', () => {
     expect(await store.getLastSyncedAt()).toBeNull();
   });
 });
+
+describe('VectraStore.addBatch', () => {
+  it('increases in-memory count without persisting to disk', async () => {
+    await store.addBatch([
+      { id: 1, vector: randomVector(), metadata: { summary: 'A' } },
+      { id: 2, vector: randomVector(), metadata: { summary: 'B' } },
+    ]);
+    expect(await store.count()).toBe(2);
+
+    // A new instance reading the same dir must not see the items yet
+    const store2 = new VectraStore(dir);
+    expect(await store2.count()).toBe(0);
+  });
+
+  it('persists items after flush()', async () => {
+    await store.addBatch([
+      { id: 10, vector: randomVector(), metadata: { summary: 'X' } },
+      { id: 11, vector: randomVector(), metadata: { summary: 'Y' } },
+    ]);
+    await store.flush();
+
+    const store2 = new VectraStore(dir);
+    expect(await store2.count()).toBe(2);
+  });
+
+  it('accumulates items across multiple addBatch calls before flush', async () => {
+    await store.addBatch([{ id: 1, vector: randomVector(), metadata: { summary: 'First' } }]);
+    await store.addBatch([{ id: 2, vector: randomVector(), metadata: { summary: 'Second' } }]);
+    await store.flush();
+
+    const store2 = new VectraStore(dir);
+    expect(await store2.count()).toBe(2);
+  });
+});
+
+describe('VectraStore.flush (atomic write)', () => {
+  it('leaves no .tmp file after a successful flush', async () => {
+    const { readdir } = await import('node:fs/promises');
+    await store.addBatch([{ id: 1, vector: randomVector(), metadata: { summary: 'Test' } }]);
+    await store.flush();
+
+    const files = await readdir(join(dir, 'vectra'));
+    expect(files.some(f => f.endsWith('.tmp'))).toBe(false);
+  });
+});

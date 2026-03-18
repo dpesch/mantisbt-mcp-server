@@ -145,6 +145,60 @@ describe('SearchSyncService.sync – project_id', () => {
 });
 
 // ---------------------------------------------------------------------------
+// flush / checkpoint behaviour
+// ---------------------------------------------------------------------------
+
+describe('SearchSyncService.sync – flush and checkpoint', () => {
+  function makeIssues(count: number) {
+    return Array.from({ length: count }, (_, i) => ({
+      id: i + 1,
+      summary: `Issue ${i + 1}`,
+      description: `Description ${i + 1}`,
+      updated_at: '2024-03-10T08:00:00Z',
+    }));
+  }
+
+  it('calls flush exactly once when fewer than 100 issues are indexed', async () => {
+    const store = makeMockStore({ lastSyncedAt: null });
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: makeIssues(50), total_count: 50 }))
+    );
+
+    const service = new SearchSyncService(client, store, embedder);
+    await service.sync();
+
+    // Only the final flush, no checkpoint
+    expect(store.flush).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls flush exactly once when exactly 100 issues are indexed (checkpoint covers all, no redundant final)', async () => {
+    const store = makeMockStore({ lastSyncedAt: null });
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: makeIssues(100), total_count: 100 }))
+    );
+
+    const service = new SearchSyncService(client, store, embedder);
+    await service.sync();
+
+    // Checkpoint at 100 covers all items; indexedSinceCheckpoint resets to 0 → no redundant final flush
+    expect(store.flush).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls flush twice when 110 issues are indexed (checkpoint at 100 + final for remaining 10)', async () => {
+    const store = makeMockStore({ lastSyncedAt: null });
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: makeIssues(110), total_count: 110 }))
+    );
+
+    const service = new SearchSyncService(client, store, embedder);
+    await service.sync();
+
+    // Checkpoint at 100, then final flush for remaining 10
+    expect(store.flush).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // total_count persistence (regression: MantisBT installations without total_count)
 // ---------------------------------------------------------------------------
 

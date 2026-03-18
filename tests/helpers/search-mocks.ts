@@ -45,6 +45,7 @@ export function makeMockStore(options?: { lastSyncedAt?: string | null; itemCoun
     resetLastSyncedAt: vi.fn(async () => {}),
     getLastKnownTotal: vi.fn(async () => options?.lastKnownTotal ?? null),
     setLastKnownTotal: vi.fn(async () => {}),
+    flush: vi.fn(async () => {}),
   };
 }
 

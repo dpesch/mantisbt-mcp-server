@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.5] – 2026-03-18
+
+### Fixed
+- Semantic search index sync: eliminated O(n²) disk write amplification during initial index builds. Previously `addBatch()` wrote the entire `index.json` to disk after every batch, causing n/batch_size complete rewrites for a full rebuild. Now `addBatch()` only updates the in-memory map; a new `flush()` method (atomic write via tmp file + rename) persists to disk. `SearchSyncService.sync()` calls `flush()` as a checkpoint every 100 indexed issues (`CHECKPOINT_INTERVAL=100`), limiting data loss on process kill to at most 100 issues, and performs a final flush after the loop for any remaining items.
+
+---
+
 ## [1.5.4] – 2026-03-18
 
 ### Fixed
