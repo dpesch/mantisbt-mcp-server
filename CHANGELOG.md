@@ -7,6 +7,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.7] – 2026-03-18
+
+### Added
+- `glama.json`: Glama MCP directory metadata (maintainer claim)
+- CI: GitHub release step in publish workflow (creates GitHub release alongside Codeberg release on tag push)
+
+### Fixed
+- `server.json`: removed `repository` field — Codeberg URL rejected by MCP Registry validation
+
+---
+
 ## [1.5.6] – 2026-03-18
 
 ### Added
