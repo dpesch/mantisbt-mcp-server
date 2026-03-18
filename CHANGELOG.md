@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.8] – 2026-03-18
+
+### Added
+- Glama MCP directory badge in README.md and README.de.md (contributed by Frank Fiegel / punkpeye)
+
+---
+
 ## [1.5.7] – 2026-03-18
 
 ### Added
