@@ -38,7 +38,7 @@ Add to `~/.claude/claude_desktop_config.json` (Claude Desktop) or your local
 ```bash
 git clone https://codeberg.org/dpesch/mantisbt-mcp-server
 cd mantisbt-mcp-server
-npm install
+npm run init
 npm run build
 ```
 
@@ -213,7 +213,7 @@ Health check: `GET http://localhost:3456/health` (always public, no token requir
 ## Development
 
 ```bash
-npm install          # Install dependencies
+npm run init         # First-time setup: install deps, git hooks, typecheck
 npm run build        # Compile TypeScript → dist/
 npm run typecheck    # Type check without output
 npm run dev          # Watch mode for development

@@ -23,7 +23,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:record": "tsx scripts/record-fixtures.ts"
+    "test:record": "tsx scripts/record-fixtures.ts",
+    "init": "node scripts/init.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.0.0",
