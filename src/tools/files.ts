@@ -13,7 +13,7 @@ function errorText(msg: string): string {
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
 
-export function registerFileTools(server: McpServer, client: MantisClient, uploadDir: string | undefined): void {
+export function registerFileTools(server: McpServer, client: MantisClient, uploadDir?: string): void {
   const normalizedUploadDir = uploadDir ? resolve(uploadDir) + sep : undefined;
 
   // ---------------------------------------------------------------------------
