@@ -4,10 +4,6 @@
   "title": "MantisBT MCP Server",
   "description": "MantisBT MCP server – manage issues, notes, files, tags, and relationships. With semantic search.",
   "version": "1.5.6",
-  "repository": {
-    "url": "https://codeberg.org/dpesch/mantisbt-mcp-server",
-    "source": "codeberg"
-  },
   "packages": [
     {
       "registryType": "npm",
