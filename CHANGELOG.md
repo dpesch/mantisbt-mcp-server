@@ -7,6 +7,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.6] – 2026-03-18
+
+### Added
+- `server.json`: MCP Registry metadata for publishing to the official MCP Registry (registry.modelcontextprotocol.io)
+- `package.json`: `mcpName` field (`io.github.dpesch/mantisbt-mcp-server`) required by the MCP Registry publisher
+- `.gitignore`: exclude `mcp-publisher.exe` and `.mcpregistry_*` token files
+
+---
+
 ## [1.5.5] – 2026-03-18
 
 ### Fixed

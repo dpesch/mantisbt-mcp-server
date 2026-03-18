@@ -1,6 +1,7 @@
 {
   "name": "@dpesch/mantisbt-mcp-server",
-  "version": "1.5.5",
+  "version": "1.5.6",
+  "mcpName": "io.github.dpesch/mantisbt-mcp-server",
   "description": "MCP server for MantisBT REST API – read and manage bug tracker issues",
   "author": "Dominik Pesch",
   "license": "MIT",
