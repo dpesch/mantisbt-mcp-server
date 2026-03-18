@@ -7,6 +7,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.4] – 2026-03-18
+
+### Fixed
+- `registerFileTools`: the `uploadDir` parameter was typed as required (`string | undefined`) instead of truly optional (`uploadDir?: string`), causing TypeScript errors in callers that omit the argument and breaking the CI typecheck step.
+
+### Changed
+- Added `npm run init` setup script (`scripts/init.mjs`): checks Node.js version (≥ 18), runs `npm install`, installs git hooks from `scripts/hooks/`, and runs a typecheck to verify the setup.
+- Git pre-push hook logic is now version-controlled in `scripts/hooks/pre-push.mjs`; the hook runs `npm run typecheck` before every push to catch type errors locally before they reach CI.
+
+---
+
 ## [1.5.3] – 2026-03-17
 
 ### Security
