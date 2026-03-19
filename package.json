@@ -5,6 +5,10 @@
   "description": "MCP server for MantisBT REST API – read and manage bug tracker issues",
   "author": "Dominik Pesch",
   "license": "MIT",
+  "homepage": "https://codeberg.org/dpesch/mantisbt-mcp-server",
+  "bugs": {
+    "url": "https://codeberg.org/dpesch/mantisbt-mcp-server/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://codeberg.org/dpesch/mantisbt-mcp-server"
