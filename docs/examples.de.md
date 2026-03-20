@@ -1,6 +1,6 @@
 # Anwendungsbeispiele
 
-Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der MCP-Server verbunden ist. Einfach in natürlicher Sprache fragen — keine Tool-Namen oder Parameter erforderlich.
+Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der MCP-Server verbunden ist. Einfach in natürlicher Sprache fragen — keine Tool-Namen oder Parameter erforderlich. Für exakte Tool-Aufrufe und Parameter siehe das [Cookbook](cookbook.de.md).
 
 ---
 

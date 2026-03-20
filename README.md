@@ -211,6 +211,11 @@ MANTIS_BASE_URL=... MANTIS_API_KEY=... TRANSPORT=http PORT=3456 node dist/index.
 
 Health check: `GET http://localhost:3456/health` (always public, no token required)
 
+## Documentation
+
+- [**Cookbook**](docs/cookbook.md) — tool-oriented recipes with copy-paste-ready parameter examples for all registered tools
+- [**Usage Examples**](docs/examples.md) — natural language prompt examples for everyday use cases (no tool names required)
+
 ## Development
 
 ```bash
