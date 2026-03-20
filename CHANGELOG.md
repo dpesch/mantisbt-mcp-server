@@ -7,10 +7,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [1.5.9] – 2026-03-20
 
 ### Fixed
 - `create_issue` now validates `severity` and `priority` against canonical English names and returns a clear error for unknown values; sends `{ id }` instead of `{ name }` to work correctly on localized MantisBT installations
+
+### Added
+- Cookbook (EN + DE): tool-oriented recipes with copy-paste-ready parameter examples for all registered tools ([docs/cookbook.md](docs/cookbook.md), [docs/cookbook.de.md](docs/cookbook.de.md))
+- Usage examples (EN + DE): natural language prompt examples for everyday use cases ([docs/examples.md](docs/examples.md), [docs/examples.de.md](docs/examples.de.md))
+- README: documentation section linking to cookbook and examples
 
 ---
 
