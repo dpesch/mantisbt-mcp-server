@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- `create_issue` now validates `severity` and `priority` against canonical English names and returns a clear error for unknown values; sends `{ id }` instead of `{ name }` to work correctly on localized MantisBT installations
+
+---
+
 ## [1.5.8] – 2026-03-18
 
 ### Added

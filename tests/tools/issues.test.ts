@@ -112,8 +112,10 @@ describe('create_issue', () => {
     expect(mockServer.hasToolRegistered('create_issue')).toBe(true);
   });
 
-  it('sends severity: { name: "minor" } by default when no severity is provided', async () => {
+  it('sends severity as { id: 50 } (minor) by default when no severity is provided', async () => {
     // Regression: omitting severity caused MantisBT to store 0 → displayed as "@0@".
+    // The server now resolves canonical English names to IDs so MantisBT language setting
+    // does not affect how the value is stored.
     // validate: true ensures Zod defaults are applied before the handler runs.
     vi.mocked(fetch).mockResolvedValue(
       makeResponse(201, JSON.stringify({ issue: { id: 100, summary: 'Test' } }))
@@ -126,7 +128,7 @@ describe('create_issue', () => {
     }, { validate: true });
 
     const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<string, unknown>;
-    expect(body.severity).toEqual({ name: 'minor' });
+    expect(body.severity).toEqual({ id: 50 });
   });
 
   it('returns full issue object when API responds with complete issue', async () => {
@@ -137,7 +139,7 @@ describe('create_issue', () => {
 
     const result = await mockServer.callTool('create_issue', {
       summary: 'New issue', project_id: 1, category: 'General',
-    });
+    }, { validate: true });
 
     expect(result.isError).toBeUndefined();
     const parsed = JSON.parse(result.content[0]!.text) as typeof fullIssue;
@@ -155,7 +157,7 @@ describe('create_issue', () => {
 
     const result = await mockServer.callTool('create_issue', {
       summary: 'Created issue', project_id: 1, category: 'General',
-    });
+    }, { validate: true });
 
     expect(result.isError).toBeUndefined();
     const parsed = JSON.parse(result.content[0]!.text) as typeof fullIssue;
@@ -173,7 +175,7 @@ describe('create_issue', () => {
 
     const result = await mockServer.callTool('create_issue', {
       summary: 'Test', project_id: 1, category: 'General',
-    });
+    }, { validate: true });
 
     expect(result.isError).toBeUndefined();
     const parsed = JSON.parse(result.content[0]!.text) as { id: number };
@@ -193,7 +195,21 @@ describe('create_issue', () => {
     }, { validate: true });
 
     const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<string, unknown>;
-    expect(body.severity).toEqual({ name: 'crash' });
+    expect(body.severity).toEqual({ id: 70 });
+  });
+
+  it('returns an error for an unknown severity name', async () => {
+    const result = await mockServer.callTool('create_issue', {
+      summary: 'Test',
+      project_id: 1,
+      category: 'General',
+      severity: 'schwerer Fehler',
+    }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('schwerer Fehler');
+    expect(result.content[0]!.text).toContain('minor');
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
 
@@ -213,7 +229,7 @@ describe('create_issue – handler username', () => {
 
     await server.callTool('create_issue', {
       summary: 'Test', project_id: 1, category: 'General', handler: 'dom',
-    });
+    }, { validate: true });
 
     const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as { handler: { id: number } };
     expect(body.handler).toEqual({ id: 7 });
@@ -230,7 +246,7 @@ describe('create_issue – handler username', () => {
 
     await server.callTool('create_issue', {
       summary: 'Test', project_id: 1, category: 'General', handler: 'John Doe',
-    });
+    }, { validate: true });
 
     const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as { handler: { id: number } };
     expect(body.handler).toEqual({ id: 9 });
@@ -247,7 +263,7 @@ describe('create_issue – handler username', () => {
 
     await server.callTool('create_issue', {
       summary: 'Test', project_id: 1, category: 'General', handler: 'alice',
-    });
+    }, { validate: true });
 
     const projectUsersCall = vi.mocked(fetch).mock.calls[0]![0] as string;
     expect(projectUsersCall).toContain('projects/1/users');
@@ -282,7 +298,7 @@ describe('create_issue – handler username', () => {
 
     await server.callTool('create_issue', {
       summary: 'Test', project_id: 1, category: 'General', handler_id: 99, handler: 'dom',
-    });
+    }, { validate: true });
 
     const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as { handler: { id: number } };
     expect(body.handler).toEqual({ id: 99 });

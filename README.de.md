@@ -98,7 +98,7 @@ Falls keine Umgebungsvariablen gesetzt sind, wird `~/.claude/mantis.json` ausgel
 |---|---|
 | `get_issue` | Ein Issue anhand seiner ID abrufen |
 | `list_issues` | Issues nach Projekt, Status, Autor u.v.m. filtern; optionales `select` für Feldprojektion und `status` für clientseitige Statusfilterung |
-| `create_issue` | Neues Issue anlegen; optionaler `handler`-Parameter akzeptiert einen Benutzernamen als Alternative zu `handler_id` (wird gegen die Projektmitglieder aufgelöst) |
+| `create_issue` | Neues Issue anlegen; `severity` und `priority` müssen kanonische englische Namen sein (z.B. `minor`, `major`, `normal`, `high`) — `get_issue_enums` aufrufen, um alle gültigen Werte und deren lokalisierte Bezeichnungen zu sehen; optionaler `handler`-Parameter akzeptiert einen Benutzernamen als Alternative zu `handler_id` (wird gegen die Projektmitglieder aufgelöst) |
 | `update_issue` | Bestehendes Issue bearbeiten |
 | `delete_issue` | Issue löschen |
 

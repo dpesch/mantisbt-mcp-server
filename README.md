@@ -98,7 +98,7 @@ If no environment variables are set, `~/.claude/mantis.json` is read:
 |---|---|
 | `get_issue` | Retrieve an issue by its numeric ID |
 | `list_issues` | Filter issues by project, status, author, and more; optional `select` for field projection and `status` for client-side status filtering |
-| `create_issue` | Create a new issue; optional `handler` parameter accepts a username as alternative to `handler_id` (resolved against project members) |
+| `create_issue` | Create a new issue; `severity` and `priority` must be canonical English names (e.g. `minor`, `major`, `normal`, `high`) — call `get_issue_enums` to see all valid values and their localized labels; optional `handler` parameter accepts a username as alternative to `handler_id` (resolved against project members) |
 | `update_issue` | Update an existing issue |
 | `delete_issue` | Delete an issue |
 

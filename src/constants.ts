@@ -103,6 +103,19 @@ export const MANTIS_CANONICAL_ENUM_NAMES: Record<string, Record<number, string>>
 };
 
 // ---------------------------------------------------------------------------
+// Reverse lookup: canonical English enum name → numeric ID.
+// Case-insensitive. Returns undefined when the name is not in the table.
+// ---------------------------------------------------------------------------
+
+export function resolveEnumId(group: keyof typeof MANTIS_CANONICAL_ENUM_NAMES, name: string | undefined): number | undefined {
+  if (!name) return undefined;
+  const map = MANTIS_CANONICAL_ENUM_NAMES[group];
+  const lower = name.toLowerCase();
+  const entry = Object.entries(map).find(([, n]) => n.toLowerCase() === lower);
+  return entry ? Number(entry[0]) : undefined;
+}
+
+// ---------------------------------------------------------------------------
 // Issue enum config option names
 // ---------------------------------------------------------------------------
 
