@@ -13,7 +13,7 @@
     "type": "git",
     "url": "https://codeberg.org/dpesch/mantisbt-mcp-server"
   },
-  "keywords": ["mcp", "mantisbt", "bugtracker", "mantis", "model-context-protocol"],
+  "keywords": ["mcp", "mcp-server", "mantisbt", "bugtracker", "mantis", "model-context-protocol"],
   "main": "dist/index.js",
   "bin": {
     "mantisbt-mcp-server": "dist/index.js"
