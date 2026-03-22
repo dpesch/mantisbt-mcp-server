@@ -7,6 +7,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- Four MCP prompt templates for guided issue workflows:
+  - `create-bug-report` — structured bug report prompt; collects project, category, summary, description, steps to reproduce, expected/actual behavior, and environment, then calls `create_issue`
+  - `create-feature-request` — feature request prompt; collects project, category, summary, description, and use case, then calls `create_issue`
+  - `summarize-issue` — calls `get_issue` for a given issue ID and returns a concise summary
+  - `project-status` — calls `list_issues` for a given project and produces a status report grouped by severity
+
+---
+
 ## [1.5.9] – 2026-03-20
 
 ### Fixed

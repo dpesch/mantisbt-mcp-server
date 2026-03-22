@@ -197,6 +197,17 @@ npm install sqlite-vec better-sqlite3
 | `get_mantis_version` | Get MantisBT version and check for updates |
 | `get_mcp_version` | Return the version of this mantisbt-mcp-server instance |
 
+## Available prompts
+
+MCP prompt templates are conversation starters that instruct the LLM to collect structured input and then call the appropriate tool. They are not tools themselves — they initiate a guided workflow.
+
+| Prompt | Required args | Optional args | Description |
+|---|---|---|---|
+| `create-bug-report` | `project_id`, `category`, `summary`, `description` | `steps_to_reproduce`, `expected`, `actual`, `environment` | Guides through a structured bug report and calls `create_issue` |
+| `create-feature-request` | `project_id`, `category`, `summary`, `description` | `use_case` | Guides through a feature request and calls `create_issue` |
+| `summarize-issue` | `issue_id` | – | Fetches an issue via `get_issue` and returns a concise summary |
+| `project-status` | `project_id` | – | Lists issues via `list_issues` and generates a status report grouped by severity |
+
 ## HTTP mode
 
 For use as a standalone server (e.g. in remote setups):

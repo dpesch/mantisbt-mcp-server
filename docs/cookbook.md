@@ -50,6 +50,11 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
   - [Get MCP server version](#get-mcp-server-version)
   - [Get MantisBT version](#get-mantis-version)
   - [Get the current user](#get-the-current-user)
+- [Prompts](#prompts)
+  - [Create a bug report](#create-a-bug-report)
+  - [Create a feature request](#create-a-feature-request)
+  - [Summarize an issue](#summarize-an-issue)
+  - [Project status report](#project-status-report)
 - [Destructive Operations](#destructive-operations)
   - [Delete an issue](#delete-an-issue)
 
@@ -1411,6 +1416,120 @@ Returns the profile of the user associated with the configured API key. Useful t
   "real_name": "John Smith",
   "email": "jsmith@example.com",
   "access_level": { "id": 55, "name": "developer" }
+}
+```
+
+---
+
+## Prompts
+
+MCP prompt templates initiate a guided conversation — the client sends the prompt arguments and the server returns a pre-filled message that instructs the LLM to call the appropriate tools. For natural language equivalents, see [examples.md](examples.md).
+
+### Create a bug report
+
+Collects structured bug data and calls `create_issue`.
+
+**Prompt:** `create-bug-report`
+
+**Required arguments:**
+- `project_id` — numeric project ID
+- `category` — category name string
+- `summary` — issue title
+- `description` — detailed description of the bug
+
+**Optional arguments:**
+- `steps_to_reproduce` — step-by-step reproduction instructions
+- `expected` — expected behavior
+- `actual` — actual (observed) behavior
+- `environment` — environment details (OS, browser, version, etc.)
+
+**What happens:** The prompt returns a message that instructs the LLM to call `get_issue_enums` (to resolve valid severity/priority values) and then `create_issue` with the provided data.
+
+**Example call:**
+
+```json
+{
+  "project_id": 3,
+  "category": "UI",
+  "summary": "Login button unresponsive on mobile Safari",
+  "description": "Tapping the login button on iPhone 14 / Safari 17 does nothing.",
+  "steps_to_reproduce": "1. Open login page on iPhone 14\n2. Tap 'Login'\n3. Nothing happens",
+  "expected": "User is logged in and redirected to dashboard",
+  "actual": "Page stays on login form, no error message",
+  "environment": "iPhone 14, iOS 17, Safari 17"
+}
+```
+
+---
+
+### Create a feature request
+
+Collects feature details and calls `create_issue`.
+
+**Prompt:** `create-feature-request`
+
+**Required arguments:**
+- `project_id` — numeric project ID
+- `category` — category name string
+- `summary` — feature title
+- `description` — detailed description of the feature
+
+**Optional arguments:**
+- `use_case` — concrete use case or motivation for the feature
+
+**What happens:** The prompt returns a message that instructs the LLM to call `create_issue` with severity `feature`.
+
+**Example call:**
+
+```json
+{
+  "project_id": 5,
+  "category": "UX",
+  "summary": "Dark mode for user settings",
+  "description": "Add a dark mode toggle to the user settings page.",
+  "use_case": "Users working in low-light environments report eye strain with the current bright UI."
+}
+```
+
+---
+
+### Summarize an issue
+
+Fetches a single issue and returns a concise summary.
+
+**Prompt:** `summarize-issue`
+
+**Required arguments:**
+- `issue_id` — numeric issue ID
+
+**What happens:** The prompt returns a message that instructs the LLM to call `get_issue` and summarize the result — including status, priority, recent notes, and suggested next steps.
+
+**Example call:**
+
+```json
+{
+  "issue_id": 1042
+}
+```
+
+---
+
+### Project status report
+
+Lists all issues for a project and generates a status report grouped by severity.
+
+**Prompt:** `project-status`
+
+**Required arguments:**
+- `project_id` — numeric project ID
+
+**What happens:** The prompt returns a message that instructs the LLM to call `list_issues` for the project and produce a structured report: open issue count, breakdown by severity, and a list of the most critical items.
+
+**Example call:**
+
+```json
+{
+  "project_id": 3
 }
 ```
 

@@ -50,6 +50,11 @@ Tool-orientierte Rezepte für den MantisBT MCP Server — jedes Rezept zeigt gen
   - [MCP-Server-Version abrufen](#mcp-server-version-abrufen)
   - [MantisBT-Version abrufen](#mantisbt-version-abrufen)
   - [Aktuellen Benutzer abrufen](#aktuellen-benutzer-abrufen)
+- [Prompts](#prompts)
+  - [Bug-Report erstellen](#bug-report-erstellen)
+  - [Feature-Request erstellen](#feature-request-erstellen)
+  - [Issue zusammenfassen](#issue-zusammenfassen)
+  - [Projekt-Status-Report](#projekt-status-report)
 - [Destruktive Operationen](#destruktive-operationen)
   - [Issue löschen](#issue-löschen)
 
@@ -1411,6 +1416,120 @@ Gibt das Profil des Benutzers zurück, der dem konfigurierten API-Key zugeordnet
   "real_name": "John Smith",
   "email": "jsmith@example.com",
   "access_level": { "id": 55, "name": "developer" }
+}
+```
+
+---
+
+## Prompts
+
+MCP-Prompt-Templates starten eine geführte Unterhaltung — der Client sendet die Prompt-Argumente und der Server liefert eine vorgefertigte Nachricht, die den LLM anweist, die passenden Tools aufzurufen. Beispiele in natürlicher Sprache sind in [examples.de.md](examples.de.md) zu finden.
+
+### Bug-Report erstellen
+
+Sammelt strukturierte Bug-Daten und ruft `create_issue` auf.
+
+**Prompt:** `create-bug-report`
+
+**Pflichtargumente:**
+- `project_id` — numerische Projekt-ID
+- `category` — Kategoriename
+- `summary` — Issue-Titel
+- `description` — detaillierte Fehlerbeschreibung
+
+**Optionale Argumente:**
+- `steps_to_reproduce` — Schritte zur Reproduktion
+- `expected` — erwartetes Verhalten
+- `actual` — tatsächliches (beobachtetes) Verhalten
+- `environment` — Umgebungsangaben (Betriebssystem, Browser, Version usw.)
+
+**Ablauf:** Der Prompt liefert eine Nachricht, die den LLM anweist, zunächst `get_issue_enums` aufzurufen (um gültige Schweregrad- und Prioritätswerte zu ermitteln) und anschließend `create_issue` mit den übergebenen Daten auszuführen.
+
+**Beispielaufruf:**
+
+```json
+{
+  "project_id": 3,
+  "category": "UI",
+  "summary": "Login-Button reagiert auf Mobile Safari nicht",
+  "description": "Ein Tipp auf den Login-Button auf einem iPhone 14 / Safari 17 bewirkt nichts.",
+  "steps_to_reproduce": "1. Login-Seite auf iPhone 14 öffnen\n2. Auf 'Anmelden' tippen\n3. Nichts passiert",
+  "expected": "Benutzer wird angemeldet und zum Dashboard weitergeleitet",
+  "actual": "Die Seite bleibt auf dem Login-Formular, keine Fehlermeldung",
+  "environment": "iPhone 14, iOS 17, Safari 17"
+}
+```
+
+---
+
+### Feature-Request erstellen
+
+Sammelt Feature-Details und ruft `create_issue` auf.
+
+**Prompt:** `create-feature-request`
+
+**Pflichtargumente:**
+- `project_id` — numerische Projekt-ID
+- `category` — Kategoriename
+- `summary` — Feature-Titel
+- `description` — detaillierte Beschreibung des Features
+
+**Optionale Argumente:**
+- `use_case` — konkreter Anwendungsfall oder Motivation für das Feature
+
+**Ablauf:** Der Prompt liefert eine Nachricht, die den LLM anweist, `create_issue` mit dem Schweregrad `feature` aufzurufen.
+
+**Beispielaufruf:**
+
+```json
+{
+  "project_id": 5,
+  "category": "UX",
+  "summary": "Dunkelmodus für Benutzereinstellungen",
+  "description": "Einen Dunkelmodus-Schalter auf der Seite mit den Benutzereinstellungen hinzufügen.",
+  "use_case": "Benutzer, die in schlecht beleuchteten Umgebungen arbeiten, berichten über Augenbelastung durch die aktuelle helle Benutzeroberfläche."
+}
+```
+
+---
+
+### Issue zusammenfassen
+
+Ruft ein einzelnes Issue ab und liefert eine prägnante Zusammenfassung.
+
+**Prompt:** `summarize-issue`
+
+**Pflichtargumente:**
+- `issue_id` — numerische Issue-ID
+
+**Ablauf:** Der Prompt liefert eine Nachricht, die den LLM anweist, `get_issue` aufzurufen und das Ergebnis zusammenzufassen — inklusive Status, Priorität, aktueller Notizen und empfohlener nächster Schritte.
+
+**Beispielaufruf:**
+
+```json
+{
+  "issue_id": 1042
+}
+```
+
+---
+
+### Projekt-Status-Report
+
+Listet alle Issues eines Projekts auf und erstellt einen Status-Report nach Schweregrad.
+
+**Prompt:** `project-status`
+
+**Pflichtargumente:**
+- `project_id` — numerische Projekt-ID
+
+**Ablauf:** Der Prompt liefert eine Nachricht, die den LLM anweist, `list_issues` für das Projekt aufzurufen und einen strukturierten Report zu erstellen: Anzahl offener Issues, Aufschlüsselung nach Schweregrad und eine Liste der kritischsten Einträge.
+
+**Beispielaufruf:**
+
+```json
+{
+  "project_id": 3
 }
 ```
 

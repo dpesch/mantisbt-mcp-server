@@ -109,6 +109,24 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 
 ---
 
+## Geführte Prompt-Workflows
+
+Der Server enthält Prompt-Templates, die Claude durch strukturierte Arbeitsabläufe führen — Tool-Namen oder Parameter müssen nicht manuell angegeben werden. Die Prompts werden aus einem MCP-fähigen Client beim Namen aufgerufen.
+
+### Issues über Prompt-Templates anlegen
+
+> »Verwende den Prompt `create-bug-report` für das Safari-Login-Issue: Projekt 3, Kategorie UI, Titel 'Login-Button reagiert auf Mobile Safari nicht', Beschreibung 'Ein Tipp auf den Login-Button auf iPhone 14 / Safari 17 bewirkt nichts', Schritte: Login-Seite öffnen → Anmelden antippen → nichts passiert, Erwartet: Weiterleitung zum Dashboard, Tatsächlich: Formular bleibt geöffnet.«
+
+> »Nutze `create-feature-request` für Projekt 5, Kategorie UX: Dunkelmodus-Schalter auf der Einstellungsseite hinzufügen.«
+
+### Zusammenfassen und Berichten
+
+> »Führe den Prompt `summarize-issue` für Issue #1042 aus.«
+
+> »Verwende den Prompt `project-status` für Projekt 3, um einen Überblick über offene Issues nach Schweregrad zu erhalten.«
+
+---
+
 ## Semantische Suche
 
 Die semantische Suche versteht die *Bedeutung* deiner Frage — nicht nur einzelne Schlüsselwörter. Sie findet konzeptionell verwandte Issues, auch wenn die genaue Formulierung abweicht. Aktivierung mit `MANTIS_SEARCH_ENABLED=true`.

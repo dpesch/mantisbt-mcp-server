@@ -109,6 +109,24 @@ Practical examples of how to interact with MantisBT through Claude once the MCP 
 
 ---
 
+## Guided Prompt Workflows
+
+The server ships with prompt templates that guide Claude through structured workflows — no need to specify tool names or parameters manually. Invoke them by name from a MCP-capable client.
+
+### Creating issues from a prompt template
+
+> "Use the `create-bug-report` prompt to file the Safari login issue: project 3, category UI, summary 'Login button unresponsive on mobile Safari', description 'Tapping login on iPhone 14 / Safari 17 does nothing', steps: open login page → tap Login → nothing happens, expected: redirect to dashboard, actual: form stays open."
+
+> "Use `create-feature-request` for project 5, category UX: add a dark mode toggle to the settings page."
+
+### Summarizing and reporting
+
+> "Run the `summarize-issue` prompt for issue #1042."
+
+> "Use the `project-status` prompt for project 3 to get an overview of open issues grouped by severity."
+
+---
+
 ## Semantic Search
 
 Semantic search understands the *meaning* of your question — not just keywords. It finds conceptually related issues even when the exact wording differs. Enable it with `MANTIS_SEARCH_ENABLED=true`.
