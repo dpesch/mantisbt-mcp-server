@@ -41,8 +41,9 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn());
 });
 
-afterEach(() => {
+afterEach(async () => {
   vi.unstubAllGlobals();
+  await cache.invalidate();
 });
 
 // ---------------------------------------------------------------------------
@@ -118,13 +119,28 @@ describe('mantis://projects', () => {
     expect(result.contents[0]!.uri).toBe('mantis://projects');
   });
 
-  it('returns a JSON array of projects', async () => {
+  it('returns a JSON array of projects from live API when cache is empty', async () => {
     vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ projects: PROJECTS_FIXTURE })));
 
     const result = await mockServer.callResource('mantis://projects');
 
     const parsed = JSON.parse(result.contents[0]!.text) as unknown[];
     expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed).toHaveLength(2);
+  });
+
+  it('serves from cache without calling the API when cache is valid', async () => {
+    await cache.save({
+      timestamp: Date.now(),
+      projects: PROJECTS_FIXTURE,
+      byProject: {},
+      tags: [],
+    });
+
+    const result = await mockServer.callResource('mantis://projects');
+
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+    const parsed = JSON.parse(result.contents[0]!.text) as unknown[];
     expect(parsed).toHaveLength(2);
   });
 });
@@ -151,16 +167,26 @@ describe('mantis://enums', () => {
     expect(result.contents[0]!.uri).toBe('mantis://enums');
   });
 
-  it('returns parsed enum groups for severity, priority, status, resolution, reproducibility', async () => {
+  it('returns parsed enum groups with id and name entries', async () => {
     vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(ENUM_FIXTURE)));
 
     const result = await mockServer.callResource('mantis://enums');
 
-    const parsed = JSON.parse(result.contents[0]!.text) as Record<string, unknown[]>;
-    expect(Array.isArray(parsed['severity'])).toBe(true);
-    expect(Array.isArray(parsed['priority'])).toBe(true);
-    expect(Array.isArray(parsed['status'])).toBe(true);
-    expect(Array.isArray(parsed['resolution'])).toBe(true);
-    expect(Array.isArray(parsed['reproducibility'])).toBe(true);
+    const parsed = JSON.parse(result.contents[0]!.text) as Record<string, Array<{ id: number; name: string }>>;
+    for (const key of ['severity', 'priority', 'status', 'resolution', 'reproducibility']) {
+      expect(Array.isArray(parsed[key])).toBe(true);
+      expect(parsed[key]!.length).toBeGreaterThan(0);
+      expect(parsed[key]![0]).toMatchObject({ id: expect.any(Number), name: expect.any(String) });
+    }
+  });
+
+  it('parses severity values correctly from fixture', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(ENUM_FIXTURE)));
+
+    const result = await mockServer.callResource('mantis://enums');
+
+    const parsed = JSON.parse(result.contents[0]!.text) as Record<string, Array<{ id: number; name: string }>>;
+    expect(parsed['severity']).toContainEqual({ id: 10, name: 'feature' });
+    expect(parsed['severity']).toContainEqual({ id: 50, name: 'minor' });
   });
 });
