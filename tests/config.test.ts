@@ -94,59 +94,25 @@ describe('getConfig() – ENV variables', () => {
 });
 
 // ---------------------------------------------------------------------------
-// JSON fallback
-// ---------------------------------------------------------------------------
-
-describe('getConfig() – mantis.json fallback', () => {
-  it('falls back to ~/.claude/mantis.json when ENV vars are missing', async () => {
-    const json = JSON.stringify({ base_url: 'https://from-json.example.com', api_key: 'json-key' });
-    vi.mocked(readFile).mockResolvedValue(json as any);
-
-    const getConfig = await freshGetConfig();
-    const config = await getConfig();
-
-    expect(config.baseUrl).toBe('https://from-json.example.com');
-    expect(config.apiKey).toBe('json-key');
-  });
-
-  it('prefers ENV vars over mantis.json values', async () => {
-    vi.stubEnv('MANTIS_BASE_URL', 'https://from-env.example.com');
-    vi.stubEnv('MANTIS_API_KEY', 'env-key');
-    const json = JSON.stringify({ base_url: 'https://from-json.example.com', api_key: 'json-key' });
-    vi.mocked(readFile).mockResolvedValue(json as any);
-
-    const getConfig = await freshGetConfig();
-    const config = await getConfig();
-
-    expect(config.baseUrl).toBe('https://from-env.example.com');
-    expect(config.apiKey).toBe('env-key');
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Error cases
 // ---------------------------------------------------------------------------
 
 describe('getConfig() – errors', () => {
-  it('throws when neither ENV nor mantis.json provides baseUrl', async () => {
+  it('throws when MANTIS_BASE_URL is not set', async () => {
     vi.stubEnv('MANTIS_API_KEY', 'some-key');
-    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
 
     const getConfig = await freshGetConfig();
     await expect(getConfig()).rejects.toThrow('MANTIS_BASE_URL');
   });
 
-  it('throws when neither ENV nor mantis.json provides apiKey', async () => {
+  it('throws when MANTIS_API_KEY is not set', async () => {
     vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com');
-    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
 
     const getConfig = await freshGetConfig();
     await expect(getConfig()).rejects.toThrow('MANTIS_API_KEY');
   });
 
-  it('throws when no configuration is available at all', async () => {
-    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
-
+  it('throws when no configuration is provided at all', async () => {
     const getConfig = await freshGetConfig();
     await expect(getConfig()).rejects.toThrow('Missing required MantisBT configuration');
   });

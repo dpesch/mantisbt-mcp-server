@@ -49,29 +49,6 @@ async function loadDotEnvLocal(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// mantis.json fallback shape (legacy bash-based setup)
-// ---------------------------------------------------------------------------
-
-interface MantisJsonFile {
-  api_key?: string;
-  base_url?: string;
-}
-
-// ---------------------------------------------------------------------------
-// Loader
-// ---------------------------------------------------------------------------
-
-async function readMantisJson(): Promise<MantisJsonFile | null> {
-  const filePath = join(homedir(), '.claude', 'mantis.json');
-  try {
-    const raw = await readFile(filePath, 'utf-8');
-    return JSON.parse(raw) as MantisJsonFile;
-  } catch {
-    return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Non-credential config (safe to read at startup without credentials)
 // ---------------------------------------------------------------------------
 
@@ -136,17 +113,8 @@ export async function getConfig(): Promise<MantisConfig> {
 
   await loadDotEnvLocal();
 
-  let baseUrl = process.env.MANTIS_BASE_URL ?? '';
-  let apiKey = process.env.MANTIS_API_KEY ?? '';
-
-  // If env vars are missing, try ~/.claude/mantis.json as fallback
-  if (!baseUrl || !apiKey) {
-    const json = await readMantisJson();
-    if (json) {
-      if (!baseUrl && json.base_url) baseUrl = json.base_url;
-      if (!apiKey && json.api_key) apiKey = json.api_key;
-    }
-  }
+  const baseUrl = process.env.MANTIS_BASE_URL ?? '';
+  const apiKey = process.env.MANTIS_API_KEY ?? '';
 
   const missing: string[] = [];
   if (!baseUrl) missing.push('MANTIS_BASE_URL');
@@ -155,7 +123,7 @@ export async function getConfig(): Promise<MantisConfig> {
   if (missing.length > 0) {
     throw new Error(
       `Missing required MantisBT configuration: ${missing.join(', ')}.\n` +
-      `Set the environment variables or provide ~/.claude/mantis.json with keys "base_url" and "api_key".`
+      `Set the environment variables MANTIS_BASE_URL and MANTIS_API_KEY.`
     );
   }
 

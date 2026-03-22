@@ -21,6 +21,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   - `project-status` — calls `list_issues` for a given project and produces a status report grouped by severity
 - LobeHub marketplace badge added to README.md and README.de.md
 
+### Removed
+- Config file fallback (`~/.claude/mantis.json`): credentials must now be provided via environment variables (`MANTIS_BASE_URL`, `MANTIS_API_KEY`). The fallback was an internal migration aid with no value for external users.
+
 ### Changed
 - Credential loading is now deferred to the first tool invocation. The server starts and responds to `tools/list` even when `MANTIS_BASE_URL` and `MANTIS_API_KEY` are not configured; the configuration error is surfaced when a tool is actually called. This enables marketplace validators (e.g. LobeHub) to probe the server without requiring credentials.
 

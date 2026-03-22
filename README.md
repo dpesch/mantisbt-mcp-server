@@ -80,17 +80,6 @@ npm run build
 | `MANTIS_SEARCH_THREADS` | – | `1` | Number of ONNX intra-op threads for the embedding model. Default is 1 to prevent CPU saturation on multi-core machines and WSL. Increase only if index rebuild speed matters and the host is dedicated to this workload. |
 | `MANTIS_UPLOAD_DIR` | – | – | Restrict `upload_file` to files within this directory. When set, any `file_path` outside the directory is rejected (path traversal attempts via `../` are blocked). Without this variable there is no restriction. |
 
-### Config file (fallback)
-
-If no environment variables are set, `~/.claude/mantis.json` is read:
-
-```json
-{
-  "base_url": "https://your-mantis.example.com/api/rest",
-  "api_key": "your-api-token"
-}
-```
-
 ## Available tools
 
 ### Issues
