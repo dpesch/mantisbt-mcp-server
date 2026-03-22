@@ -7,7 +7,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [1.6.0] – 2026-03-22
 
 ### Added
 - Three MCP Resources for direct URI-addressable data access (read-only; less widely supported by clients than tools):
