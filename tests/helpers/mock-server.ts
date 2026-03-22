@@ -24,9 +24,26 @@ interface ToolDefinition {
   [key: string]: unknown;
 }
 
+export interface PromptMessage {
+  role: string;
+  content: { type: string; text: string };
+}
+
+export interface PromptResult {
+  messages: PromptMessage[];
+}
+
+type PromptHandler = (args: Record<string, unknown>) => PromptResult;
+
+interface PromptDefinition {
+  argsSchema?: Record<string, z.ZodTypeAny>;
+  [key: string]: unknown;
+}
+
 export class MockMcpServer {
   private readonly handlers = new Map<string, ToolHandler>();
   private readonly schemas = new Map<string, z.ZodTypeAny>();
+  private readonly promptHandlers = new Map<string, PromptHandler>();
 
   // Nachahmt McpServer.registerTool – fängt Handler und Schema ein
   registerTool(name: string, definition: ToolDefinition, handler: ToolHandler): void {
@@ -34,6 +51,11 @@ export class MockMcpServer {
     if (definition.inputSchema) {
       this.schemas.set(name, definition.inputSchema);
     }
+  }
+
+  // Nachahmt McpServer.registerPrompt
+  registerPrompt(name: string, _definition: PromptDefinition, handler: PromptHandler): void {
+    this.promptHandlers.set(name, handler);
   }
 
   /**
@@ -66,11 +88,25 @@ export class MockMcpServer {
     return handler(args);
   }
 
+  callPrompt(name: string, args: Record<string, unknown> = {}): PromptResult {
+    const handler = this.promptHandlers.get(name);
+    if (!handler) throw new Error(`Prompt not registered: ${name}`);
+    return handler(args);
+  }
+
   hasToolRegistered(name: string): boolean {
     return this.handlers.has(name);
   }
 
+  hasPromptRegistered(name: string): boolean {
+    return this.promptHandlers.has(name);
+  }
+
   registeredToolNames(): string[] {
     return [...this.handlers.keys()];
+  }
+
+  registeredPromptNames(): string[] {
+    return [...this.promptHandlers.keys()];
   }
 }

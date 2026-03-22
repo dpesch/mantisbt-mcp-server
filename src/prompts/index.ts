@@ -1,6 +1,15 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
+function userMessage(text: string) {
+  return {
+    messages: [{
+      role: 'user' as const,
+      content: { type: 'text' as const, text },
+    }],
+  };
+}
+
 export function registerPrompts(server: McpServer): void {
 
   // ---------------------------------------------------------------------------
@@ -54,12 +63,7 @@ export function registerPrompts(server: McpServer): void {
         `Default to severity "minor" and priority "normal" unless the user specifies otherwise.`,
       );
 
-      return {
-        messages: [{
-          role: 'user' as const,
-          content: { type: 'text' as const, text: lines.join('\n') },
-        }],
-      };
+      return userMessage(lines.join('\n'));
     },
   );
 
@@ -101,12 +105,7 @@ export function registerPrompts(server: McpServer): void {
         `Call get_issue_enums first to look up valid severity values — use severity "feature" and priority "normal" unless the user specifies otherwise.`,
       );
 
-      return {
-        messages: [{
-          role: 'user' as const,
-          content: { type: 'text' as const, text: lines.join('\n') },
-        }],
-      };
+      return userMessage(lines.join('\n'));
     },
   );
 
@@ -123,19 +122,11 @@ export function registerPrompts(server: McpServer): void {
         issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
       },
     },
-    ({ issue_id }) => ({
-      messages: [{
-        role: 'user' as const,
-        content: {
-          type: 'text' as const,
-          text: [
-            `Fetch issue #${issue_id} using the get_issue tool and provide a concise summary.`,
-            `Include: status, assignee, severity, priority, description, and any recent notes.`,
-            `Highlight blockers, unresolved questions, or anything that requires attention.`,
-          ].join('\n'),
-        },
-      }],
-    }),
+    ({ issue_id }) => userMessage([
+      `Fetch issue #${issue_id} using the get_issue tool and provide a concise summary.`,
+      `Include: status, assignee, severity, priority, description, and any recent notes.`,
+      `Highlight blockers, unresolved questions, or anything that requires attention.`,
+    ].join('\n')),
   );
 
   // ---------------------------------------------------------------------------
@@ -151,21 +142,13 @@ export function registerPrompts(server: McpServer): void {
         project_id: z.coerce.number().int().positive().describe('Numeric project ID'),
       },
     },
-    ({ project_id }) => ({
-      messages: [{
-        role: 'user' as const,
-        content: {
-          type: 'text' as const,
-          text: [
-            `Use the list_issues tool to fetch open issues for MantisBT project ${project_id}.`,
-            `Produce a status report that includes:`,
-            `- Total count of open issues`,
-            `- Breakdown by severity (critical and major issues first)`,
-            `- Breakdown by assignee`,
-            `- A short list of the most critical or longest-open issues that need attention`,
-          ].join('\n'),
-        },
-      }],
-    }),
+    ({ project_id }) => userMessage([
+      `Use the list_issues tool to fetch open issues for MantisBT project ${project_id}.`,
+      `Produce a status report that includes:`,
+      `- Total count of open issues`,
+      `- Breakdown by severity (critical and major issues first)`,
+      `- Breakdown by assignee`,
+      `- A short list of the most critical or longest-open issues that need attention`,
+    ].join('\n')),
   );
 }
