@@ -50,6 +50,10 @@ Tool-orientierte Rezepte für den MantisBT MCP Server — jedes Rezept zeigt gen
   - [MCP-Server-Version abrufen](#mcp-server-version-abrufen)
   - [MantisBT-Version abrufen](#mantisbt-version-abrufen)
   - [Aktuellen Benutzer abrufen](#aktuellen-benutzer-abrufen)
+- [Ressourcen](#ressourcen)
+  - [Eigenes Benutzerprofil lesen](#eigenes-benutzerprofil-lesen)
+  - [Alle Projekte lesen](#alle-projekte-lesen)
+  - [Issue-Enum-Werte lesen](#issue-enum-werte-lesen)
 - [Prompts](#prompts)
   - [Bug-Report erstellen](#bug-report-erstellen)
   - [Feature-Request erstellen](#feature-request-erstellen)
@@ -1418,6 +1422,101 @@ Gibt das Profil des Benutzers zurück, der dem konfigurierten API-Key zugeordnet
   "access_level": { "id": 55, "name": "developer" }
 }
 ```
+
+---
+
+## Ressourcen
+
+MCP-Ressourcen sind URI-adressierbare, schreibgeschützte Daten. Clients, die Ressourcen unterstützen, können sie direkt per URI abrufen — kein Tool-Aufruf nötig. Hinweis: Ressourcen werden von MCP-Clients weniger breit unterstützt als Tools; bitte die Dokumentation des jeweiligen Clients prüfen.
+
+> **Hinweis:** Ressourcen sind schreibgeschützt. Schreiboperationen sind über das Ressourcen-Primitiv nicht möglich — für Änderungen das entsprechende Tool verwenden (`create_issue`, `update_issue` usw.).
+
+### Eigenes Benutzerprofil lesen
+
+Gibt das Profil des authentifizierten API-Benutzers zurück.
+
+**Ressource-URI:** `mantis://me`
+
+**Abrufverhalten:** Immer live — ruft bei jedem Zugriff `GET /users/me` auf.
+
+**Response:**
+
+```json
+{
+  "id": 4,
+  "name": "jsmith",
+  "real_name": "John Smith",
+  "email": "jsmith@example.com",
+  "access_level": { "id": 55, "name": "developer" }
+}
+```
+
+> **Tipp:** Das Tool `get_current_user` liefert dieselben Daten für Clients ohne Ressourcen-Unterstützung.
+
+---
+
+### Alle Projekte lesen
+
+Gibt alle MantisBT-Projekte zurück, auf die der konfigurierte API-Key Zugriff hat.
+
+**Ressource-URI:** `mantis://projects`
+
+**Abrufverhalten:** Wird aus dem MetadataCache bedient (Standard-TTL 24 h). Fällt auf einen Live-API-Aufruf zurück, wenn der Cache leer ist. `sync_metadata` aufrufen, um eine Aktualisierung zu erzwingen.
+
+**Response:**
+
+```json
+[
+  { "id": 3, "name": "Webshop", "status": { "id": 10, "name": "development" }, "enabled": true },
+  { "id": 5, "name": "Backend API", "status": { "id": 10, "name": "development" }, "enabled": true }
+]
+```
+
+> **Tipp:** Das Tool `list_projects` liefert dieselben Daten für Clients ohne Ressourcen-Unterstützung.
+
+---
+
+### Issue-Enum-Werte lesen
+
+Gibt gültige ID/Name-Paare für alle Issue-Enum-Felder zurück (Severity, Priority, Status, Resolution, Reproducibility). Vor `create_issue` oder `update_issue` verwenden, um kanonische englische Namen nachzuschlagen.
+
+**Ressource-URI:** `mantis://enums`
+
+**Abrufverhalten:** Immer live — ruft bei jedem Zugriff den MantisBT-Config-Endpoint auf.
+
+**Response:**
+
+```json
+{
+  "priorities": [
+    { "id": 10, "name": "none" },
+    { "id": 20, "name": "low" },
+    { "id": 30, "name": "normal" },
+    { "id": 40, "name": "high" },
+    { "id": 50, "name": "urgent" },
+    { "id": 60, "name": "immediate" }
+  ],
+  "severities": [
+    { "id": 10, "name": "feature" },
+    { "id": 20, "name": "trivial" },
+    { "id": 50, "name": "major" },
+    { "id": 60, "name": "crash" }
+  ],
+  "statuses": [
+    { "id": 10, "name": "new" },
+    { "id": 50, "name": "assigned" },
+    { "id": 80, "name": "resolved" },
+    { "id": 90, "name": "closed" }
+  ],
+  "resolutions": [
+    { "id": 10, "name": "open" },
+    { "id": 20, "name": "fixed" },
+    { "id": 60, "name": "duplicate" }
+  ]
+}
+```
+
+> **Tipp:** Das Tool `get_issue_enums` liefert dieselben Daten für Clients ohne Ressourcen-Unterstützung.
 
 ---
 

@@ -50,6 +50,10 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
   - [Get MCP server version](#get-mcp-server-version)
   - [Get MantisBT version](#get-mantis-version)
   - [Get the current user](#get-the-current-user)
+- [Resources](#resources)
+  - [Read the current user profile](#read-the-current-user-profile)
+  - [Read all projects](#read-all-projects)
+  - [Read issue enum values](#read-issue-enum-values)
 - [Prompts](#prompts)
   - [Create a bug report](#create-a-bug-report)
   - [Create a feature request](#create-a-feature-request)
@@ -1418,6 +1422,101 @@ Returns the profile of the user associated with the configured API key. Useful t
   "access_level": { "id": 55, "name": "developer" }
 }
 ```
+
+---
+
+## Resources
+
+MCP Resources are URI-addressable, read-only data. Clients that support Resources can fetch them directly by URI — no tool call required. Note that Resource support is less widely implemented in MCP clients than Tools; check your client's documentation.
+
+> **Note:** Resources are read-only. Writing to them is not possible via the Resource primitive — use the corresponding tool (`create_issue`, `update_issue`, etc.) for write operations.
+
+### Read the current user profile
+
+Returns the profile of the authenticated API user.
+
+**Resource URI:** `mantis://me`
+
+**Fetch behaviour:** Always live — calls `GET /users/me` on every access.
+
+**Response:**
+
+```json
+{
+  "id": 4,
+  "name": "jsmith",
+  "real_name": "John Smith",
+  "email": "jsmith@example.com",
+  "access_level": { "id": 55, "name": "developer" }
+}
+```
+
+> **Tip:** The `get_current_user` tool provides the same data for clients that do not support Resources.
+
+---
+
+### Read all projects
+
+Returns all MantisBT projects accessible with the configured API key.
+
+**Resource URI:** `mantis://projects`
+
+**Fetch behaviour:** Served from the MetadataCache (default TTL 24 h). Falls back to a live API call when the cache is empty. Run `sync_metadata` to force a refresh.
+
+**Response:**
+
+```json
+[
+  { "id": 3, "name": "Webshop", "status": { "id": 10, "name": "development" }, "enabled": true },
+  { "id": 5, "name": "Backend API", "status": { "id": 10, "name": "development" }, "enabled": true }
+]
+```
+
+> **Tip:** The `list_projects` tool provides the same data for clients that do not support Resources.
+
+---
+
+### Read issue enum values
+
+Returns valid ID/name pairs for all issue enum fields (severity, priority, status, resolution, reproducibility). Use this to look up canonical English names before calling `create_issue` or `update_issue`.
+
+**Resource URI:** `mantis://enums`
+
+**Fetch behaviour:** Always live — calls the MantisBT config endpoint on every access.
+
+**Response:**
+
+```json
+{
+  "priorities": [
+    { "id": 10, "name": "none" },
+    { "id": 20, "name": "low" },
+    { "id": 30, "name": "normal" },
+    { "id": 40, "name": "high" },
+    { "id": 50, "name": "urgent" },
+    { "id": 60, "name": "immediate" }
+  ],
+  "severities": [
+    { "id": 10, "name": "feature" },
+    { "id": 20, "name": "trivial" },
+    { "id": 50, "name": "major" },
+    { "id": 60, "name": "crash" }
+  ],
+  "statuses": [
+    { "id": 10, "name": "new" },
+    { "id": 50, "name": "assigned" },
+    { "id": 80, "name": "resolved" },
+    { "id": 90, "name": "closed" }
+  ],
+  "resolutions": [
+    { "id": 10, "name": "open" },
+    { "id": 20, "name": "fixed" },
+    { "id": 60, "name": "duplicate" }
+  ]
+}
+```
+
+> **Tip:** The `get_issue_enums` tool provides the same data for clients that do not support Resources.
 
 ---
 

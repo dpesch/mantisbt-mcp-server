@@ -174,3 +174,27 @@ Semantic search understands the *meaning* of your question — not just keywords
 > "Are there any known pitfalls when setting up the deployment pipeline?"
 
 > "Which issues describe problems that occur during initial environment setup?"
+
+---
+
+## Resources
+
+MCP Resources are URI-addressable, read-only data that clients can fetch directly by URI — no tool invocation required. Resource support varies by client; if your client does not support Resources, use the equivalent tool instead.
+
+### Reading server state via resources
+
+> "Read `mantis://me` to see which account the MCP server is using."
+
+> "Fetch `mantis://projects` to get the list of available projects."
+
+> "Load `mantis://enums` to see valid severity and priority values before creating an issue."
+
+### Equivalent tool fallbacks
+
+If your client does not support Resources, ask Claude to use the corresponding tool:
+
+> "Show me my user profile." *(uses `get_current_user`)*
+
+> "Which projects are available?" *(uses `list_projects`)*
+
+> "What are the valid priority values?" *(uses `get_issue_enums`)*

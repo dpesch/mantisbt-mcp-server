@@ -174,3 +174,27 @@ Die semantische Suche versteht die *Bedeutung* deiner Frage — nicht nur einzel
 > »Gibt es bekannte Fallstricke beim Einrichten der Deployment-Pipeline?«
 
 > »Welche Issues beschreiben Probleme, die beim ersten Einrichten der Entwicklungsumgebung auftreten?«
+
+---
+
+## Ressourcen
+
+MCP-Ressourcen sind URI-adressierbare, schreibgeschützte Daten, die Clients direkt per URI abrufen können — kein Tool-Aufruf nötig. Die Ressourcen-Unterstützung variiert je nach Client; wenn der verwendete Client keine Ressourcen unterstützt, das entsprechende Tool als Alternative verwenden.
+
+### Server-Zustand über Ressourcen abrufen
+
+> »Lese `mantis://me`, um zu sehen, welches Konto der MCP-Server verwendet.«
+
+> »Rufe `mantis://projects` ab, um die Liste der verfügbaren Projekte zu erhalten.«
+
+> »Lade `mantis://enums`, um die gültigen Severity- und Priority-Werte einzusehen, bevor ein Issue erstellt wird.«
+
+### Alternative Tools für Clients ohne Ressourcen-Unterstützung
+
+Wenn der Client keine Ressourcen unterstützt, Claude einfach das entsprechende Tool verwenden lassen:
+
+> »Zeig mir mein Benutzerprofil.« *(verwendet `get_current_user`)*
+
+> »Welche Projekte sind verfügbar?« *(verwendet `list_projects`)*
+
+> »Welche Prioritätswerte sind gültig?« *(verwendet `get_issue_enums`)*

@@ -198,6 +198,16 @@ npm install sqlite-vec better-sqlite3
 | `get_mantis_version` | MantisBT-Version abrufen und auf Updates prüfen |
 | `get_mcp_version` | Version dieser mantisbt-mcp-server-Instanz zurückgeben |
 
+## Verfügbare Ressourcen
+
+MCP-Ressourcen sind URI-adressierbare, schreibgeschützte Daten, die Clients direkt abrufen können, ohne ein Tool aufzurufen. Sie sind das dritte MCP-Primitiv neben Tools und Prompts. Hinweis: Ressourcen werden von MCP-Clients weniger breit unterstützt als Tools — bitte die Dokumentation des jeweiligen Clients prüfen.
+
+| Ressource-URI | Beschreibung |
+|---|---|
+| `mantis://me` | Profil des authentifizierten API-Benutzers (Live-Abruf) |
+| `mantis://projects` | Alle zugänglichen MantisBT-Projekte (Cache-basiert, Aktualisierung via `sync_metadata`) |
+| `mantis://enums` | Gültige Werte für alle Issue-Enum-Felder: Severity, Priority, Status, Resolution, Reproducibility (Live-Abruf) |
+
 ## Verfügbare Prompts
 
 MCP-Prompt-Templates sind Gesprächseinstiege, die den LLM anweisen, strukturierte Eingaben zu sammeln und dann das passende Tool aufzurufen. Es handelt sich nicht um Tools — sie starten einen geführten Arbeitsablauf.

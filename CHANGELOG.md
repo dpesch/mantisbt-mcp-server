@@ -10,6 +10,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Three MCP Resources for direct URI-addressable data access (read-only; less widely supported by clients than tools):
+  - `mantis://me` — profile of the authenticated API user (live fetch of `GET /users/me`)
+  - `mantis://projects` — all accessible MantisBT projects (cache-backed via MetadataCache; refresh with `sync_metadata`)
+  - `mantis://enums` — valid values for all issue enum fields (severity, priority, status, resolution, reproducibility); live fetch
 - Four MCP prompt templates for guided issue workflows:
   - `create-bug-report` — structured bug report prompt; collects project, category, summary, description, steps to reproduce, expected/actual behavior, and environment, then calls `create_issue`
   - `create-feature-request` — feature request prompt; collects project, category, summary, description, and use case, then calls `create_issue`
