@@ -33,7 +33,13 @@ export interface PromptResult {
   messages: PromptMessage[];
 }
 
+export interface ResourceResult {
+  contents: Array<{ uri: string; mimeType?: string; text: string }>;
+}
+
 type PromptHandler = (args: Record<string, unknown>) => PromptResult;
+
+type ResourceHandler = (uri: URL) => Promise<ResourceResult>;
 
 interface PromptDefinition {
   argsSchema?: Record<string, z.ZodTypeAny>;
@@ -44,6 +50,7 @@ export class MockMcpServer {
   private readonly handlers = new Map<string, ToolHandler>();
   private readonly schemas = new Map<string, z.ZodTypeAny>();
   private readonly promptHandlers = new Map<string, PromptHandler>();
+  private readonly resourceHandlers = new Map<string, ResourceHandler>();
 
   // Nachahmt McpServer.registerTool – fängt Handler und Schema ein
   registerTool(name: string, definition: ToolDefinition, handler: ToolHandler): void {
@@ -108,5 +115,23 @@ export class MockMcpServer {
 
   registeredPromptNames(): string[] {
     return [...this.promptHandlers.keys()];
+  }
+
+  registerResource(name: string, uri: string, _config: unknown, handler: ResourceHandler): void {
+    this.resourceHandlers.set(uri, handler);
+  }
+
+  async callResource(uri: string): Promise<ResourceResult> {
+    const handler = this.resourceHandlers.get(uri);
+    if (!handler) throw new Error(`Resource not registered: ${uri}`);
+    return handler(new URL(uri));
+  }
+
+  hasResourceRegistered(uri: string): boolean {
+    return this.resourceHandlers.has(uri);
+  }
+
+  registeredResourceUris(): string[] {
+    return [...this.resourceHandlers.keys()];
   }
 }

@@ -25,6 +25,7 @@ import { registerMetadataTools } from './tools/metadata.js';
 import { registerTagTools } from './tools/tags.js';
 import { registerVersionTools } from './tools/version.js';
 import { registerPrompts } from './prompts/index.js';
+import { registerResources } from './resources/index.js';
 
 // ---------------------------------------------------------------------------
 // Read version from package.json
@@ -76,6 +77,7 @@ async function createMcpServer(): Promise<McpServer> {
   registerTagTools(server, client);
   registerVersionTools(server, client, versionHint, version);
   registerPrompts(server);
+  registerResources(server, client, cache);
 
   // Optional: Semantic search module
   if (startupConfig.search.enabled) {

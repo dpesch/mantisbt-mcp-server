@@ -34,6 +34,51 @@ function resolveCanonicalName(id: number, name: string, canonicalMap: Record<num
   return canonical !== undefined && canonical !== name ? canonical : undefined;
 }
 
+export async function fetchIssueEnums(
+  client: MantisClient,
+): Promise<Record<string, Array<{ id: number; name: string; label?: string; canonical_name?: string }>>> {
+  const params: Record<string, string | number | boolean | undefined> = {};
+  ISSUE_ENUM_OPTIONS.forEach((opt, i) => {
+    params[`option[${i}]`] = opt;
+  });
+
+  const result = await client.get<{ configs: Array<{ option: string; value: string | EnumEntry[] }> }>('config', params);
+  const configs = result.configs ?? [];
+
+  const keyMap: Record<string, string> = {
+    severity_enum_string: 'severity',
+    status_enum_string: 'status',
+    priority_enum_string: 'priority',
+    resolution_enum_string: 'resolution',
+    reproducibility_enum_string: 'reproducibility',
+  };
+
+  const enums: Record<string, Array<{ id: number; name: string; label?: string; canonical_name?: string }>> = {};
+  for (const { option, value } of configs) {
+    const key = keyMap[option];
+    if (!key) continue;
+    const canonicalMap = MANTIS_CANONICAL_ENUM_NAMES[key] ?? {};
+    if (typeof value === 'string') {
+      enums[key] = parseEnumString(value).map(({ id, name }) => {
+        const entry: { id: number; name: string; canonical_name?: string } = { id, name };
+        const canonical_name = resolveCanonicalName(id, name, canonicalMap);
+        if (canonical_name !== undefined) entry.canonical_name = canonical_name;
+        return entry;
+      });
+    } else if (Array.isArray(value)) {
+      enums[key] = value.map(({ id, name, label }) => {
+        const entry: { id: number; name: string; label?: string; canonical_name?: string } = { id, name };
+        if (label && label !== name) entry.label = label;
+        const canonical_name = resolveCanonicalName(id, name, canonicalMap);
+        if (canonical_name !== undefined) entry.canonical_name = canonical_name;
+        return entry;
+      });
+    }
+  }
+
+  return enums;
+}
+
 export function registerConfigTools(server: McpServer, client: MantisClient, cache: MetadataCache): void {
 
   // ---------------------------------------------------------------------------
@@ -135,45 +180,7 @@ to use for API calls — regardless of language.`,
     },
     async () => {
       try {
-        const params: Record<string, string | number | boolean | undefined> = {};
-        ISSUE_ENUM_OPTIONS.forEach((opt, i) => {
-          params[`option[${i}]`] = opt;
-        });
-
-        const result = await client.get<{ configs: Array<{ option: string; value: string | EnumEntry[] }> }>('config', params);
-        const configs = result.configs ?? [];
-
-        const keyMap: Record<string, string> = {
-          severity_enum_string: 'severity',
-          status_enum_string: 'status',
-          priority_enum_string: 'priority',
-          resolution_enum_string: 'resolution',
-          reproducibility_enum_string: 'reproducibility',
-        };
-
-        const enums: Record<string, Array<{ id: number; name: string; label?: string; canonical_name?: string }>> = {};
-        for (const { option, value } of configs) {
-          const key = keyMap[option];
-          if (!key) continue;
-          const canonicalMap = MANTIS_CANONICAL_ENUM_NAMES[key] ?? {};
-          if (typeof value === 'string') {
-            enums[key] = parseEnumString(value).map(({ id, name }) => {
-              const entry: { id: number; name: string; canonical_name?: string } = { id, name };
-              const canonical_name = resolveCanonicalName(id, name, canonicalMap);
-              if (canonical_name !== undefined) entry.canonical_name = canonical_name;
-              return entry;
-            });
-          } else if (Array.isArray(value)) {
-            enums[key] = value.map(({ id, name, label }) => {
-              const entry: { id: number; name: string; label?: string; canonical_name?: string } = { id, name };
-              if (label && label !== name) entry.label = label;
-              const canonical_name = resolveCanonicalName(id, name, canonicalMap);
-              if (canonical_name !== undefined) entry.canonical_name = canonical_name;
-              return entry;
-            });
-          }
-        }
-
+        const enums = await fetchIssueEnums(client);
         return {
           content: [{ type: 'text', text: JSON.stringify(enums, null, 2) }],
         };
