@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { getConfig } from './config.js';
+import { getConfig, getStartupConfig } from './config.js';
 import { MantisClient } from './client.js';
 import { VersionHintService, setGlobalVersionHint } from './version-hint.js';
 import { MetadataCache } from './cache.js';
@@ -42,16 +42,21 @@ const version = packageJson.version;
 // ---------------------------------------------------------------------------
 
 async function createMcpServer(): Promise<McpServer> {
-  const config = await getConfig();
+  // Use startup config (no credentials required) so the server can connect
+  // and respond to tools/list even without MANTIS_BASE_URL / MANTIS_API_KEY.
+  // Credentials are resolved lazily on the first actual tool invocation.
+  const startupConfig = await getStartupConfig();
 
   const versionHint = new VersionHintService();
   setGlobalVersionHint(versionHint);
   const client = new MantisClient(
-    config.baseUrl,
-    config.apiKey,
+    async () => {
+      const config = await getConfig();
+      return { baseUrl: config.baseUrl, apiKey: config.apiKey };
+    },
     (response) => versionHint.onSuccessfulResponse(response),
   );
-  const cache = new MetadataCache(config.cacheDir, config.cacheTtl);
+  const cache = new MetadataCache(startupConfig.cacheDir, startupConfig.cacheTtl);
 
   const server = new McpServer({
     name: 'mantisbt-mcp-server',
@@ -60,7 +65,7 @@ async function createMcpServer(): Promise<McpServer> {
 
   registerIssueTools(server, client, cache);
   registerNoteTools(server, client);
-  registerFileTools(server, client, config.uploadDir);
+  registerFileTools(server, client, startupConfig.uploadDir);
   registerRelationshipTools(server, client);
   registerMonitorTools(server, client);
   registerProjectTools(server, client);
@@ -73,9 +78,9 @@ async function createMcpServer(): Promise<McpServer> {
   registerPrompts(server);
 
   // Optional: Semantic search module
-  if (config.search.enabled) {
+  if (startupConfig.search.enabled) {
     const { initializeSearchModule } = await import('./search/index.js');
-    await initializeSearchModule(server, client, config.search);
+    await initializeSearchModule(server, client, startupConfig.search);
   }
 
   return server;
@@ -98,15 +103,15 @@ async function runStdio(): Promise<void> {
 }
 
 async function runHttp(): Promise<void> {
-  const config = await getConfig();
+  const startupConfig = await getStartupConfig();
   const server = await createMcpServer();
-  const port = config.httpPort;
+  const port = startupConfig.httpPort;
 
   const httpServer = createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/mcp') {
-      if (config.httpToken) {
+      if (startupConfig.httpToken) {
         const auth = req.headers['authorization'];
-        if (auth !== `Bearer ${config.httpToken}`) {
+        if (auth !== `Bearer ${startupConfig.httpToken}`) {
           res.writeHead(401, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Unauthorized' }));
           return;
@@ -138,8 +143,8 @@ async function runHttp(): Promise<void> {
     }
   });
 
-  httpServer.listen(port, config.httpHost, () => {
-    console.error(`MantisBT MCP Server v${version} running on http://${config.httpHost}:${port}/mcp`);
+  httpServer.listen(port, startupConfig.httpHost, () => {
+    console.error(`MantisBT MCP Server v${version} running on http://${startupConfig.httpHost}:${port}/mcp`);
   });
 }
 

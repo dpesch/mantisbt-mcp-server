@@ -71,6 +71,64 @@ async function readMantisJson(): Promise<MantisJsonFile | null> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Non-credential config (safe to read at startup without credentials)
+// ---------------------------------------------------------------------------
+
+export type StartupConfig = Omit<MantisConfig, 'baseUrl' | 'apiKey'>;
+
+function readNonCredentialConfig(): StartupConfig {
+  const defaultCacheDir = join(homedir(), '.cache', 'mantisbt-mcp');
+  const cacheDir = process.env.MANTIS_CACHE_DIR ?? defaultCacheDir;
+  const cacheTtl = process.env.MANTIS_CACHE_TTL
+    ? parseInt(process.env.MANTIS_CACHE_TTL, 10)
+    : 3600;
+
+  const searchEnabled = process.env.MANTIS_SEARCH_ENABLED === 'true';
+  const searchBackendRaw = process.env.MANTIS_SEARCH_BACKEND ?? 'vectra';
+  if (searchBackendRaw !== 'vectra' && searchBackendRaw !== 'sqlite-vec') {
+    process.stderr.write(`[mantisbt-config] Unknown MANTIS_SEARCH_BACKEND="${searchBackendRaw}", falling back to "vectra"\n`);
+  }
+  const searchBackend: 'vectra' | 'sqlite-vec' =
+    searchBackendRaw === 'sqlite-vec' ? 'sqlite-vec' : 'vectra';
+  const searchDir = process.env.MANTIS_SEARCH_DIR ?? join(cacheDir, 'search');
+  const searchModelName =
+    process.env.MANTIS_SEARCH_MODEL ??
+    'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
+  const searchNumThreads = Math.max(1, parseInt(process.env.MANTIS_SEARCH_THREADS ?? '', 10) || 1);
+
+  return {
+    cacheDir,
+    cacheTtl,
+    uploadDir: process.env.MANTIS_UPLOAD_DIR,
+    httpHost: process.env.MCP_HTTP_HOST ?? '127.0.0.1',
+    httpPort: parseInt(process.env.PORT ?? '3000', 10),
+    httpToken: process.env.MCP_HTTP_TOKEN,
+    search: {
+      enabled: searchEnabled,
+      backend: searchBackend,
+      dir: searchDir,
+      modelName: searchModelName,
+      numThreads: searchNumThreads,
+    },
+  };
+}
+
+/**
+ * Returns all non-credential config values. Never throws, even when
+ * MANTIS_BASE_URL / MANTIS_API_KEY are absent. Use this at server startup
+ * so the MCP transport can connect and respond to tools/list without
+ * requiring credentials to be configured.
+ */
+export async function getStartupConfig(): Promise<StartupConfig> {
+  await loadDotEnvLocal();
+  return readNonCredentialConfig();
+}
+
+// ---------------------------------------------------------------------------
+// Full config (credentials required)
+// ---------------------------------------------------------------------------
+
 let cachedConfig: MantisConfig | null = null;
 
 export async function getConfig(): Promise<MantisConfig> {
@@ -101,46 +159,10 @@ export async function getConfig(): Promise<MantisConfig> {
     );
   }
 
-  const defaultCacheDir = join(homedir(), '.cache', 'mantisbt-mcp');
-  const cacheDir = process.env.MANTIS_CACHE_DIR ?? defaultCacheDir;
-  const cacheTtl = process.env.MANTIS_CACHE_TTL
-    ? parseInt(process.env.MANTIS_CACHE_TTL, 10)
-    : 3600;
-
-  const searchEnabled = process.env.MANTIS_SEARCH_ENABLED === 'true';
-  const searchBackendRaw = process.env.MANTIS_SEARCH_BACKEND ?? 'vectra';
-  if (searchBackendRaw !== 'vectra' && searchBackendRaw !== 'sqlite-vec') {
-    process.stderr.write(`[mantisbt-config] Unknown MANTIS_SEARCH_BACKEND="${searchBackendRaw}", falling back to "vectra"\n`);
-  }
-  const searchBackend: 'vectra' | 'sqlite-vec' =
-    searchBackendRaw === 'sqlite-vec' ? 'sqlite-vec' : 'vectra';
-  const searchDir = process.env.MANTIS_SEARCH_DIR ?? join(cacheDir, 'search');
-  const searchModelName =
-    process.env.MANTIS_SEARCH_MODEL ??
-    'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
-  const searchNumThreads = Math.max(1, parseInt(process.env.MANTIS_SEARCH_THREADS ?? '', 10) || 1);
-
-  const uploadDir = process.env.MANTIS_UPLOAD_DIR;
-  const httpHost = process.env.MCP_HTTP_HOST ?? '127.0.0.1';
-  const httpPort = parseInt(process.env.PORT ?? '3000', 10);
-  const httpToken = process.env.MCP_HTTP_TOKEN;
-
   cachedConfig = {
     baseUrl: baseUrl.replace(/\/$/, ''), // strip trailing slash
     apiKey,
-    cacheDir,
-    cacheTtl,
-    uploadDir,
-    httpHost,
-    httpPort,
-    httpToken,
-    search: {
-      enabled: searchEnabled,
-      backend: searchBackend,
-      dir: searchDir,
-      modelName: searchModelName,
-      numThreads: searchNumThreads,
-    },
+    ...readNonCredentialConfig(),
   };
 
   return cachedConfig;

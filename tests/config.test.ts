@@ -19,6 +19,12 @@ async function freshGetConfig(): Promise<(typeof import('../src/config.js'))['ge
   return mod.getConfig;
 }
 
+async function freshGetStartupConfig(): Promise<(typeof import('../src/config.js'))['getStartupConfig']> {
+  vi.resetModules();
+  const mod = await import('../src/config.js');
+  return mod.getStartupConfig;
+}
+
 // ---------------------------------------------------------------------------
 // Setup
 // ---------------------------------------------------------------------------
@@ -212,6 +218,44 @@ describe('getConfig() – HTTP transport', () => {
     const config = await getConfig();
 
     expect(config.httpToken).toBe('secret-token');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getStartupConfig — never throws without credentials
+// ---------------------------------------------------------------------------
+
+describe('getStartupConfig()', () => {
+  it('succeeds without MANTIS_BASE_URL and MANTIS_API_KEY', async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+
+    const getStartupConfig = await freshGetStartupConfig();
+    const config = await getStartupConfig();
+
+    expect(config).toBeDefined();
+    expect(config.cacheTtl).toBe(3600);
+    expect(config.httpHost).toBe('127.0.0.1');
+    expect(config.httpPort).toBe(3000);
+  });
+
+  it('does not include baseUrl or apiKey', async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+
+    const getStartupConfig = await freshGetStartupConfig();
+    const config = await getStartupConfig();
+
+    expect(config).not.toHaveProperty('baseUrl');
+    expect(config).not.toHaveProperty('apiKey');
+  });
+
+  it('reads MANTIS_CACHE_DIR from environment', async () => {
+    vi.stubEnv('MANTIS_CACHE_DIR', '/tmp/test-cache');
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+
+    const getStartupConfig = await freshGetStartupConfig();
+    const config = await getStartupConfig();
+
+    expect(config.cacheDir).toBe('/tmp/test-cache');
   });
 });
 

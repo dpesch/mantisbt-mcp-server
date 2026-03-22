@@ -17,25 +17,44 @@ export class MantisApiError extends Error {
 // ---------------------------------------------------------------------------
 
 type ResponseObserver = (response: Response) => void;
+type CredentialFactory = () => Promise<{ baseUrl: string; apiKey: string }>;
 
 export class MantisClient {
-  private readonly baseUrl: string;
-  private readonly apiKey: string;
+  private readonly credentialFactory?: CredentialFactory;
   private readonly responseObserver?: ResponseObserver;
+  private resolvedCredentials?: { baseUrl: string; apiKey: string };
 
-  constructor(baseUrl: string, apiKey: string, responseObserver?: ResponseObserver) {
-    // Ensure base URL ends without trailing slash; we always append /api/rest/
-    this.baseUrl = baseUrl.replace(/\/$/, '');
-    this.apiKey = apiKey;
-    this.responseObserver = responseObserver;
+  constructor(baseUrl: string, apiKey: string, responseObserver?: ResponseObserver);
+  constructor(credentialFactory: CredentialFactory, responseObserver?: ResponseObserver);
+  constructor(
+    baseUrlOrFactory: string | CredentialFactory,
+    apiKeyOrObserver?: string | ResponseObserver,
+    responseObserver?: ResponseObserver,
+  ) {
+    if (typeof baseUrlOrFactory === 'string') {
+      this.resolvedCredentials = { baseUrl: baseUrlOrFactory.replace(/\/$/, ''), apiKey: apiKeyOrObserver as string };
+      this.responseObserver = responseObserver;
+    } else {
+      this.credentialFactory = baseUrlOrFactory;
+      this.responseObserver = apiKeyOrObserver as ResponseObserver | undefined;
+    }
   }
 
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  private buildUrl(path: string, params?: Record<string, string | number | boolean | undefined>): string {
-    const url = new URL(`${this.baseUrl}/api/rest/${path}`);
+  private async getCredentials(): Promise<{ baseUrl: string; apiKey: string }> {
+    if (!this.resolvedCredentials) {
+      const { baseUrl, apiKey } = await this.credentialFactory!();
+      this.resolvedCredentials = { baseUrl: baseUrl.replace(/\/$/, ''), apiKey };
+    }
+    return this.resolvedCredentials;
+  }
+
+  private async buildUrl(path: string, params?: Record<string, string | number | boolean | undefined>): Promise<string> {
+    const { baseUrl } = await this.getCredentials();
+    const url = new URL(`${baseUrl}/api/rest/${path}`);
     if (params) {
       for (const [key, value] of Object.entries(params)) {
         if (value !== undefined) {
@@ -46,9 +65,10 @@ export class MantisClient {
     return url.toString();
   }
 
-  private headers(): Record<string, string> {
+  private async headers(): Promise<Record<string, string>> {
+    const { apiKey } = await this.getCredentials();
     return {
-      'Authorization': this.apiKey,
+      'Authorization': apiKey,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
@@ -86,35 +106,35 @@ export class MantisClient {
   // ---------------------------------------------------------------------------
 
   async get<T>(path: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
-    const response = await fetch(this.buildUrl(path, params), {
+    const response = await fetch(await this.buildUrl(path, params), {
       method: 'GET',
-      headers: this.headers(),
+      headers: await this.headers(),
     });
     return this.handleResponse<T>(response);
   }
 
   async post<T>(path: string, body: unknown): Promise<T> {
-    const response = await fetch(this.buildUrl(path), {
+    const response = await fetch(await this.buildUrl(path), {
       method: 'POST',
-      headers: this.headers(),
+      headers: await this.headers(),
       body: JSON.stringify(body),
     });
     return this.handleResponse<T>(response);
   }
 
   async patch<T>(path: string, body: unknown): Promise<T> {
-    const response = await fetch(this.buildUrl(path), {
+    const response = await fetch(await this.buildUrl(path), {
       method: 'PATCH',
-      headers: this.headers(),
+      headers: await this.headers(),
       body: JSON.stringify(body),
     });
     return this.handleResponse<T>(response);
   }
 
   async delete<T>(path: string): Promise<T> {
-    const response = await fetch(this.buildUrl(path), {
+    const response = await fetch(await this.buildUrl(path), {
       method: 'DELETE',
-      headers: this.headers(),
+      headers: await this.headers(),
     });
     return this.handleResponse<T>(response);
   }
@@ -122,10 +142,11 @@ export class MantisClient {
   async postFormData<T>(path: string, formData: FormData): Promise<T> {
     // Note: Content-Type must NOT be set here — fetch sets it automatically
     // with the correct multipart/form-data boundary.
-    const response = await fetch(this.buildUrl(path), {
+    const { apiKey } = await this.getCredentials();
+    const response = await fetch(await this.buildUrl(path), {
       method: 'POST',
       headers: {
-        'Authorization': this.apiKey,
+        'Authorization': apiKey,
         'Accept': 'application/json',
       },
       body: formData,
@@ -134,9 +155,9 @@ export class MantisClient {
   }
 
   async getVersion(): Promise<string> {
-    const response = await fetch(this.buildUrl('users/me'), {
+    const response = await fetch(await this.buildUrl('users/me'), {
       method: 'GET',
-      headers: this.headers(),
+      headers: await this.headers(),
     });
     if (!response.ok) {
       throw new MantisApiError(response.status, response.statusText);

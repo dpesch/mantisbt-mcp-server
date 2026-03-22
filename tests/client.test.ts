@@ -210,6 +210,76 @@ describe('MantisClient – HTTP methods', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Credential factory (lazy constructor)
+// ---------------------------------------------------------------------------
+
+describe('MantisClient – credential factory', () => {
+  it('does not call the factory until the first API method', async () => {
+    const factory = vi.fn().mockResolvedValue({
+      baseUrl: 'https://lazy.example.com',
+      apiKey: 'lazy-key',
+    });
+
+    new MantisClient(factory);
+
+    expect(factory).not.toHaveBeenCalled();
+  });
+
+  it('calls the factory on first API method and uses the returned credentials', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(makeResponse(200, '{}'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const factory = vi.fn().mockResolvedValue({
+      baseUrl: 'https://lazy.example.com',
+      apiKey: 'lazy-key',
+    });
+
+    const client = new MantisClient(factory);
+    await client.get('issues');
+
+    expect(factory).toHaveBeenCalledOnce();
+    const calledUrl: string = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toBe('https://lazy.example.com/api/rest/issues');
+    const options = fetchMock.mock.calls[0][1] as RequestInit;
+    expect((options.headers as Record<string, string>)['Authorization']).toBe('lazy-key');
+  });
+
+  it('caches credentials after the first call and does not call the factory again', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(makeResponse(200, '{}'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const factory = vi.fn().mockResolvedValue({
+      baseUrl: 'https://lazy.example.com',
+      apiKey: 'lazy-key',
+    });
+
+    const client = new MantisClient(factory);
+    await client.get('issues');
+    await client.get('projects');
+
+    expect(factory).toHaveBeenCalledOnce();
+  });
+
+  it('forwards the responseObserver when using factory constructor', async () => {
+    const observer = vi.fn();
+    const fakeResponse = makeResponse(200, '{}');
+    const fetchMock = vi.fn().mockResolvedValue(fakeResponse);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const factory = vi.fn().mockResolvedValue({
+      baseUrl: 'https://lazy.example.com',
+      apiKey: 'lazy-key',
+    });
+
+    const client = new MantisClient(factory, observer);
+    await client.get('issues');
+
+    expect(observer).toHaveBeenCalledOnce();
+    expect(observer).toHaveBeenCalledWith(fakeResponse);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // responseObserver
 // ---------------------------------------------------------------------------
 
