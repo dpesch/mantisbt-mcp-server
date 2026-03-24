@@ -166,9 +166,17 @@ rl.on('close', () => {
           shaMap[sha] = makeFilteredCommit(sha, filteredTree, mappedParents);
         }
       } else {
-        // Fallback: anchor not found — filter tip only, rooted at remote tip.
+        // Fallback: anchor not found.
+        // If the remote SHA doesn't exist locally (filtered commit from a prior push),
+        // tags can be safely skipped (immutable — already correct on Codeberg).
+        // Branches fall back to orphan filtering (best effort).
+        const remoteExists = !!gitOptional(`rev-parse --verify "${actualRemoteSha}"`);
+        if (!remoteExists && remoteRef.startsWith('refs/tags/')) {
+          console.log(`  ↷ ${label} already on Codeberg — skipping`);
+          continue;
+        }
         console.warn(`  ⚠ Could not find local base for ${label}, filtering tip only`);
-        shaMap[localSha] = makeFilteredCommit(localSha, filterTree(localSha), [actualRemoteSha]);
+        shaMap[localSha] = makeFilteredCommit(localSha, filterTree(localSha), remoteExists ? [actualRemoteSha] : []);
       }
     }
 
