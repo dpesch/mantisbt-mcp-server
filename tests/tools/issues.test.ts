@@ -123,6 +123,7 @@ describe('create_issue', () => {
 
     await mockServer.callTool('create_issue', {
       summary: 'Test issue',
+      description: 'Test description.',
       project_id: 1,
       category: 'General',
     }, { validate: true });
@@ -138,7 +139,7 @@ describe('create_issue', () => {
     );
 
     const result = await mockServer.callTool('create_issue', {
-      summary: 'New issue', project_id: 1, category: 'General',
+      summary: 'New issue', description: 'New issue description.', project_id: 1, category: 'General',
     }, { validate: true });
 
     expect(result.isError).toBeUndefined();
@@ -156,7 +157,7 @@ describe('create_issue', () => {
       .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [fullIssue] })));
 
     const result = await mockServer.callTool('create_issue', {
-      summary: 'Created issue', project_id: 1, category: 'General',
+      summary: 'Created issue', description: 'Created issue description.', project_id: 1, category: 'General',
     }, { validate: true });
 
     expect(result.isError).toBeUndefined();
@@ -174,7 +175,7 @@ describe('create_issue', () => {
       .mockResolvedValueOnce(makeResponse(500, 'Server Error'));
 
     const result = await mockServer.callTool('create_issue', {
-      summary: 'Test', project_id: 1, category: 'General',
+      summary: 'Test', description: 'Test description.', project_id: 1, category: 'General',
     }, { validate: true });
 
     expect(result.isError).toBeUndefined();
@@ -189,6 +190,7 @@ describe('create_issue', () => {
 
     await mockServer.callTool('create_issue', {
       summary: 'Crash bug',
+      description: 'Crash bug description.',
       project_id: 1,
       category: 'General',
       severity: 'crash',
@@ -198,9 +200,33 @@ describe('create_issue', () => {
     expect(body.severity).toEqual({ id: 70 });
   });
 
+  it('returns a validation error when description is missing', async () => {
+    const result = await mockServer.callTool('create_issue', {
+      summary: 'Test',
+      project_id: 1,
+      category: 'General',
+    }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('returns a validation error when description is empty', async () => {
+    const result = await mockServer.callTool('create_issue', {
+      summary: 'Test',
+      description: '',
+      project_id: 1,
+      category: 'General',
+    }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('returns an error for an unknown severity name', async () => {
     const result = await mockServer.callTool('create_issue', {
       summary: 'Test',
+      description: 'Test description.',
       project_id: 1,
       category: 'General',
       severity: 'schwerer Fehler',
@@ -228,7 +254,7 @@ describe('create_issue – handler username', () => {
     );
 
     await server.callTool('create_issue', {
-      summary: 'Test', project_id: 1, category: 'General', handler: 'dom',
+      summary: 'Test', description: 'Test description.', project_id: 1, category: 'General', handler: 'dom',
     }, { validate: true });
 
     const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as { handler: { id: number } };
@@ -245,7 +271,7 @@ describe('create_issue – handler username', () => {
     );
 
     await server.callTool('create_issue', {
-      summary: 'Test', project_id: 1, category: 'General', handler: 'John Doe',
+      summary: 'Test', description: 'Test description.', project_id: 1, category: 'General', handler: 'John Doe',
     }, { validate: true });
 
     const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as { handler: { id: number } };
@@ -262,7 +288,7 @@ describe('create_issue – handler username', () => {
       .mockResolvedValueOnce(makeResponse(201, JSON.stringify({ issue: { id: 202, summary: 'New' } })));
 
     await server.callTool('create_issue', {
-      summary: 'Test', project_id: 1, category: 'General', handler: 'alice',
+      summary: 'Test', description: 'Test description.', project_id: 1, category: 'General', handler: 'alice',
     }, { validate: true });
 
     const projectUsersCall = vi.mocked(fetch).mock.calls[0]![0] as string;
@@ -278,7 +304,7 @@ describe('create_issue – handler username', () => {
     registerIssueTools(server as never, client, cache);
 
     const result = await server.callTool('create_issue', {
-      summary: 'Test', project_id: 1, category: 'General', handler: 'nonexistent',
+      summary: 'Test', description: 'Test description.', project_id: 1, category: 'General', handler: 'nonexistent',
     });
 
     expect(result.isError).toBe(true);
@@ -297,7 +323,7 @@ describe('create_issue – handler username', () => {
     );
 
     await server.callTool('create_issue', {
-      summary: 'Test', project_id: 1, category: 'General', handler_id: 99, handler: 'dom',
+      summary: 'Test', description: 'Test description.', project_id: 1, category: 'General', handler_id: 99, handler: 'dom',
     }, { validate: true });
 
     const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as { handler: { id: number } };

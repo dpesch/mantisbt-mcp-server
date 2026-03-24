@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - `create_issue`: default priority is now `"normal"`, matching the MantisBT UI default. Previously no priority was sent when omitted, causing MantisBT to fall back to its server-side default of `"low"`.
+- `create_issue`: `description` is now a required field (minimum 1 character). Previously it defaulted to an empty string, which caused the MantisBT API to reject the request. The validation error is now surfaced immediately by the MCP server before the API is called.
 
 ---
 

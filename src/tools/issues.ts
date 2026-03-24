@@ -170,7 +170,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
       description: 'Create a new MantisBT issue. Returns the created issue including its assigned ID.',
       inputSchema: z.object({
         summary: z.string().min(1).describe('Issue summary/title'),
-        description: z.string().default('').describe('Detailed issue description'),
+        description: z.string().min(1).describe('Detailed issue description. Required — do not create issues without a description. Plain text or Markdown.'),
         project_id: z.coerce.number().int().positive().describe('Project ID the issue belongs to'),
         category: z.string().min(1).describe('Category name (use get_project_categories to list available categories)'),
         priority: z.string().default('normal').describe('Priority name — must be a canonical English name: none, low, normal, high, urgent, immediate. Default: "normal". Call get_issue_enums to see localized labels.'),
