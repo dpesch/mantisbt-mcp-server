@@ -1,6 +1,6 @@
 {
   "name": "@dpesch/mantisbt-mcp-server",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "mcpName": "io.github.dpesch/mantisbt-mcp-server",
   "description": "MCP server for MantisBT REST API – read and manage bug tracker issues",
   "author": "Dominik Pesch",
@@ -11,7 +11,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://codeberg.org/dpesch/mantisbt-mcp-server"
+    "url": "https://github.com/dpesch/mantisbt-mcp-server",
+    "_note": "GitHub mirror for ecosystem compatibility only — canonical source: https://codeberg.org/dpesch/mantisbt-mcp-server"
   },
   "keywords": ["mcp", "mcp-server", "mantisbt", "bugtracker", "mantis", "model-context-protocol"],
   "main": "dist/index.js",

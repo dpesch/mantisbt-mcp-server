@@ -7,6 +7,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.6.1] – 2026-03-24
+
+### Changed
+- `repository.url` in package.json switched from Codeberg to GitHub mirror
+  for ecosystem compatibility (LobeHub, npm crawlers). Codeberg remains the
+  canonical source (see `homepage`).
+
+---
+
 ## [1.6.0] – 2026-03-22
 
 ### Added
