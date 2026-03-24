@@ -1,0 +1,50 @@
+{
+  "name": "@dpesch/mantisbt-mcp-server",
+  "version": "1.6.2",
+  "mcpName": "io.github.dpesch/mantisbt-mcp-server",
+  "description": "MCP server for MantisBT REST API – read and manage bug tracker issues",
+  "author": "Dominik Pesch",
+  "license": "MIT",
+  "homepage": "https://codeberg.org/dpesch/mantisbt-mcp-server",
+  "bugs": {
+    "url": "https://codeberg.org/dpesch/mantisbt-mcp-server/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dpesch/mantisbt-mcp-server",
+    "_note": "GitHub mirror for ecosystem compatibility only — canonical source: https://codeberg.org/dpesch/mantisbt-mcp-server"
+  },
+  "keywords": ["mcp", "mcp-server", "mantisbt", "bugtracker", "mantis", "issue-tracker", "bug-tracker", "model-context-protocol", "claude", "claude-code"],
+  "main": "dist/index.js",
+  "bin": {
+    "mantisbt-mcp-server": "dist/index.js"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/index.js",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "dev:start": "npm run typecheck && npm run build && node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:record": "tsx scripts/record-fixtures.ts",
+    "init": "node scripts/init.mjs"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+"zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^2.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
