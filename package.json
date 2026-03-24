@@ -14,7 +14,7 @@
     "url": "https://github.com/dpesch/mantisbt-mcp-server",
     "_note": "GitHub mirror for ecosystem compatibility only — canonical source: https://codeberg.org/dpesch/mantisbt-mcp-server"
   },
-  "keywords": ["mcp", "mcp-server", "mantisbt", "bugtracker", "mantis", "model-context-protocol"],
+  "keywords": ["mcp", "mcp-server", "mantisbt", "bugtracker", "mantis", "issue-tracker", "bug-tracker", "model-context-protocol", "claude", "claude-code"],
   "main": "dist/index.js",
   "bin": {
     "mantisbt-mcp-server": "dist/index.js"
