@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- `create_issue`: default priority is now `"normal"`, matching the MantisBT UI default. Previously no priority was sent when omitted, causing MantisBT to fall back to its server-side default of `"low"`.
+
+---
+
 ## [1.6.1] – 2026-03-24
 
 ### Changed

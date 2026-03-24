@@ -173,7 +173,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         description: z.string().default('').describe('Detailed issue description'),
         project_id: z.coerce.number().int().positive().describe('Project ID the issue belongs to'),
         category: z.string().min(1).describe('Category name (use get_project_categories to list available categories)'),
-        priority: z.string().optional().describe('Priority name — must be a canonical English name: none, low, normal, high, urgent, immediate. Call get_issue_enums to see localized labels.'),
+        priority: z.string().default('normal').describe('Priority name — must be a canonical English name: none, low, normal, high, urgent, immediate. Default: "normal". Call get_issue_enums to see localized labels.'),
         severity: z.string().default('minor').describe('Severity name — must be a canonical English name: feature, trivial, text, tweak, minor, major, crash, block. Default: "minor". Call get_issue_enums to see localized labels.'),
         handler_id: z.coerce.number().int().positive().optional().describe('User ID of the person to assign the issue to'),
         handler: z.string().optional().describe('Username (login name) of the person to assign the issue to. Alternative to handler_id — the server resolves the name to a user ID from the project members. Use get_project_users to see available users.'),
@@ -216,11 +216,9 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
           project: { id: project_id },
           category: { name: category },
         };
-        if (priority) {
-          const priorityResolved = resolveEnum('priority', priority);
-          if (typeof priorityResolved === 'string') return { content: [{ type: 'text', text: errorText(priorityResolved) }], isError: true };
-          body.priority = priorityResolved;
-        }
+        const priorityResolved = resolveEnum('priority', priority);
+        if (typeof priorityResolved === 'string') return { content: [{ type: 'text', text: errorText(priorityResolved) }], isError: true };
+        body.priority = priorityResolved;
         const severityResolved = resolveEnum('severity', severity);
         if (typeof severityResolved === 'string') return { content: [{ type: 'text', text: errorText(severityResolved) }], isError: true };
         body.severity = severityResolved;
