@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.7.0] – 2026-03-26
+
+### Added
+- `create_issue`: new optional parameters `version`, `target_version`, `fixed_in_version`, `steps_to_reproduce`, `additional_information`, `reproducibility`, and `view_state` — these fields were already supported by the MantisBT REST API on issue creation but were missing from the tool, requiring a second `update_issue` call to set them.
+
+---
+
 ## [1.6.2] – 2026-03-24
 
 ### Fixed
