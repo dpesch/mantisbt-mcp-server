@@ -177,6 +177,13 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         severity: z.string().default('minor').describe('Severity name — must be a canonical English name: feature, trivial, text, tweak, minor, major, crash, block. Default: "minor". Call get_issue_enums to see localized labels.'),
         handler_id: z.coerce.number().int().positive().optional().describe('User ID of the person to assign the issue to'),
         handler: z.string().optional().describe('Username (login name) of the person to assign the issue to. Alternative to handler_id — the server resolves the name to a user ID from the project members. Use get_project_users to see available users.'),
+        version: z.string().optional().describe('Affected product version name (use get_project_versions to list available versions)'),
+        target_version: z.string().optional().describe('Target version name — version in which the issue is planned to be fixed (use get_project_versions to list available versions)'),
+        fixed_in_version: z.string().optional().describe('Version name in which the issue was fixed (use get_project_versions to list available versions)'),
+        steps_to_reproduce: z.string().optional().describe('Steps to reproduce the issue. Plain text or Markdown.'),
+        additional_information: z.string().optional().describe('Additional information about the issue. Plain text or Markdown.'),
+        reproducibility: z.string().optional().describe('Reproducibility — must be a canonical English name: always, sometimes, random, have not tried, unable to reproduce, N/A. Call get_issue_enums to see localized labels.'),
+        view_state: z.enum(['public', 'private']).optional().describe('Visibility of the issue: "public" (default) or "private"'),
       }),
       annotations: {
         readOnlyHint: false,
@@ -184,7 +191,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         idempotentHint: false,
       },
     },
-    async ({ summary, description, project_id, category, priority, severity, handler_id, handler }) => {
+    async ({ summary, description, project_id, category, priority, severity, handler_id, handler, version, target_version, fixed_in_version, steps_to_reproduce, additional_information, reproducibility, view_state }) => {
       // Resolve handler username to handler_id when only a name is given
       let resolvedHandlerId = handler_id;
       if (resolvedHandlerId === undefined && handler !== undefined) {
@@ -223,6 +230,17 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         if (typeof severityResolved === 'string') return { content: [{ type: 'text', text: errorText(severityResolved) }], isError: true };
         body.severity = severityResolved;
         if (resolvedHandlerId) body.handler = { id: resolvedHandlerId };
+        if (version !== undefined) body.version = { name: version };
+        if (target_version !== undefined) body.target_version = { name: target_version };
+        if (fixed_in_version !== undefined) body.fixed_in_version = { name: fixed_in_version };
+        if (steps_to_reproduce !== undefined) body.steps_to_reproduce = steps_to_reproduce;
+        if (additional_information !== undefined) body.additional_information = additional_information;
+        if (reproducibility !== undefined) {
+          const reproducibilityResolved = resolveEnum('reproducibility', reproducibility);
+          if (typeof reproducibilityResolved === 'string') return { content: [{ type: 'text', text: errorText(reproducibilityResolved) }], isError: true };
+          body.reproducibility = reproducibilityResolved;
+        }
+        if (view_state !== undefined) body.view_state = { name: view_state };
 
         const raw = await client.post<Record<string, unknown>>('issues', body);
         const partial = ('issue' in raw && typeof raw['issue'] === 'object' && raw['issue'] !== null)
