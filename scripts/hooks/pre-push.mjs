@@ -111,6 +111,16 @@ rl.on('close', () => {
   const branches = lines.filter(l => l.split(' ')[2]?.startsWith('refs/heads/'));
   const others   = lines.filter(l => !l.split(' ')[2]?.startsWith('refs/heads/'));
 
+  // Batch-fetch all tags from Codeberg (single ls-remote call, ref → sha).
+  const remoteTagsRaw = gitOptional(`ls-remote --tags "${remoteUrl}"`);
+  const remoteTagMap = new Map(
+    remoteTagsRaw
+      ? remoteTagsRaw.split('\n').filter(Boolean)
+          .map(l => { const [sha, ref] = l.split(/\s+/); return [ref, sha]; })
+          .filter(([ref]) => ref)
+      : []
+  );
+
   // localSha → filteredSha, accumulated across all refs in this push.
   const shaMap = {};
   let pushed = 0;
@@ -123,6 +133,17 @@ rl.on('close', () => {
     if (localSha === ZERO_SHA) continue; // deletion — skip
 
     const label = remoteRef.replace('refs/heads/', '').replace('refs/tags/', '');
+
+    if (remoteRef.startsWith('refs/tags/')) {
+      if (remoteTagMap.has(remoteRef)) {
+        console.log(`  ↷ ${label} already on Codeberg — skipping`);
+        continue;
+      }
+      if (!gitOptional(`rev-parse --verify "${localSha}"`)) {
+        console.warn(`  ⚠ ${label} — commit ${localSha.slice(0, 8)} not found locally, skipping`);
+        continue;
+      }
+    }
 
     // If this commit was already filtered as part of a branch push, reuse it.
     if (localSha in shaMap) {
@@ -137,9 +158,11 @@ rl.on('close', () => {
       continue;
     }
 
-    // Get the actual current SHA on Codeberg for this ref.
-    const lsOut = gitOptional(`ls-remote "${remoteUrl}" "${remoteRef}"`);
-    const actualRemoteSha = lsOut ? lsOut.split(/\s+/)[0] : '';
+    // Tags: existing ones were skipped above, so only new tags reach here — no remote anchor.
+    // Branches: query individually to find the incremental anchor for filtered chain building.
+    const actualRemoteSha = remoteRef.startsWith('refs/tags/')
+      ? ''
+      : (gitOptional(`ls-remote "${remoteUrl}" "${remoteRef}"`)?.split(/\s+/)[0] ?? '');
 
     if (!actualRemoteSha) {
       // New ref on Codeberg — filter the tip with no parent.
@@ -167,15 +190,8 @@ rl.on('close', () => {
           shaMap[sha] = makeFilteredCommit(sha, filteredTree, mappedParents);
         }
       } else {
-        // Fallback: anchor not found.
-        // If the remote SHA doesn't exist locally (filtered commit from a prior push),
-        // tags can be safely skipped (immutable — already correct on Codeberg).
-        // Branches fall back to orphan filtering (best effort).
+        // Fallback: anchor not found — branch only (tags exit early above).
         const remoteExists = !!gitOptional(`rev-parse --verify "${actualRemoteSha}"`);
-        if (!remoteExists && remoteRef.startsWith('refs/tags/')) {
-          console.log(`  ↷ ${label} already on Codeberg — skipping`);
-          continue;
-        }
         console.warn(`  ⚠ Could not find local base for ${label}, filtering tip only`);
         shaMap[localSha] = makeFilteredCommit(localSha, filterTree(localSha), remoteExists ? [actualRemoteSha] : []);
       }
