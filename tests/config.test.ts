@@ -40,24 +40,44 @@ beforeEach(() => {
 
 describe('getConfig() – ENV variables', () => {
   it('reads baseUrl and apiKey from environment variables', async () => {
-    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com/api/rest');
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com');
     vi.stubEnv('MANTIS_API_KEY', 'env-api-key');
 
     const getConfig = await freshGetConfig();
     const config = await getConfig();
 
-    expect(config.baseUrl).toBe('https://mantis.example.com/api/rest');
+    expect(config.baseUrl).toBe('https://mantis.example.com');
     expect(config.apiKey).toBe('env-api-key');
   });
 
   it('strips trailing slash from baseUrl', async () => {
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com/');
+    vi.stubEnv('MANTIS_API_KEY', 'key');
+
+    const getConfig = await freshGetConfig();
+    const config = await getConfig();
+
+    expect(config.baseUrl).toBe('https://mantis.example.com');
+  });
+
+  it('strips /api/rest suffix from baseUrl when user includes it', async () => {
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com/api/rest');
+    vi.stubEnv('MANTIS_API_KEY', 'key');
+
+    const getConfig = await freshGetConfig();
+    const config = await getConfig();
+
+    expect(config.baseUrl).toBe('https://mantis.example.com');
+  });
+
+  it('strips /api/rest/ (with trailing slash) from baseUrl', async () => {
     vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com/api/rest/');
     vi.stubEnv('MANTIS_API_KEY', 'key');
 
     const getConfig = await freshGetConfig();
     const config = await getConfig();
 
-    expect(config.baseUrl).toBe('https://mantis.example.com/api/rest');
+    expect(config.baseUrl).toBe('https://mantis.example.com');
   });
 
   it('parses MANTIS_CACHE_TTL as a number', async () => {

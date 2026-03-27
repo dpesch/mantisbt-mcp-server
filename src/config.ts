@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizeBaseUrl } from './client.js';
 
 // ---------------------------------------------------------------------------
 // Config shape
@@ -128,7 +129,7 @@ export async function getConfig(): Promise<MantisConfig> {
   }
 
   cachedConfig = {
-    baseUrl: baseUrl.replace(/\/$/, ''), // strip trailing slash
+    baseUrl: normalizeBaseUrl(baseUrl),
     apiKey,
     ...readNonCredentialConfig(),
   };

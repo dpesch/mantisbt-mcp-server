@@ -56,6 +56,28 @@ describe('MantisClient – URL building', () => {
     });
   });
 
+  it('strips /api/rest suffix when user includes it in the base URL', () => {
+    const fetchMock = vi.fn().mockResolvedValue(makeResponse(200, '{}'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new MantisClient('https://mantis.example.com/api/rest', 'token123');
+    return client.get('issues/42').then(() => {
+      const calledUrl: string = fetchMock.mock.calls[0][0] as string;
+      expect(calledUrl).toBe('https://mantis.example.com/api/rest/issues/42');
+    });
+  });
+
+  it('strips /api/rest/ (with trailing slash) from base URL', () => {
+    const fetchMock = vi.fn().mockResolvedValue(makeResponse(200, '{}'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new MantisClient('https://mantis.example.com/api/rest/', 'token123');
+    return client.get('issues/42').then(() => {
+      const calledUrl: string = fetchMock.mock.calls[0][0] as string;
+      expect(calledUrl).toBe('https://mantis.example.com/api/rest/issues/42');
+    });
+  });
+
   it('appends defined query parameters', () => {
     const fetchMock = vi.fn().mockResolvedValue(makeResponse(200, '{}'));
     vi.stubGlobal('fetch', fetchMock);

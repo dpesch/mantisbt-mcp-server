@@ -1,4 +1,18 @@
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalise a MANTIS_BASE_URL so that it never ends with "/api/rest" or a
+ * trailing slash.  The client always appends "/api/rest/<path>" itself, so
+ * users who follow README examples that include "/api/rest" in the URL must
+ * not end up with a doubled prefix.
+ */
+export function normalizeBaseUrl(url: string): string {
+  return url.replace(/\/api\/rest\/?$/, '').replace(/\/$/, '');
+}
+
+// ---------------------------------------------------------------------------
 // MantisApiError
 // ---------------------------------------------------------------------------
 
@@ -32,7 +46,7 @@ export class MantisClient {
     responseObserver?: ResponseObserver,
   ) {
     if (typeof baseUrlOrFactory === 'string') {
-      this.resolvedCredentials = { baseUrl: baseUrlOrFactory.replace(/\/$/, ''), apiKey: apiKeyOrObserver as string };
+      this.resolvedCredentials = { baseUrl: normalizeBaseUrl(baseUrlOrFactory), apiKey: apiKeyOrObserver as string };
       this.responseObserver = responseObserver;
     } else {
       this.credentialFactory = baseUrlOrFactory;
@@ -47,7 +61,7 @@ export class MantisClient {
   private async getCredentials(): Promise<{ baseUrl: string; apiKey: string }> {
     if (!this.resolvedCredentials) {
       const { baseUrl, apiKey } = await this.credentialFactory!();
-      this.resolvedCredentials = { baseUrl: baseUrl.replace(/\/$/, ''), apiKey };
+      this.resolvedCredentials = { baseUrl: normalizeBaseUrl(baseUrl), apiKey };
     }
     return this.resolvedCredentials;
   }
