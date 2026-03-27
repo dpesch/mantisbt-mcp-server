@@ -11,6 +11,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.1] – 2026-03-27
+
+### Fixed
+- `MANTIS_BASE_URL` values ending in `/api/rest` (as shown in README examples) caused a doubled path (`/api/rest/api/rest/...`) and broke all API calls. A new `normalizeBaseUrl()` helper strips the `/api/rest` suffix (and any trailing slash) on startup. Both formats are now accepted: `https://your-mantis.example.com` and `https://your-mantis.example.com/api/rest`.
+
+---
+
 ## [1.8.0] – 2026-03-27
 
 ### Added

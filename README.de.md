@@ -65,7 +65,7 @@ npm run build
 
 | Variable | Pflicht | Standard | Beschreibung |
 |---|---|---|---|
-| `MANTIS_BASE_URL` | ✅ | – | Basis-URL der MantisBT REST API |
+| `MANTIS_BASE_URL` | ✅ | – | Basis-URL der MantisBT-Installation. Beide Formate werden akzeptiert: `https://deine-mantis-instanz.example.com` und `https://deine-mantis-instanz.example.com/api/rest` — das `/api/rest`-Suffix wird automatisch normalisiert. |
 | `MANTIS_API_KEY` | ✅ | – | API-Token für die Authentifizierung |
 | `MANTIS_CACHE_DIR` | – | `~/.cache/mantisbt-mcp` | Verzeichnis für den Metadaten-Cache |
 | `MANTIS_CACHE_TTL` | – | `3600` | Cache-Lebensdauer in Sekunden |
