@@ -1,0 +1,11 @@
+.idea/
+node_modules/
+dist/
+.env
+*.tgz
+.claude/settings.local.json
+.claude/memory/
+tests/fixtures/recorded/
+.env.local
+.mcpregistry_*
+mcp-publisher.exe
