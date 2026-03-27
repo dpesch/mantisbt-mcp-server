@@ -157,6 +157,42 @@ describe('get_metadata', () => {
 });
 
 // ---------------------------------------------------------------------------
+// get_metadata_full
+// ---------------------------------------------------------------------------
+
+describe('get_metadata_full', () => {
+  it('is registered', () => {
+    expect(mockServer.hasToolRegistered('get_metadata_full')).toBe(true);
+  });
+
+  it('returns full raw cache (arrays, not counts)', async () => {
+    const metadata = makeSampleMetadata();
+    vi.mocked(readFile).mockResolvedValue(makeValidMetadataCacheFile(metadata) as any);
+
+    const result = await mockServer.callTool('get_metadata_full', {});
+    const parsed = JSON.parse(result.content[0]!.text) as { projects: unknown[]; tags: unknown[] };
+    expect(Array.isArray(parsed.projects)).toBe(true);
+    expect(Array.isArray(parsed.tags)).toBe(true);
+  });
+
+  it('returns minified JSON (no newlines)', async () => {
+    const metadata = makeSampleMetadata();
+    vi.mocked(readFile).mockResolvedValue(makeValidMetadataCacheFile(metadata) as any);
+
+    const result = await mockServer.callTool('get_metadata_full', {});
+    expect(result.content[0]!.text).not.toContain('\n');
+  });
+
+  it('uses cache without fetching', async () => {
+    const metadata = makeSampleMetadata();
+    vi.mocked(readFile).mockResolvedValue(makeValidMetadataCacheFile(metadata) as any);
+
+    await mockServer.callTool('get_metadata_full', {});
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // sync_metadata
 // ---------------------------------------------------------------------------
 

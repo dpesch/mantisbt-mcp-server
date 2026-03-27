@@ -230,7 +230,7 @@ Use this tool to refresh stale data.`,
       description: `Return a compact summary of cached MantisBT metadata: project count, tag count, and per-project counts of users, versions, and categories.
 
 If the cache does not exist or has expired (default TTL: 24 hours), it will automatically sync first.
-Use sync_metadata to force a refresh. Use get_project_users / get_project_versions / get_project_categories for full lists.`,
+Use sync_metadata to force a refresh. For full lists use: list_projects (projects), get_project_users / get_project_versions / get_project_categories (per-project data), list_tags (tags).`,
       inputSchema: z.object({}),
       annotations: {
         readOnlyHint: true,
@@ -261,6 +261,38 @@ Use sync_metadata to force a refresh. Use get_project_users / get_project_versio
         };
         return {
           content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }],
+        };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
+      }
+    }
+  );
+
+  // ---------------------------------------------------------------------------
+  // get_metadata_full
+  // ---------------------------------------------------------------------------
+
+  server.registerTool(
+    'get_metadata_full',
+    {
+      title: 'Get Full Cached Metadata',
+      description: `Return the complete raw MantisBT metadata cache: all projects with full fields, and per-project lists of users, versions, categories, plus all tags.
+
+If the cache does not exist or has expired (default TTL: 24 hours), it will automatically sync first.
+Use sync_metadata to force a refresh. For a lightweight overview use get_metadata instead.`,
+      inputSchema: z.object({}),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async () => {
+      try {
+        const data: CachedMetadata = await cache.loadIfValid() ?? await fetchAndCacheMetadata(client, cache);
+        return {
+          content: [{ type: 'text', text: JSON.stringify(data) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
