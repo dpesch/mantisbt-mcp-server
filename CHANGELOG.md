@@ -11,6 +11,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - New MCP resource `mantis://projects/{id}`: combined project view with fields (`status`, `view_state`, `access_level`, `description`) plus users, versions, and categories — data that was previously only accessible via separate tool calls. Served from local cache; falls back to three parallel API calls when the cache is cold.
+- New tool `find_project_member`: search users with access to a project by name, display name, or email. Case-insensitive substring matching; returns up to `limit` results (default 10, max 100). Served from local cache when fresh; falls back to a live API call otherwise.
+
+### Changed
+- `get_metadata` now returns a compact summary (project count, tag count, per-project counts of users/versions/categories, cache timestamp, and remaining TTL) instead of the full raw cache dump. Reduces response size from hundreds of KB to a few hundred bytes. Use `get_project_users`, `get_project_versions`, or `get_project_categories` to retrieve full lists.
+- `list_projects` now applies the same normalization as `sync_metadata`: `custom_fields` and other undeclared API fields are stripped from project objects, keeping the response lean and consistent.
 
 ### Fixed
 - `mantis://projects` resource response reduced from ~270 KB to ~6 KB (98% smaller): `custom_fields` are no longer included in project objects (they were passed through from the raw MantisBT API response despite not being part of the project schema), JSON output is now minified, and enum sub-objects (`status`, `view_state`, `access_level`) are stripped to only their declared fields. The `label` field on `status` and `view_state` is preserved for localized display name lookups.

@@ -227,10 +227,10 @@ Use this tool to refresh stale data.`,
     'get_metadata',
     {
       title: 'Get Cached Metadata',
-      description: `Return cached MantisBT metadata (projects, users, versions, categories).
+      description: `Return a compact summary of cached MantisBT metadata: project count, tag count, and per-project counts of users, versions, and categories.
 
 If the cache does not exist or has expired (default TTL: 24 hours), it will automatically sync first.
-Use sync_metadata to force a refresh.`,
+Use sync_metadata to force a refresh. Use get_project_users / get_project_versions / get_project_categories for full lists.`,
       inputSchema: z.object({}),
       annotations: {
         readOnlyHint: true,
@@ -242,8 +242,25 @@ Use sync_metadata to force a refresh.`,
       try {
         const data: CachedMetadata = await cache.loadIfValid() ?? await fetchAndCacheMetadata(client, cache);
 
+        const summary = {
+          projects: data.projects.length,
+          tags: data.tags.length,
+          byProject: Object.fromEntries(
+            data.projects.map((p) => {
+              const meta = data.byProject[p.id];
+              return [String(p.id), {
+                name: p.name,
+                users: meta?.users.length ?? 0,
+                versions: meta?.versions.length ?? 0,
+                categories: meta?.categories.length ?? 0,
+              }];
+            })
+          ),
+          cached_at: new Date(data.timestamp).toISOString(),
+          ttl_seconds: cache.getRemainingTtlSeconds(data.timestamp),
+        };
         return {
-          content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+          content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);

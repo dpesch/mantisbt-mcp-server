@@ -93,8 +93,46 @@ describe('get_metadata', () => {
     expect(result.isError).toBeUndefined();
     // fetch must NOT have been called — data came from cache
     expect(fetch).not.toHaveBeenCalled();
-    const parsed = JSON.parse(result.content[0]!.text) as CachedMetadata;
-    expect(parsed.projects).toEqual(metadata.projects);
+    const parsed = JSON.parse(result.content[0]!.text) as { projects: number };
+    expect(parsed.projects).toBe(1);
+  });
+
+  it('returns compact summary (no raw arrays)', async () => {
+    const metadata = makeSampleMetadata();
+    vi.mocked(readFile).mockResolvedValue(makeValidMetadataCacheFile(metadata) as any);
+
+    const result = await mockServer.callTool('get_metadata', {});
+    const parsed = JSON.parse(result.content[0]!.text) as Record<string, unknown>;
+    expect(typeof parsed['projects']).toBe('number');
+    expect(typeof parsed['tags']).toBe('number');
+    expect(Array.isArray(parsed['projects'])).toBe(false);
+  });
+
+  it('byProject contains name and counts per project', async () => {
+    const metadata: CachedMetadata = {
+      timestamp: Date.now(),
+      projects: [{ id: 1, name: 'Test Project' }],
+      byProject: { 1: { users: [{ id: 1, name: 'u' }], versions: [{ id: 1, name: 'v1' }], categories: [{ id: 1, name: 'c' }, { id: 2, name: 'c2' }] } },
+      tags: [],
+    };
+    vi.mocked(readFile).mockResolvedValue(makeValidMetadataCacheFile(metadata) as any);
+
+    const result = await mockServer.callTool('get_metadata', {});
+    const parsed = JSON.parse(result.content[0]!.text) as { byProject: Record<string, { name: string; users: number; versions: number; categories: number }> };
+    const entry = Object.values(parsed.byProject)[0]!;
+    expect(typeof entry.name).toBe('string');
+    expect(typeof entry.users).toBe('number');
+    expect(typeof entry.versions).toBe('number');
+    expect(typeof entry.categories).toBe('number');
+  });
+
+  it('ttl_seconds is positive for fresh cache', async () => {
+    const metadata = makeSampleMetadata();
+    vi.mocked(readFile).mockResolvedValue(makeValidMetadataCacheFile(metadata) as any);
+
+    const result = await mockServer.callTool('get_metadata', {});
+    const parsed = JSON.parse(result.content[0]!.text) as { ttl_seconds: number };
+    expect(parsed.ttl_seconds).toBeGreaterThan(0);
   });
 
   it('fetches and caches when cache is missing', async () => {

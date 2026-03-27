@@ -92,16 +92,17 @@ export class MockMcpServer {
     const handler = this.handlers.get(name);
     if (!handler) throw new Error(`Tool not registered: ${name}`);
 
-    if (options.validate) {
-      const schema = this.schemas.get(name);
-      if (schema) {
-        const parsed = schema.safeParse(args);
-        if (!parsed.success) {
+    const schema = this.schemas.get(name);
+    if (schema) {
+      const parsed = schema.safeParse(args);
+      if (!parsed.success) {
+        if (options.validate) {
           return {
             content: [{ type: 'text', text: `Validation error: ${parsed.error.message}` }],
             isError: true,
           };
         }
+      } else {
         return handler(parsed.data as Record<string, unknown>);
       }
     }

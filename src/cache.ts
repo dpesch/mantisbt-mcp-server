@@ -103,6 +103,10 @@ export class MetadataCache {
     }
   }
 
+  getRemainingTtlSeconds(timestampMs: number): number {
+    return Math.round(this.ttlSeconds - (Date.now() - timestampMs) / 1000);
+  }
+
   async saveIssueFields(fields: string[]): Promise<void> {
     await mkdir(this.cacheDir, { recursive: true });
     const file = { timestamp: Date.now(), fields };

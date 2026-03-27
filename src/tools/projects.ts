@@ -4,6 +4,8 @@ import { MantisClient } from '../client.js';
 import type { MantisProject, MantisUser, MantisVersion, MantisCategory } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
 import { ALL_PROJECTS_PREFIX } from '../constants.js';
+import { normalizeProject } from './metadata.js';
+import { MetadataCache } from '../cache.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -12,7 +14,7 @@ function errorText(msg: string): string {
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
 
-export function registerProjectTools(server: McpServer, client: MantisClient): void {
+export function registerProjectTools(server: McpServer, client: MantisClient, cache?: MetadataCache): void {
 
   // ---------------------------------------------------------------------------
   // list_projects
@@ -33,8 +35,9 @@ export function registerProjectTools(server: McpServer, client: MantisClient): v
     async () => {
       try {
         const result = await client.get<{ projects: MantisProject[] }>('projects');
+        const projects = (result.projects ?? []).map(normalizeProject);
         return {
-          content: [{ type: 'text', text: JSON.stringify(result.projects ?? result, null, 2) }],
+          content: [{ type: 'text', text: JSON.stringify(projects, null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -146,6 +149,58 @@ This tool strips that prefix so the returned names can be used directly when cre
         }));
         return {
           content: [{ type: 'text', text: JSON.stringify(categories, null, 2) }],
+        };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
+      }
+    }
+  );
+
+  // ---------------------------------------------------------------------------
+  // find_project_member
+  // ---------------------------------------------------------------------------
+
+  server.registerTool(
+    'find_project_member',
+    {
+      title: 'Find Project Member',
+      description: `Search for users with access to a MantisBT project by name, display name, or email.
+
+Returns up to \`limit\` matching users (default: 10, max: 100). Matching is case-insensitive substring search across \`name\`, \`real_name\`, and \`email\` fields. Omit \`query\` to list the first \`limit\` users.
+
+Data is served from the local metadata cache when fresh; falls back to a live API call otherwise.`,
+      inputSchema: z.object({
+        project_id: z.coerce.number().int().positive().describe('Numeric project ID'),
+        query: z.string().optional().describe('Case-insensitive substring to match against name, real_name, or email'),
+        limit: z.coerce.number().int().min(1).max(100).default(10).describe('Maximum number of results to return (default: 10, max: 100)'),
+      }),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async ({ project_id, query, limit }) => {
+      try {
+        let users: MantisUser[];
+        const cached = cache ? await cache.loadIfValid() : null;
+        if (cached?.byProject[project_id]) {
+          users = cached.byProject[project_id]!.users;
+        } else {
+          const result = await client.get<{ users: MantisUser[] }>(`projects/${project_id}/users`);
+          users = result.users ?? [];
+        }
+        if (query) {
+          const q = query.toLowerCase();
+          users = users.filter((u) =>
+            u.name.toLowerCase().includes(q) ||
+            (u.real_name?.toLowerCase().includes(q) ?? false) ||
+            (u.email?.toLowerCase().includes(q) ?? false)
+          );
+        }
+        return {
+          content: [{ type: 'text', text: JSON.stringify(users.slice(0, limit), null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
