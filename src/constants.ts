@@ -1,4 +1,11 @@
 // ---------------------------------------------------------------------------
+// Category name normalization
+// ---------------------------------------------------------------------------
+
+/** Prefix MantisBT adds to category names inherited from [All Projects]. */
+export const ALL_PROJECTS_PREFIX = '[All Projects] ';
+
+// ---------------------------------------------------------------------------
 // Relationship type IDs
 // ---------------------------------------------------------------------------
 // Note: the MantisBT REST API only accepts numeric type IDs, not string names.

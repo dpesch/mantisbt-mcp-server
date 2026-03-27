@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { MantisClient } from '../client.js';
 import type { MantisProject, MantisUser, MantisVersion, MantisCategory } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
+import { ALL_PROJECTS_PREFIX } from '../constants.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -10,8 +11,6 @@ function errorText(msg: string): string {
   const hint = vh?.getUpdateHint();
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
-
-const ALL_PROJECTS_PREFIX = '[All Projects] ';
 
 export function registerProjectTools(server: McpServer, client: MantisClient): void {
 

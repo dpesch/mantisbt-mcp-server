@@ -39,7 +39,21 @@ export interface ResourceResult {
 
 type PromptHandler = (args: Record<string, unknown>) => PromptResult;
 
-type ResourceHandler = (uri: URL) => Promise<ResourceResult>;
+type ResourceHandler = (uri: URL, variables?: Record<string, string>) => Promise<ResourceResult>;
+
+interface ResourceEntry {
+  handler: ResourceHandler;
+  /** URI template pattern, e.g. 'mantis://projects/{id}'. Present for template resources only. */
+  template?: string;
+}
+
+function matchTemplate(template: string, uri: string): Record<string, string> | null {
+  const names = [...template.matchAll(/\{([^}]+)\}/g)].map((m) => m[1]!);
+  const pattern = template.replace(/\{[^}]+\}/g, '([^/]+)');
+  const match = uri.match(new RegExp(`^${pattern}$`));
+  if (!match) return null;
+  return Object.fromEntries(names.map((name, i) => [name, match[i + 1]!]));
+}
 
 interface PromptDefinition {
   argsSchema?: Record<string, z.ZodTypeAny>;
@@ -50,7 +64,7 @@ export class MockMcpServer {
   private readonly handlers = new Map<string, ToolHandler>();
   private readonly schemas = new Map<string, z.ZodTypeAny>();
   private readonly promptHandlers = new Map<string, PromptHandler>();
-  private readonly resourceHandlers = new Map<string, ResourceHandler>();
+  private readonly resourceEntries = new Map<string, ResourceEntry>();
 
   // Nachahmt McpServer.registerTool – fängt Handler und Schema ein
   registerTool(name: string, definition: ToolDefinition, handler: ToolHandler): void {
@@ -117,21 +131,35 @@ export class MockMcpServer {
     return [...this.promptHandlers.keys()];
   }
 
-  registerResource(name: string, uri: string, _config: unknown, handler: ResourceHandler): void {
-    this.resourceHandlers.set(uri, handler);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  registerResource(name: string, uriOrTemplate: any, _config: unknown, handler: ResourceHandler): void {
+    if (typeof uriOrTemplate === 'string') {
+      this.resourceEntries.set(uriOrTemplate, { handler });
+    } else {
+      // ResourceTemplate — uriTemplate getter returns a UriTemplate object; .toString() gives the pattern string
+      const templateStr: string = uriOrTemplate.uriTemplate?.toString() ?? name;
+      this.resourceEntries.set(templateStr, { handler, template: templateStr });
+    }
   }
 
   async callResource(uri: string): Promise<ResourceResult> {
-    const handler = this.resourceHandlers.get(uri);
-    if (!handler) throw new Error(`Resource not registered: ${uri}`);
-    return handler(new URL(uri));
+    const exact = this.resourceEntries.get(uri);
+    if (exact) return exact.handler(new URL(uri), {});
+
+    for (const entry of this.resourceEntries.values()) {
+      if (!entry.template) continue;
+      const variables = matchTemplate(entry.template, uri);
+      if (variables) return entry.handler(new URL(uri), variables);
+    }
+
+    throw new Error(`Resource not registered: ${uri}`);
   }
 
   hasResourceRegistered(uri: string): boolean {
-    return this.resourceHandlers.has(uri);
+    return this.resourceEntries.has(uri);
   }
 
   registeredResourceUris(): string[] {
-    return [...this.resourceHandlers.keys()];
+    return [...this.resourceEntries.keys()];
   }
 }

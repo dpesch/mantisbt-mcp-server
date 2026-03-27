@@ -187,6 +187,82 @@ describe('mantis://projects', () => {
 });
 
 // ---------------------------------------------------------------------------
+// mantis://projects/{id}
+// ---------------------------------------------------------------------------
+
+describe('mantis://projects/{id}', () => {
+  it('registers the template resource', () => {
+    expect(mockServer.hasResourceRegistered('mantis://projects/{id}')).toBe(true);
+  });
+
+  it('returns combined project view from cache (users, versions, categories)', async () => {
+    const projectsFixture = [{ id: 10, name: 'Alpha', enabled: true }];
+    await cache.save({
+      timestamp: Date.now(),
+      projects: projectsFixture,
+      byProject: {
+        10: {
+          users: [{ id: 1, name: 'jsmith' }],
+          versions: [{ id: 5, name: '1.0.0', released: true }],
+          categories: [{ id: 3, name: 'Bugs' }],
+        },
+      },
+      tags: [],
+    });
+
+    const result = await mockServer.callResource('mantis://projects/10');
+
+    const parsed = JSON.parse(result.contents[0]!.text) as Record<string, unknown>;
+    expect(parsed['id']).toBe(10);
+    expect(parsed['name']).toBe('Alpha');
+    expect(parsed['users']).toHaveLength(1);
+    expect(parsed['versions']).toHaveLength(1);
+    expect(parsed['categories']).toHaveLength(1);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('fetches live data in parallel when cache is cold', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ projects: [{ id: 10, name: 'Alpha', categories: [{ id: 3, name: 'Bugs' }] }] })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ users: [{ id: 1, name: 'jsmith' }] })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ versions: [{ id: 5, name: '1.0.0' }] })));
+
+    const result = await mockServer.callResource('mantis://projects/10');
+
+    const parsed = JSON.parse(result.contents[0]!.text) as Record<string, unknown>;
+    expect(parsed['id']).toBe(10);
+    expect((parsed['users'] as unknown[]).length).toBeGreaterThan(0);
+    expect((parsed['versions'] as unknown[]).length).toBeGreaterThan(0);
+    expect((parsed['categories'] as unknown[]).length).toBeGreaterThan(0);
+  });
+
+  it('strips [All Projects] prefix from category names on live fetch', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ projects: [{ id: 10, name: 'Alpha', categories: [{ id: 1, name: '[All Projects] General' }] }] })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ users: [] })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ versions: [] })));
+
+    const result = await mockServer.callResource('mantis://projects/10');
+
+    const parsed = JSON.parse(result.contents[0]!.text) as { categories: Array<{ name: string }> };
+    expect(parsed.categories[0]!.name).toBe('General');
+  });
+
+  it('returns minified JSON', async () => {
+    await cache.save({
+      timestamp: Date.now(),
+      projects: [{ id: 10, name: 'Alpha' }],
+      byProject: { 10: { users: [], versions: [], categories: [] } },
+      tags: [],
+    });
+
+    const result = await mockServer.callResource('mantis://projects/10');
+
+    expect(result.contents[0]!.text).not.toContain('\n');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // mantis://enums
 // ---------------------------------------------------------------------------
 

@@ -4,6 +4,7 @@ import { MantisClient } from '../client.js';
 import { MetadataCache, type CachedMetadata, type CachedProjectMeta } from '../cache.js';
 import type { MantisProject, MantisIdName, MantisUser, MantisVersion, MantisCategory, MantisTag, MantisPaginatedIssues } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
+import { ALL_PROJECTS_PREFIX } from '../constants.js';
 
 // Fields MantisBT strips from issue responses when the array is empty.
 // They are always valid 'select' values even if absent in a sample issue.
@@ -137,7 +138,6 @@ async function fetchAndCacheMetadata(client: MantisClient, cache: MetadataCache)
         ? (versionsResult.value.versions ?? [])
         : [];
 
-      const ALL_PROJECTS_PREFIX = '[All Projects] ';
       const rawCategories: MantisCategory[] = projectDetailResult.status === 'fulfilled'
         ? (projectDetailResult.value.projects?.[0]?.categories ?? [])
         : [];
