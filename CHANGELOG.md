@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [1.8.0] – 2026-03-27
+
 ### Added
 - New MCP resource `mantis://projects/{id}`: combined project view with fields (`status`, `view_state`, `access_level`, `description`) plus users, versions, and categories — data that was previously only accessible via separate tool calls. Served from local cache; falls back to three parallel API calls when the cache is cold.
 - New tool `find_project_member`: search users with access to a project by name, display name, or email. Case-insensitive substring matching; returns up to `limit` results (default 10, max 100). Served from local cache when fresh; falls back to a live API call otherwise.
