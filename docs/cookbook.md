@@ -46,6 +46,10 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
   - [Search with field enrichment](#search-with-field-enrichment)
 - [Projects & Categories](#projects--categories)
   - [List project categories](#list-project-categories)
+  - [Find a project member](#find-a-project-member)
+- [Metadata](#metadata)
+  - [Get a metadata summary](#get-a-metadata-summary)
+  - [Get the full metadata cache](#get-the-full-metadata-cache)
 - [Version & Diagnostics](#version--diagnostics)
   - [Get MCP server version](#get-mcp-server-version)
   - [Get MantisBT version](#get-mantis-version)
@@ -53,6 +57,7 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
 - [Resources](#resources)
   - [Read the current user profile](#read-the-current-user-profile)
   - [Read all projects](#read-all-projects)
+  - [Read a single project with all details](#read-a-single-project-with-all-details)
   - [Read issue enum values](#read-issue-enum-values)
 - [Prompts](#prompts)
   - [Create a bug report](#create-a-bug-report)
@@ -1079,7 +1084,7 @@ Read `tags[].id` from the response.
 "Tag #14 successfully removed from issue #1042."
 ```
 
-> **Note:** `detach_tag` requires a numeric ID, not the tag name. There is no lookup by name — always retrieve the ID first via `get_issue` or `get_metadata`.
+> **Note:** `detach_tag` requires a numeric ID, not the tag name. There is no lookup by name — always retrieve the ID first via `get_issue` or `list_tags`.
 
 ---
 
@@ -1338,6 +1343,123 @@ Returns all categories available for a MantisBT project. Use the returned names 
 
 ---
 
+### Find a project member
+
+Searches project members by name, real name, or email. The search is case-insensitive and matches any substring. Results are served from the metadata cache when available; falls back to a live API call on a cold cache.
+
+**Tool:** `find_project_member`
+
+**Parameters:**
+- `project_id` — numeric project ID
+- `query` — _(optional)_ substring to match against `name`, `real_name`, or `email`
+- `limit` — _(optional)_ maximum number of results, default 10, max 100
+
+**Request:**
+
+```json
+{
+  "project_id": 3,
+  "query": "smith",
+  "limit": 5
+}
+```
+
+**Response:**
+
+```json
+[
+  { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } },
+  { "id": 11, "name": "asmith", "real_name": "Alice Smith", "email": "asmith@example.com", "access_level": { "id": 40, "name": "reporter" } }
+]
+```
+
+> **Tip:** Omit `query` to list all members of the project (up to `limit`).
+
+---
+
+## Metadata
+
+### Get a metadata summary
+
+Returns a compact overview of all cached metadata: total project and tag counts, and per-project counts for users, versions, and categories. Use this to get a quick overview without transferring large arrays.
+
+**Tool:** `get_metadata`
+
+**Parameters:** _(none)_
+
+**Request:**
+
+```json
+{}
+```
+
+**Response:**
+
+```json
+{
+  "projects": 24,
+  "tags": 15,
+  "byProject": {
+    "3": { "name": "Webshop", "users": 8, "versions": 12, "categories": 4 },
+    "5": { "name": "Backend API", "users": 5, "versions": 7, "categories": 3 }
+  },
+  "cached_at": "2026-03-27T09:00:00.000Z",
+  "ttl_seconds": 82800
+}
+```
+
+> **Note:** For full lists use `list_projects`, `get_project_users`, `get_project_versions`, `get_project_categories`, `list_tags`, or `get_metadata_full`.
+
+---
+
+### Get the full metadata cache
+
+Returns the complete raw metadata cache as minified JSON. Contains all projects with their full field set, plus users, versions, and categories per project, and all tags. Use this when you need the complete data in a single call.
+
+**Tool:** `get_metadata_full`
+
+**Parameters:** _(none)_
+
+**Request:**
+
+```json
+{}
+```
+
+**Response:**
+
+```json
+{
+  "projects": [
+    {
+      "id": 3,
+      "name": "Webshop",
+      "status": { "id": 10, "name": "development" },
+      "enabled": true,
+      "users": [
+        { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } }
+      ],
+      "versions": [
+        { "id": 21, "name": "2.4.0", "released": false, "obsolete": false }
+      ],
+      "categories": [
+        { "id": 1, "name": "General" },
+        { "id": 2, "name": "UI" }
+      ]
+    }
+  ],
+  "tags": [
+    { "id": 1, "name": "regression" },
+    { "id": 2, "name": "hotfix" }
+  ],
+  "cached_at": "2026-03-27T09:00:00.000Z"
+}
+```
+
+> **Tip:** `get_metadata` provides the same data as a compact summary (counts only). Use `get_metadata_full` when you need the actual arrays.
+
+---
+
 ## Version & Diagnostics
 
 ### Get MCP server version
@@ -1473,6 +1595,41 @@ Returns all MantisBT projects accessible with the configured API key.
 ```
 
 > **Tip:** The `list_projects` tool provides the same data for clients that do not support Resources.
+
+---
+
+### Read a single project with all details
+
+Returns a combined view of a single project: its fields plus all members, versions, and categories in one call. Served from the metadata cache when available; falls back to three parallel API calls on a cold cache. Clients that support Resource list can enumerate all available project URIs.
+
+**Resource URI:** `mantis://projects/{id}` (replace `{id}` with the numeric project ID)
+
+**Fetch behaviour:** Cache-first (MetadataCache, default TTL 24 h). Falls back to live API calls when the cache is empty.
+
+**Example URI:** `mantis://projects/42`
+
+**Response:**
+
+```json
+{
+  "id": 3,
+  "name": "Webshop",
+  "status": { "id": 10, "name": "development" },
+  "enabled": true,
+  "users": [
+    { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } }
+  ],
+  "versions": [
+    { "id": 21, "name": "2.4.0", "released": false, "obsolete": false }
+  ],
+  "categories": [
+    { "id": 1, "name": "General" },
+    { "id": 2, "name": "UI" }
+  ]
+}
+```
+
+> **Tip:** Use `mantis://projects` to get a compact list of all projects, then fetch individual project details via `mantis://projects/{id}`.
 
 ---
 

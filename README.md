@@ -133,10 +133,11 @@ npm run build
 
 | Tool | Description |
 |---|---|
-| `list_projects` | List all accessible projects |
+| `list_projects` | List all accessible projects; returns normalized project data (consistent with `sync_metadata` cache) |
 | `get_project_versions` | Get versions of a project; optional `obsolete` and `inherit` booleans to include obsolete or parent-inherited versions |
 | `get_project_categories` | Get categories of a project |
 | `get_project_users` | Get users of a project |
+| `find_project_member` | Search project members by name, real name, or email (case-insensitive substring match); optional `query` and `limit` (default 10, max 100); cache-first |
 
 ### Semantic search *(optional)*
 
@@ -177,7 +178,8 @@ npm install sqlite-vec better-sqlite3
 | Tool | Description |
 |---|---|
 | `get_issue_fields` | Return all field names valid for the `select` parameter of `list_issues` |
-| `get_metadata` | Retrieve cached metadata (projects, users, versions, categories) |
+| `get_metadata` | Retrieve a compact metadata summary: project/tag counts and per-project user/version/category counts; use `get_metadata_full` for complete arrays |
+| `get_metadata_full` | Return the full raw metadata cache as minified JSON (all projects with complete fields, users/versions/categories per project, all tags) |
 | `sync_metadata` | Refresh the metadata cache |
 | `list_filters` | List saved filters |
 | `get_current_user` | Retrieve your own user profile |
@@ -194,7 +196,8 @@ MCP Resources are URI-addressable, read-only data that clients can fetch directl
 | Resource URI | Description |
 |---|---|
 | `mantis://me` | Profile of the authenticated API user (live fetch) |
-| `mantis://projects` | All accessible MantisBT projects (cache-backed, refreshed via `sync_metadata`) |
+| `mantis://projects` | All accessible MantisBT projects as a compact list (cache-backed, refreshed via `sync_metadata`) |
+| `mantis://projects/{id}` | Combined project view: project fields + users + versions + categories in one call; cache-first, list-support for enumerating all available project URIs |
 | `mantis://enums` | Valid values for all issue enum fields: severity, priority, status, resolution, reproducibility (live fetch) |
 
 ## Available prompts

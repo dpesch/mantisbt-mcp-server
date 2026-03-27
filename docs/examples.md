@@ -93,6 +93,10 @@ Practical examples of how to interact with MantisBT through Claude once the MCP 
 
 > "Who are the members of the API project?"
 
+> "Is there a user named 'smith' in project 3?"
+
+> "Find all members of the Webshop project whose email contains '@example.com'."
+
 ---
 
 ### Triage and reporting
@@ -186,6 +190,8 @@ MCP Resources are URI-addressable, read-only data that clients can fetch directl
 > "Read `mantis://me` to see which account the MCP server is using."
 
 > "Fetch `mantis://projects` to get the list of available projects."
+
+> "Read `mantis://projects/3` to see all details of the Webshop project: members, versions, and categories in one call."
 
 > "Load `mantis://enums` to see valid severity and priority values before creating an issue."
 

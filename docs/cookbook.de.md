@@ -46,6 +46,10 @@ Tool-orientierte Rezepte für den MantisBT MCP Server — jedes Rezept zeigt gen
   - [Suche mit Felderweiterung](#suche-mit-felderweiterung)
 - [Projekte & Kategorien](#projekte--kategorien)
   - [Projektkategorien auflisten](#projektkategorien-auflisten)
+  - [Projektmitglied suchen](#projektmitglied-suchen)
+- [Metadaten](#metadaten)
+  - [Metadaten-Zusammenfassung abrufen](#metadaten-zusammenfassung-abrufen)
+  - [Vollständigen Metadaten-Cache abrufen](#vollständigen-metadaten-cache-abrufen)
 - [Version & Diagnose](#version--diagnose)
   - [MCP-Server-Version abrufen](#mcp-server-version-abrufen)
   - [MantisBT-Version abrufen](#mantisbt-version-abrufen)
@@ -53,6 +57,7 @@ Tool-orientierte Rezepte für den MantisBT MCP Server — jedes Rezept zeigt gen
 - [Ressourcen](#ressourcen)
   - [Eigenes Benutzerprofil lesen](#eigenes-benutzerprofil-lesen)
   - [Alle Projekte lesen](#alle-projekte-lesen)
+  - [Einzelnes Projekt mit allen Details lesen](#einzelnes-projekt-mit-allen-details-lesen)
   - [Issue-Enum-Werte lesen](#issue-enum-werte-lesen)
 - [Prompts](#prompts)
   - [Bug-Report erstellen](#bug-report-erstellen)
@@ -1079,7 +1084,7 @@ Entfernt einen Tag von einem Issue. Erfordert die numerische Tag-ID.
 "Tag #14 successfully removed from issue #1042."
 ```
 
-> **Hinweis:** `detach_tag` erfordert eine numerische ID, keinen Tag-Namen. Es gibt keine Suche per Name — die ID muss immer zuerst über `get_issue` oder `get_metadata` abgerufen werden.
+> **Hinweis:** `detach_tag` erfordert eine numerische ID, keinen Tag-Namen. Es gibt keine Suche per Name — die ID muss immer zuerst über `get_issue` oder `list_tags` abgerufen werden.
 
 ---
 
@@ -1338,6 +1343,123 @@ Gibt alle verfügbaren Kategorien eines MantisBT-Projekts zurück. Die zurückge
 
 ---
 
+### Projektmitglied suchen
+
+Sucht Projektmitglieder nach Name, Realname oder E-Mail. Die Suche ist Groß-/Kleinschreibungsunabhängig und findet Teilstrings. Ergebnisse werden bevorzugt aus dem Metadaten-Cache geliefert; bei leerem Cache wird die live API verwendet.
+
+**Tool:** `find_project_member`
+
+**Parameter:**
+- `project_id` — numerische Projekt-ID
+- `query` — _(optional)_ Suchbegriff für `name`, `real_name` oder `email`
+- `limit` — _(optional)_ maximale Trefferanzahl, Standard 10, max. 100
+
+**Request:**
+
+```json
+{
+  "project_id": 3,
+  "query": "smith",
+  "limit": 5
+}
+```
+
+**Response:**
+
+```json
+[
+  { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } },
+  { "id": 11, "name": "asmith", "real_name": "Alice Smith", "email": "asmith@example.com", "access_level": { "id": 40, "name": "reporter" } }
+]
+```
+
+> **Tipp:** `query` weglassen, um alle Mitglieder des Projekts aufzulisten (bis zu `limit`).
+
+---
+
+## Metadaten
+
+### Metadaten-Zusammenfassung abrufen
+
+Gibt eine kompakte Übersicht aller gecachten Metadaten zurück: Gesamtzahl der Projekte und Tags sowie die Anzahl von Benutzern, Versionen und Kategorien je Projekt. Nützlich für einen schnellen Überblick, ohne große Arrays zu übertragen.
+
+**Tool:** `get_metadata`
+
+**Parameter:** _(keine)_
+
+**Request:**
+
+```json
+{}
+```
+
+**Response:**
+
+```json
+{
+  "projects": 24,
+  "tags": 15,
+  "byProject": {
+    "3": { "name": "Webshop", "users": 8, "versions": 12, "categories": 4 },
+    "5": { "name": "Backend API", "users": 5, "versions": 7, "categories": 3 }
+  },
+  "cached_at": "2026-03-27T09:00:00.000Z",
+  "ttl_seconds": 82800
+}
+```
+
+> **Hinweis:** Für vollständige Listen `list_projects`, `get_project_users`, `get_project_versions`, `get_project_categories`, `list_tags` oder `get_metadata_full` verwenden.
+
+---
+
+### Vollständigen Metadaten-Cache abrufen
+
+Gibt den vollständigen rohen Metadaten-Cache als minifiziertes JSON zurück. Enthält alle Projekte mit vollständigen Feldern sowie Benutzer, Versionen und Kategorien je Projekt und alle Tags. Geeignet, wenn alle Daten in einem einzigen Aufruf benötigt werden.
+
+**Tool:** `get_metadata_full`
+
+**Parameter:** _(keine)_
+
+**Request:**
+
+```json
+{}
+```
+
+**Response:**
+
+```json
+{
+  "projects": [
+    {
+      "id": 3,
+      "name": "Webshop",
+      "status": { "id": 10, "name": "development" },
+      "enabled": true,
+      "users": [
+        { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } }
+      ],
+      "versions": [
+        { "id": 21, "name": "2.4.0", "released": false, "obsolete": false }
+      ],
+      "categories": [
+        { "id": 1, "name": "General" },
+        { "id": 2, "name": "UI" }
+      ]
+    }
+  ],
+  "tags": [
+    { "id": 1, "name": "regression" },
+    { "id": 2, "name": "hotfix" }
+  ],
+  "cached_at": "2026-03-27T09:00:00.000Z"
+}
+```
+
+> **Tipp:** `get_metadata` liefert dieselben Daten als kompakte Zusammenfassung (nur Zählwerte). `get_metadata_full` verwenden, wenn die eigentlichen Arrays benötigt werden.
+
+---
+
 ## Version & Diagnose
 
 ### MCP-Server-Version abrufen
@@ -1473,6 +1595,41 @@ Gibt alle MantisBT-Projekte zurück, auf die der konfigurierte API-Key Zugriff h
 ```
 
 > **Tipp:** Das Tool `list_projects` liefert dieselben Daten für Clients ohne Ressourcen-Unterstützung.
+
+---
+
+### Einzelnes Projekt mit allen Details lesen
+
+Gibt eine kombinierte Ansicht eines einzelnen Projekts zurück: Projektfelder sowie alle Mitglieder, Versionen und Kategorien in einem Aufruf. Cache-first (MetadataCache); bei leerem Cache werden drei parallele API-Aufrufe durchgeführt. Clients mit Resource-List-Unterstützung können alle verfügbaren Projekt-URIs aufzählen.
+
+**Ressource-URI:** `mantis://projects/{id}` (`{id}` durch die numerische Projekt-ID ersetzen)
+
+**Abrufverhalten:** Cache-first (MetadataCache, Standard-TTL 24 h). Fällt auf Live-API-Aufrufe zurück, wenn der Cache leer ist.
+
+**Beispiel-URI:** `mantis://projects/42`
+
+**Response:**
+
+```json
+{
+  "id": 3,
+  "name": "Webshop",
+  "status": { "id": 10, "name": "development" },
+  "enabled": true,
+  "users": [
+    { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } }
+  ],
+  "versions": [
+    { "id": 21, "name": "2.4.0", "released": false, "obsolete": false }
+  ],
+  "categories": [
+    { "id": 1, "name": "General" },
+    { "id": 2, "name": "UI" }
+  ]
+}
+```
+
+> **Tipp:** `mantis://projects` für eine kompakte Liste aller Projekte verwenden, anschließend Detaildaten einzelner Projekte über `mantis://projects/{id}` abrufen.
 
 ---
 

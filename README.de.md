@@ -133,10 +133,11 @@ npm run build
 
 | Tool | Beschreibung |
 |---|---|
-| `list_projects` | Alle zugänglichen Projekte auflisten |
+| `list_projects` | Alle zugänglichen Projekte auflisten; gibt normalisierte Projektdaten zurück (konsistent mit dem `sync_metadata`-Cache) |
 | `get_project_versions` | Versionen eines Projekts abrufen; optionale Booleans `obsolete` und `inherit` für veraltete bzw. vom Elternprojekt geerbte Versionen |
 | `get_project_categories` | Kategorien eines Projekts abrufen |
 | `get_project_users` | Benutzer eines Projekts abrufen |
+| `find_project_member` | Projektmitglieder nach Name, Realname oder E-Mail suchen (Teilstring-Suche, Groß-/Kleinschreibung ignoriert); optionale Parameter `query` und `limit` (Standard 10, max. 100); Cache-first |
 
 ### Semantische Suche *(optional)*
 
@@ -177,7 +178,8 @@ npm install sqlite-vec better-sqlite3
 | Tool | Beschreibung |
 |---|---|
 | `get_issue_fields` | Alle gültigen Feldnamen für den `select`-Parameter von `list_issues` zurückgeben |
-| `get_metadata` | Gecachte Metadaten abrufen (Projekte, Benutzer, Versionen, Kategorien) |
+| `get_metadata` | Kompakte Metadaten-Zusammenfassung abrufen: Anzahl Projekte/Tags und Anzahl Benutzer/Versionen/Kategorien je Projekt; für vollständige Arrays `get_metadata_full` verwenden |
+| `get_metadata_full` | Vollständigen rohen Metadaten-Cache als minifiziertes JSON zurückgeben (alle Projekte mit vollständigen Feldern, Benutzer/Versionen/Kategorien je Projekt, alle Tags) |
 | `sync_metadata` | Metadaten-Cache neu befüllen |
 | `list_filters` | Gespeicherte Filter auflisten |
 | `get_current_user` | Eigenes Benutzerprofil abrufen |
@@ -194,7 +196,8 @@ MCP-Ressourcen sind URI-adressierbare, schreibgeschützte Daten, die Clients dir
 | Ressource-URI | Beschreibung |
 |---|---|
 | `mantis://me` | Profil des authentifizierten API-Benutzers (Live-Abruf) |
-| `mantis://projects` | Alle zugänglichen MantisBT-Projekte (Cache-basiert, Aktualisierung via `sync_metadata`) |
+| `mantis://projects` | Alle zugänglichen MantisBT-Projekte als kompakte Liste (Cache-basiert, Aktualisierung via `sync_metadata`) |
+| `mantis://projects/{id}` | Kombinierte Projektansicht: Projektfelder + Benutzer + Versionen + Kategorien in einem Aufruf; Cache-first, List-Support zur Aufzählung aller verfügbaren Projekt-URIs |
 | `mantis://enums` | Gültige Werte für alle Issue-Enum-Felder: Severity, Priority, Status, Resolution, Reproducibility (Live-Abruf) |
 
 ## Verfügbare Prompts

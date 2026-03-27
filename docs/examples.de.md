@@ -93,6 +93,10 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 
 > »Wer sind die Mitglieder des API-Projekts?«
 
+> »Gibt es im Projekt 3 einen Benutzer namens 'schmidt'?«
+
+> »Finde alle Mitglieder des Webshop-Projekts, deren E-Mail '@example.com' enthält.«
+
 ---
 
 ### Triage und Auswertung
@@ -186,6 +190,8 @@ MCP-Ressourcen sind URI-adressierbare, schreibgeschützte Daten, die Clients dir
 > »Lese `mantis://me`, um zu sehen, welches Konto der MCP-Server verwendet.«
 
 > »Rufe `mantis://projects` ab, um die Liste der verfügbaren Projekte zu erhalten.«
+
+> »Lese `mantis://projects/3`, um alle Details des Webshop-Projekts zu sehen: Mitglieder, Versionen und Kategorien in einem Aufruf.«
 
 > »Lade `mantis://enums`, um die gültigen Severity- und Priority-Werte einzusehen, bevor ein Issue erstellt wird.«
 
