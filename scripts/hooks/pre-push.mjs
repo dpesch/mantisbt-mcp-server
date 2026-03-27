@@ -10,7 +10,8 @@
 //   3. Filters every commit between anchor and tip in order (oldest first)
 //   4. Builds a proper filtered chain anchored to the actual remote tip
 //   5. Pushes the filtered tip with --force
-//   6. Exits 1 to block git's unfiltered push
+//   6. Exits 2 to block git's unfiltered push
+//      Exit codes: 0 = no Codeberg refs, 1 = error, 2 = success (filtered push done)
 //
 // Branches are processed before tags so the shaMap is available for tags
 // that point to commits already processed as part of the branch.
@@ -199,5 +200,5 @@ rl.on('close', () => {
 
   if (pushed === 0) process.exit(0);
   console.log('→ Filtered push complete. Blocking unfiltered push.');
-  process.exit(1);
+  process.exit(2); // 2 = success (filtered push done, unfiltered blocked); 1 = error
 });
