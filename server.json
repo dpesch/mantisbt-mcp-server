@@ -1,0 +1,129 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.dpesch/mantisbt-mcp-server",
+  "title": "MantisBT MCP Server",
+  "description": "MantisBT MCP server – manage issues, notes, files, tags, and relationships. With semantic search.",
+  "version": "1.8.2",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@dpesch/mantisbt-mcp-server",
+      "version": "1.8.2",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "MANTIS_BASE_URL",
+          "description": "Base URL of the MantisBT REST API, e.g. https://your-mantis.example.com/api/rest",
+          "isRequired": true,
+          "isSecret": false,
+          "format": "string",
+          "placeholder": "https://your-mantis.example.com/api/rest"
+        },
+        {
+          "name": "MANTIS_API_KEY",
+          "description": "MantisBT API key (Profile → API Tokens in MantisBT)",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "MANTIS_CACHE_DIR",
+          "description": "Directory for the metadata cache. Defaults to ~/.cache/mantisbt-mcp",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "filepath"
+        },
+        {
+          "name": "MANTIS_CACHE_TTL",
+          "description": "Metadata cache TTL in seconds. Default: 3600 (1 hour)",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "number",
+          "default": "3600"
+        },
+        {
+          "name": "TRANSPORT",
+          "description": "Transport mode. 'stdio' for local use (default), 'http' for remote/team deployments",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string",
+          "default": "stdio",
+          "choices": ["stdio", "http"]
+        },
+        {
+          "name": "PORT",
+          "description": "HTTP port when TRANSPORT=http. Default: 3000",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "number",
+          "default": "3000"
+        },
+        {
+          "name": "MCP_HTTP_HOST",
+          "description": "Bind address when TRANSPORT=http. Default: 127.0.0.1 (local only). Use 0.0.0.0 for Docker/remote.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string",
+          "default": "127.0.0.1"
+        },
+        {
+          "name": "MCP_HTTP_TOKEN",
+          "description": "Optional Bearer token to protect the /mcp endpoint when TRANSPORT=http",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "MANTIS_SEARCH_ENABLED",
+          "description": "Enable offline semantic search (requires ~80 MB model download on first use)",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "boolean",
+          "default": "false"
+        },
+        {
+          "name": "MANTIS_SEARCH_BACKEND",
+          "description": "Vector store backend for semantic search. 'vectra' (default, pure JS) or 'sqlite-vec' (faster for >10k issues)",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string",
+          "default": "vectra",
+          "choices": ["vectra", "sqlite-vec"]
+        },
+        {
+          "name": "MANTIS_SEARCH_DIR",
+          "description": "Directory for the semantic search index. Defaults to ~/.cache/mantisbt-mcp/search",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "filepath"
+        },
+        {
+          "name": "MANTIS_SEARCH_MODEL",
+          "description": "Hugging Face model for embeddings. Default: Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string",
+          "default": "Xenova/paraphrase-multilingual-MiniLM-L12-v2"
+        },
+        {
+          "name": "MANTIS_SEARCH_THREADS",
+          "description": "ONNX inference threads for the embedding model. Default: 1",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "number",
+          "default": "1"
+        },
+        {
+          "name": "MANTIS_UPLOAD_DIR",
+          "description": "If set, restricts file uploads to this directory (path traversal protection)",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "filepath"
+        }
+      ]
+    }
+  ]
+}
