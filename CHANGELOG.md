@@ -11,6 +11,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.2] – 2026-03-27
+
+### Fixed
+- HTTP transport (`TRANSPORT=http`): race condition when multiple sequential requests arrive quickly (e.g. `initialize` followed immediately by `ping`). The `res.on('close')` handler that calls `transport.close()` fires asynchronously, so the next request could arrive while the previous transport was still registered — causing `connect()` to throw "Already connected". Fixed by calling `await server.close()` before each `server.connect()` call (a no-op when not connected). Also added a `res.headersSent` guard in the error handler to prevent a secondary "Cannot set headers after they are sent" error from closing the socket without a response.
+
+---
+
 ## [1.8.1] – 2026-03-27
 
 ### Fixed

@@ -128,12 +128,19 @@ async function runHttp(): Promise<void> {
             sessionIdGenerator: undefined,
             enableJsonResponse: true,
           });
-          res.on('close', () => transport.close());
+          res.on('close', () => { void transport.close(); });
+          // Disconnect from any previous transport before connecting the new one.
+          // The res.on('close') handler above closes the transport asynchronously,
+          // but the next request may arrive before it fires — causing connect() to
+          // throw "Already connected". Explicitly closing first avoids that race.
+          await server.close();
           await server.connect(transport);
           await transport.handleRequest(req, res, body);
         } catch {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Bad Request' }));
+          if (!res.headersSent) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Bad Request' }));
+          }
         }
       });
     } else if (req.method === 'GET' && req.url === '/health') {
