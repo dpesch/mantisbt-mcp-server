@@ -158,6 +158,58 @@ describe('sync_metadata', () => {
     expect(written.data.tags).toHaveLength(2);
   });
 
+  it('strips custom_fields from projects before writing to cache', async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+
+    const projectsResponse = {
+      projects: [{
+        id: 1,
+        name: 'Test Project',
+        status: { id: 10, name: 'development', label: 'Entwicklung' },
+        custom_fields: [{ id: 6, name: 'Reklamieren', type: 'checkbox' }],
+      }],
+    };
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(projectsResponse)))
+      .mockResolvedValue(makeResponse(200, JSON.stringify({ users: [], versions: [], projects: [{ id: 1, categories: [] }], tags: [] })));
+
+    await mockServer.callTool('sync_metadata', {});
+
+    const writeCall = vi.mocked(writeFile).mock.calls.find(call => String(call[0]).includes('metadata.json'));
+    const written = JSON.parse(writeCall![1] as string) as { data: { projects: Array<Record<string, unknown>> } };
+    expect(written.data.projects[0]).not.toHaveProperty('custom_fields');
+  });
+
+  it('preserves label on status and view_state when writing to cache', async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+
+    const projectsResponse = {
+      projects: [{
+        id: 1,
+        name: 'Test Project',
+        status: { id: 10, name: 'development', label: 'Entwicklung' },
+        view_state: { id: 10, name: 'public', label: 'Öffentlich' },
+      }],
+    };
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(projectsResponse)))
+      .mockResolvedValue(makeResponse(200, JSON.stringify({ users: [], versions: [], projects: [{ id: 1, categories: [] }], tags: [] })));
+
+    await mockServer.callTool('sync_metadata', {});
+
+    const writeCall = vi.mocked(writeFile).mock.calls.find(call => String(call[0]).includes('metadata.json'));
+    const written = JSON.parse(writeCall![1] as string) as { data: { projects: Array<Record<string, unknown>> } };
+    const project = written.data.projects[0]!;
+    expect((project['status'] as Record<string, unknown>)['label']).toBe('Entwicklung');
+    expect((project['view_state'] as Record<string, unknown>)['label']).toBe('Öffentlich');
+  });
+
   it('fetches versions with obsolete=1 and inherit=1', async () => {
     vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
     vi.mocked(mkdir).mockResolvedValue(undefined);

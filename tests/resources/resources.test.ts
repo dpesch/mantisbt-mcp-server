@@ -15,6 +15,20 @@ const PROJECTS_FIXTURE = [
   { id: 11, name: 'Beta',  enabled: true },
 ];
 
+// Simulates a raw MantisBT API response with extra fields that must be stripped
+const PROJECTS_RAW_FIXTURE = [
+  {
+    id: 10,
+    name: 'Alpha',
+    enabled: true,
+    status: { id: 10, name: 'development', label: 'Entwicklung' },
+    view_state: { id: 10, name: 'public', label: 'Öffentlich' },
+    custom_fields: [
+      { id: 1, name: 'Reklamieren', type: 'checkbox', default_value: '', possible_values: 'Ja' },
+    ],
+  },
+];
+
 const ENUM_FIXTURE = {
   configs: [
     { option: 'severity_enum_string',        value: '10:feature,50:minor,80:block' },
@@ -127,6 +141,33 @@ describe('mantis://projects', () => {
     const parsed = JSON.parse(result.contents[0]!.text) as unknown[];
     expect(Array.isArray(parsed)).toBe(true);
     expect(parsed).toHaveLength(2);
+  });
+
+  it('returns minified JSON (no indentation)', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ projects: PROJECTS_FIXTURE })));
+
+    const result = await mockServer.callResource('mantis://projects');
+
+    expect(result.contents[0]!.text).not.toContain('\n');
+  });
+
+  it('strips custom_fields from live API response', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ projects: PROJECTS_RAW_FIXTURE })));
+
+    const result = await mockServer.callResource('mantis://projects');
+
+    const parsed = JSON.parse(result.contents[0]!.text) as Array<Record<string, unknown>>;
+    expect(parsed[0]).not.toHaveProperty('custom_fields');
+  });
+
+  it('preserves label on status and view_state from live API response', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ projects: PROJECTS_RAW_FIXTURE })));
+
+    const result = await mockServer.callResource('mantis://projects');
+
+    const parsed = JSON.parse(result.contents[0]!.text) as Array<Record<string, unknown>>;
+    expect((parsed[0]!['status'] as Record<string, unknown>)['label']).toBe('Entwicklung');
+    expect((parsed[0]!['view_state'] as Record<string, unknown>)['label']).toBe('Öffentlich');
   });
 
   it('serves from cache without calling the API when cache is valid', async () => {

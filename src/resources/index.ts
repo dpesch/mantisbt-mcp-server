@@ -3,10 +3,11 @@ import { MantisClient } from '../client.js';
 import { MetadataCache } from '../cache.js';
 import type { MantisProject } from '../types.js';
 import { fetchIssueEnums } from '../tools/config.js';
+import { normalizeProject } from '../tools/metadata.js';
 
 function jsonResource(uri: URL, data: unknown): { contents: Array<{ uri: string; mimeType: string; text: string }> } {
   return {
-    contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(data, null, 2) }],
+    contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(data) }],
   };
 }
 
@@ -34,7 +35,7 @@ export function registerResources(server: McpServer, client: MantisClient, cache
     async (uri) => {
       const cached = await cache.loadIfValid();
       const projects: MantisProject[] = cached?.projects
-        ?? (await client.get<{ projects: MantisProject[] }>('projects')).projects
+        ?? (await client.get<{ projects: MantisProject[] }>('projects')).projects?.map(normalizeProject)
         ?? [];
       return jsonResource(uri, projects);
     },

@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- `mantis://projects` resource response reduced from ~270 KB to ~6 KB (98% smaller): `custom_fields` are no longer included in project objects (they were passed through from the raw MantisBT API response despite not being part of the project schema), JSON output is now minified, and enum sub-objects (`status`, `view_state`, `access_level`) are stripped to only their declared fields. The `label` field on `status` and `view_state` is preserved for localized display name lookups.
+
+---
+
 ## [1.7.0] – 2026-03-26
 
 ### Added

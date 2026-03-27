@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MantisClient } from '../client.js';
 import { MetadataCache, type CachedMetadata, type CachedProjectMeta } from '../cache.js';
-import type { MantisProject, MantisUser, MantisVersion, MantisCategory, MantisTag, MantisPaginatedIssues } from '../types.js';
+import type { MantisProject, MantisIdName, MantisUser, MantisVersion, MantisCategory, MantisTag, MantisPaginatedIssues } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
 
 // Fields MantisBT strips from issue responses when the array is empty.
@@ -93,10 +93,29 @@ async function collectTagsFromIssues(client: MantisClient, projects: MantisProje
   return Array.from(tagMap.values()).sort((a, b) => a.id - b.id);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeIdName(o: any): MantisIdName {
+  return { id: o.id, name: o.name, ...(o.label !== undefined && { label: o.label }) };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function normalizeProject(p: any): MantisProject {
+  return {
+    id: p.id,
+    name: p.name,
+    ...(p.description !== undefined && { description: p.description }),
+    ...(p.status !== undefined && { status: normalizeIdName(p.status) }),
+    ...(p.enabled !== undefined && { enabled: p.enabled }),
+    ...(p.view_state !== undefined && { view_state: normalizeIdName(p.view_state) }),
+    ...(p.access_level !== undefined && { access_level: { id: p.access_level.id, label: p.access_level.label } }),
+    ...(p.subprojects !== undefined && { subprojects: p.subprojects.map(normalizeProject) }),
+  };
+}
+
 async function fetchAndCacheMetadata(client: MantisClient, cache: MetadataCache): Promise<CachedMetadata> {
   // Fetch all projects
   const projectResult = await client.get<{ projects: MantisProject[] }>('projects');
-  const projects = projectResult.projects ?? [];
+  const projects = (projectResult.projects ?? []).map(normalizeProject);
 
   const byProject: Record<number, CachedProjectMeta> = {};
 

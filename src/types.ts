@@ -5,6 +5,7 @@
 export interface MantisIdName {
   id: number;
   name: string;
+  label?: string;
 }
 
 export interface MantisIdLabel {
