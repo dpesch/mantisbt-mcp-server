@@ -8,6 +8,10 @@ export interface MantisIdName {
   label?: string;
 }
 
+export interface MantisEnumEntry extends MantisIdName {
+  canonical_name?: string;
+}
+
 export interface MantisIdLabel {
   id: number;
   label: string;

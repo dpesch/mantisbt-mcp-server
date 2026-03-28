@@ -6,6 +6,7 @@ import type { MantisIssue, MantisUser, MantisPaginatedIssues } from '../types.js
 import { getVersionHint } from '../version-hint.js';
 import { MANTIS_CANONICAL_ENUM_NAMES, MANTIS_RESOLVED_STATUS_ID, resolveEnumId } from '../constants.js';
 import { dateFilterSchema, matchesDateFilter, hasDateFilter, type DateFilter } from '../date-filter.js';
+import { fetchIssueEnumsWithCache } from './config.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -37,14 +38,30 @@ async function runWithConcurrency<T>(
   return results;
 }
 
-// Resolves a canonical enum name to { id } or returns an error string.
-function resolveEnum(group: keyof typeof MANTIS_CANONICAL_ENUM_NAMES, value: string): { id: number } | string {
+// Resolves an enum name (canonical or localized) to { id } or returns an error string.
+async function resolveEnum(
+  group: keyof typeof MANTIS_CANONICAL_ENUM_NAMES,
+  value: string,
+  client: MantisClient,
+): Promise<{ id: number } | string> {
   const id = resolveEnumId(group, value);
-  if (id === undefined) {
-    const valid = Object.values(MANTIS_CANONICAL_ENUM_NAMES[group]).join(', ');
-    return `Invalid ${group} "${value}". Valid canonical names: ${valid}. Call get_issue_enums to see localized labels.`;
+  if (id !== undefined) return { id };
+
+  try {
+    const enums = await fetchIssueEnumsWithCache(client);
+    const entries = enums[group] ?? [];
+    const lower = value.toLowerCase();
+    const entry = entries.find(
+      e => e.name.toLowerCase() === lower ||
+           (e.label !== undefined && e.label.toLowerCase() === lower),
+    );
+    if (entry !== undefined) return { id: entry.id };
+  } catch {
+    // localized lookup unavailable — fall through to static error
   }
-  return { id };
+
+  const valid = Object.values(MANTIS_CANONICAL_ENUM_NAMES[group]).join(', ');
+  return `Invalid ${group} "${value}". Valid canonical names: ${valid}. Call get_issue_enums to see localized labels.`;
 }
 
 export function registerIssueTools(server: McpServer, client: MantisClient, cache: MetadataCache): void {
@@ -267,8 +284,8 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         description: z.string().min(1).describe('Detailed issue description. Required — do not create issues without a description. Plain text or Markdown.'),
         project_id: z.coerce.number().int().positive().describe('Project ID the issue belongs to'),
         category: z.string().min(1).describe('Category name (use get_project_categories to list available categories)'),
-        priority: z.string().default('normal').describe('Priority name — must be a canonical English name: none, low, normal, high, urgent, immediate. Default: "normal". Call get_issue_enums to see localized labels.'),
-        severity: z.string().default('minor').describe('Severity name — must be a canonical English name: feature, trivial, text, tweak, minor, major, crash, block. Default: "minor". Call get_issue_enums to see localized labels.'),
+        priority: z.string().default('normal').describe('Priority: canonical English name (none, low, normal, high, urgent, immediate) or localized label. Default: "normal". Use get_issue_enums to see all available values.'),
+        severity: z.string().default('minor').describe('Severity: canonical English name (feature, trivial, text, tweak, minor, major, crash, block) or localized label. Default: "minor". Use get_issue_enums to see all available values.'),
         handler_id: z.coerce.number().int().positive().optional().describe('User ID of the person to assign the issue to'),
         handler: z.string().optional().describe('Username (login name) of the person to assign the issue to. Alternative to handler_id — the server resolves the name to a user ID from the project members. Use get_project_users to see available users.'),
         version: z.string().optional().describe('Affected product version name (use get_project_versions to list available versions)'),
@@ -276,7 +293,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         fixed_in_version: z.string().optional().describe('Version name in which the issue was fixed (use get_project_versions to list available versions)'),
         steps_to_reproduce: z.string().optional().describe('Steps to reproduce the issue. Plain text or Markdown.'),
         additional_information: z.string().optional().describe('Additional information about the issue. Plain text or Markdown.'),
-        reproducibility: z.string().optional().describe('Reproducibility — must be a canonical English name: always, sometimes, random, have not tried, unable to reproduce, N/A. Call get_issue_enums to see localized labels.'),
+        reproducibility: z.string().optional().describe('Reproducibility: canonical English name or localized label (always, sometimes, random, have not tried, unable to reproduce, N/A). Use get_issue_enums to see all available values.'),
         view_state: z.enum(['public', 'private']).optional().describe('Visibility of the issue: "public" (default) or "private"'),
       }),
       annotations: {
@@ -317,10 +334,10 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
           project: { id: project_id },
           category: { name: category },
         };
-        const priorityResolved = resolveEnum('priority', priority);
+        const priorityResolved = await resolveEnum('priority', priority, client);
         if (typeof priorityResolved === 'string') return { content: [{ type: 'text', text: errorText(priorityResolved) }], isError: true };
         body.priority = priorityResolved;
-        const severityResolved = resolveEnum('severity', severity);
+        const severityResolved = await resolveEnum('severity', severity, client);
         if (typeof severityResolved === 'string') return { content: [{ type: 'text', text: errorText(severityResolved) }], isError: true };
         body.severity = severityResolved;
         if (resolvedHandlerId) body.handler = { id: resolvedHandlerId };
@@ -330,7 +347,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         if (steps_to_reproduce !== undefined) body.steps_to_reproduce = steps_to_reproduce;
         if (additional_information !== undefined) body.additional_information = additional_information;
         if (reproducibility !== undefined) {
-          const reproducibilityResolved = resolveEnum('reproducibility', reproducibility);
+          const reproducibilityResolved = await resolveEnum('reproducibility', reproducibility, client);
           if (typeof reproducibilityResolved === 'string') return { content: [{ type: 'text', text: errorText(reproducibilityResolved) }], isError: true };
           body.reproducibility = reproducibilityResolved;
         }

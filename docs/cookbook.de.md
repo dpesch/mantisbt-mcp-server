@@ -145,7 +145,7 @@ Gibt die auf der eigenen MantisBT-Instanz konfigurierten Enum-Werte zurück. Vor
 }
 ```
 
-> **Hinweis:** Die von `get_issue_enums()` zurückgegebenen Namen können lokalisiert sein. `create_issue` und `update_issue` erwarten für `severity` und `priority` **kanonische englische Namen** (z.B. `minor`, `major`, `normal`) — bei Unsicherheit das `canonical_name`-Feld in der Antwort prüfen.
+> **Hinweis:** Auf lokalisierten Instanzen liefert `get_issue_enums()` im Feld `name` den lokalisierten Begriff und optional im Feld `canonical_name` den englischen Originalnamen. `create_issue` akzeptiert **beides** — sowohl den kanonischen englischen Namen (z.B. `minor`) als auch den lokalisierten Namen (z.B. `Unschönheit`). Der Server löst den Wert automatisch auf.
 
 ---
 
@@ -456,8 +456,8 @@ Legt ein neues Issue in MantisBT an.
 - `project_id` — numerische Projekt-ID
 - `category` — Kategoriename als Zeichenkette
 - `description` — _(optional)_ ausführliche Beschreibung
-- `priority` — _(optional)_ kanonischer englischer Prioritätsname: `none`, `low`, `normal`, `high`, `urgent`, `immediate` — lokalisierte Bezeichnungen über `get_issue_enums()` ermitteln
-- `severity` — _(optional)_ kanonischer englischer Schweregrad-Name: `feature`, `trivial`, `text`, `tweak`, `minor`, `major`, `crash`, `block`; Standard ist `"minor"` — lokalisierte Bezeichnungen über `get_issue_enums()` ermitteln
+- `priority` — _(optional)_ Priorität: kanonischer englischer Name (`none`, `low`, `normal`, `high`, `urgent`, `immediate`) oder lokalisierter Begriff. Standard: `"normal"`. Alle verfügbaren Werte über `get_issue_enums()` ermitteln.
+- `severity` — _(optional)_ Schweregrad: kanonischer englischer Name (`feature`, `trivial`, `text`, `tweak`, `minor`, `major`, `crash`, `block`) oder lokalisierter Begriff. Standard: `"minor"`. Alle verfügbaren Werte über `get_issue_enums()` ermitteln.
 - `handler` — _(optional)_ Benutzername des Bearbeiters (wird automatisch in eine ID aufgelöst)
 - `handler_id` — _(optional)_ numerische Benutzer-ID des Bearbeiters (Alternative zu `handler`)
 
@@ -500,11 +500,11 @@ Legt ein neues Issue in MantisBT an.
 
 **Fehler: unbekannter Schweregrad oder unbekannte Priorität**
 
-Wird ein nicht erkannter Name für `severity` oder `priority` übergeben, gibt der Server einen Fehler zurück, der die gültigen Werte auflistet:
+Der Server prüft zuerst kanonische englische Namen und fällt dann auf einen Live-`get_issue_enums`-Lookup zurück. Ein Fehler wird nur zurückgegeben, wenn der Wert weder kanonisch noch lokalisiert erkannt wird:
 
-> Error: Invalid severity "schwerer Fehler". Valid canonical names: feature, trivial, text, tweak, minor, major, crash, block. Call get_issue_enums to see localized labels.
+> Error: Invalid severity "xyz". Valid canonical names: feature, trivial, text, tweak, minor, major, crash, block. Call get_issue_enums to see localized labels.
 
-Mit `get_issue_enums` lassen sich die kanonischen Namen ermitteln, die `create_issue` akzeptiert.
+Mit `get_issue_enums` lassen sich alle akzeptierten Werte ermitteln — sowohl kanonische als auch lokalisierte Namen funktionieren.
 
 ---
 
@@ -1688,7 +1688,7 @@ Gibt eine kombinierte Ansicht eines einzelnen Projekts zurück: Projektfelder so
 
 ### Issue-Enum-Werte lesen
 
-Gibt gültige ID/Name-Paare für alle Issue-Enum-Felder zurück (Severity, Priority, Status, Resolution, Reproducibility). Vor `create_issue` oder `update_issue` verwenden, um kanonische englische Namen nachzuschlagen.
+Gibt gültige ID/Name-Paare für alle Issue-Enum-Felder zurück (Severity, Priority, Status, Resolution, Reproducibility). Bei `create_issue` werden sowohl kanonische englische Namen als auch lokalisierte `name`/`label`-Werte akzeptiert — diese Ressource hilft, alle verfügbaren Werte zu ermitteln.
 
 **Ressource-URI:** `mantis://enums`
 

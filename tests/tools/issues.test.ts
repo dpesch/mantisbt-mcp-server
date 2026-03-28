@@ -368,7 +368,6 @@ describe('create_issue', () => {
     expect(result.isError).toBe(true);
     expect(result.content[0]!.text).toContain('schwerer Fehler');
     expect(result.content[0]!.text).toContain('minor');
-    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('creates issue without any optional fields (backward compatibility)', async () => {
@@ -463,7 +462,6 @@ describe('create_issue', () => {
     expect(result.isError).toBe(true);
     expect(result.content[0]!.text).toContain('immer');
     expect(result.content[0]!.text).toContain('always');
-    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('returns error for empty reproducibility string', async () => {
@@ -476,7 +474,6 @@ describe('create_issue', () => {
     }, { validate: true });
 
     expect(result.isError).toBe(true);
-    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('sends view_state as { name } object', async () => {

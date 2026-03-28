@@ -4,6 +4,7 @@ import { MantisClient } from '../client.js';
 import { MetadataCache } from '../cache.js';
 import { ISSUE_ENUM_OPTIONS, MANTIS_CANONICAL_ENUM_NAMES } from '../constants.js';
 import { getVersionHint } from '../version-hint.js';
+import type { MantisEnumEntry } from '../types.js';
 
 // MantisBT config API: enum values may be a pre-parsed array (2.x) or legacy "id:name,..." string
 type EnumEntry = { id: number; name: string; label?: string };
@@ -36,7 +37,7 @@ function resolveCanonicalName(id: number, name: string, canonicalMap: Record<num
 
 export async function fetchIssueEnums(
   client: MantisClient,
-): Promise<Record<string, Array<{ id: number; name: string; label?: string; canonical_name?: string }>>> {
+): Promise<Record<string, MantisEnumEntry[]>> {
   const params: Record<string, string | number | boolean | undefined> = {};
   ISSUE_ENUM_OPTIONS.forEach((opt, i) => {
     params[`option[${i}]`] = opt;
@@ -53,21 +54,21 @@ export async function fetchIssueEnums(
     reproducibility_enum_string: 'reproducibility',
   };
 
-  const enums: Record<string, Array<{ id: number; name: string; label?: string; canonical_name?: string }>> = {};
+  const enums: Record<string, MantisEnumEntry[]> = {};
   for (const { option, value } of configs) {
     const key = keyMap[option];
     if (!key) continue;
     const canonicalMap = MANTIS_CANONICAL_ENUM_NAMES[key] ?? {};
     if (typeof value === 'string') {
       enums[key] = parseEnumString(value).map(({ id, name }) => {
-        const entry: { id: number; name: string; canonical_name?: string } = { id, name };
+        const entry: MantisEnumEntry = { id, name };
         const canonical_name = resolveCanonicalName(id, name, canonicalMap);
         if (canonical_name !== undefined) entry.canonical_name = canonical_name;
         return entry;
       });
     } else if (Array.isArray(value)) {
       enums[key] = value.map(({ id, name, label }) => {
-        const entry: { id: number; name: string; label?: string; canonical_name?: string } = { id, name };
+        const entry: MantisEnumEntry = { id, name };
         if (label && label !== name) entry.label = label;
         const canonical_name = resolveCanonicalName(id, name, canonicalMap);
         if (canonical_name !== undefined) entry.canonical_name = canonical_name;
@@ -77,6 +78,20 @@ export async function fetchIssueEnums(
   }
 
   return enums;
+}
+
+let _enumDataCache: { data: Record<string, MantisEnumEntry[]>; fetchedAt: number } | null = null;
+const ENUM_DATA_CACHE_TTL_MS = 5 * 60 * 1000;
+
+export async function fetchIssueEnumsWithCache(
+  client: MantisClient,
+): Promise<Record<string, MantisEnumEntry[]>> {
+  if (_enumDataCache && (Date.now() - _enumDataCache.fetchedAt) < ENUM_DATA_CACHE_TTL_MS) {
+    return _enumDataCache.data;
+  }
+  const data = await fetchIssueEnums(client);
+  _enumDataCache = { data, fetchedAt: Date.now() };
+  return data;
 }
 
 export function registerConfigTools(server: McpServer, client: MantisClient, cache: MetadataCache): void {
@@ -159,18 +174,19 @@ Example response (localized installation, e.g. German):
 }
 
 Fields:
-- "id"    — numeric ID accepted by the API
-- "name"  — the API value to pass to create_issue or update_issue; normally English, but may be
-            localized if the installation has customized enum values in the database
-- "label" — localized display label shown in the UI (only present when it differs from "name")
+- "id"             — numeric ID accepted by the API
+- "name"           — localized or canonical name from the MantisBT database
+- "label"          — UI display label (only present when it differs from "name")
+- "canonical_name" — English canonical name (only present on localized installs)
 
-Always pass either the "id" or the "name" value to create_issue or update_issue — never the "label".
-Use the "label" to map user input in the UI language back to the correct "name"/"id" for the API.
+For create_issue (severity, priority, reproducibility): pass the canonical English name, the
+localized "name", or the "label" — all are accepted. The server resolves them to the correct ID.
+
+For update_issue: pass either "id" or "name" in the field reference object.
 
 Note: on some installations enum values are customized at the database level. In that case "name"
 itself may be localized (e.g. "kleinerer Fehler" instead of "minor") and no "label" will be present
-because there is no separate English original. The "name" value returned is always the correct one
-to use for API calls — regardless of language.`,
+because there is no separate English original.`,
       inputSchema: z.object({}),
       annotations: {
         readOnlyHint: true,

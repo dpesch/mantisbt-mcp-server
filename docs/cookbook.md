@@ -145,7 +145,7 @@ Returns the enum values configured on your specific MantisBT instance. Use this 
 }
 ```
 
-> **Note:** The names returned by `get_issue_enums()` may be localized. `create_issue` and `update_issue` require **canonical English names** for `severity` and `priority` (e.g. `minor`, `major`, `normal`) — look at the `canonical_name` field in the response if you are unsure.
+> **Note:** On localized installations, `get_issue_enums()` returns a `name` in the local language and an optional `canonical_name` with the English original. `create_issue` accepts **both** — pass either the canonical English name (e.g. `minor`) or the localized name (e.g. `Unschönheit`). The server resolves the value automatically.
 
 ---
 
@@ -456,8 +456,8 @@ Creates a new issue in MantisBT.
 - `project_id` — numeric project ID
 - `category` — category name string
 - `description` — _(optional)_ detailed description
-- `priority` — _(optional)_ canonical English priority name: `none`, `low`, `normal`, `high`, `urgent`, `immediate` — call `get_issue_enums()` to see localized labels
-- `severity` — _(optional)_ canonical English severity name: `feature`, `trivial`, `text`, `tweak`, `minor`, `major`, `crash`, `block`; default is `"minor"` — call `get_issue_enums()` to see localized labels
+- `priority` — _(optional)_ priority: canonical English name (`none`, `low`, `normal`, `high`, `urgent`, `immediate`) or localized label. Default: `"normal"`. Use `get_issue_enums()` to see all available values.
+- `severity` — _(optional)_ severity: canonical English name (`feature`, `trivial`, `text`, `tweak`, `minor`, `major`, `crash`, `block`) or localized label. Default: `"minor"`. Use `get_issue_enums()` to see all available values.
 - `handler` — _(optional)_ assignee username (resolved to ID automatically)
 - `handler_id` — _(optional)_ assignee numeric user ID (alternative to `handler`)
 
@@ -500,11 +500,11 @@ Creates a new issue in MantisBT.
 
 **Error: unknown severity or priority**
 
-If an unrecognized name is passed for `severity` or `priority`, the server returns an error listing valid values:
+The server first checks canonical English names, then falls back to a live `get_issue_enums` lookup. An error is only returned if the value matches neither:
 
-> Error: Invalid severity "schwerer Fehler". Valid canonical names: feature, trivial, text, tweak, minor, major, crash, block. Call get_issue_enums to see localized labels.
+> Error: Invalid severity "xyz". Valid canonical names: feature, trivial, text, tweak, minor, major, crash, block. Call get_issue_enums to see localized labels.
 
-Use `get_issue_enums` to discover the canonical names accepted by `create_issue`.
+Use `get_issue_enums` to discover all accepted values — both canonical and localized names work.
 
 ---
 
@@ -1688,7 +1688,7 @@ Returns a combined view of a single project: its fields plus all members, versio
 
 ### Read issue enum values
 
-Returns valid ID/name pairs for all issue enum fields (severity, priority, status, resolution, reproducibility). Use this to look up canonical English names before calling `create_issue` or `update_issue`.
+Returns valid ID/name pairs for all issue enum fields (severity, priority, status, resolution, reproducibility). For `create_issue`, both the canonical English name and the localized `name`/`label` are accepted — this resource helps discover all available values.
 
 **Resource URI:** `mantis://enums`
 

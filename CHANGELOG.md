@@ -22,6 +22,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - `get_issue` tool description now explicitly states that notes are always included in the response — no separate `list_notes` call needed.
 - `list_notes` tool description now clarifies it is only needed when fetching notes without the full issue object.
+- `create_issue` now accepts localized enum names for `severity`, `priority`, and `reproducibility` in addition to canonical English names. The server resolves the value against a static canonical table first; on a miss, it falls back to a live `get_issue_enums` lookup and matches against the `name` and `label` fields (case-insensitive). Only truly unknown values produce an error.
 
 ---
 
