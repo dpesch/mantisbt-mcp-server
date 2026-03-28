@@ -155,6 +155,18 @@ Die semantische Suche versteht die *Bedeutung* deiner Frage — nicht nur einzel
 
 ---
 
+### Keyword-Highlights
+
+> »Suche nach Login-Fehlern und zeige mir, welche Stelle im Ticket relevant ist.«
+
+> »Finde Issues zum Passwort-Reset-Ablauf und hebe die passenden Stellen hervor, damit ich die Ergebnisse schnell überfliegen kann.«
+
+> »Suche nach 'Rechnungsexport' und markiere die relevanten Ausschnitte in Titel und Beschreibung.«
+
+Exakte Parameter und Response-Shape: [Cookbook — Suche mit Keyword-Highlights](cookbook.de.md#suche-mit-keyword-highlights).
+
+---
+
 ### Unscharfe / terminologieunabhängige Suche
 
 > »Finde Issues zu 'doppelten Einträgen' — sie könnten auch als 'zweimal angezeigt', 'doppelte Datensätze' oder 'Phantom-Zeilen' beschrieben sein.«

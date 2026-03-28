@@ -1246,6 +1246,7 @@ Finds issues semantically similar to a natural language query. Returns issue IDs
 **Parameters:**
 - `query` — natural language search query
 - `top_n` — _(optional)_ number of results to return; default 10
+- `highlight` — _(optional)_ when `true`, adds keyword-matched excerpts to each result; default `false`
 
 **Request:**
 
@@ -1280,6 +1281,7 @@ Enriches search results with specific fields fetched from MantisBT. Without `sel
 - `query` — natural language search query
 - `top_n` — _(optional)_ number of results
 - `select` — comma-separated field names to fetch for each result
+- `highlight` — _(optional)_ when `true`, adds keyword-matched excerpts to each result; default `false`
 
 **Request:**
 
@@ -1307,6 +1309,57 @@ Enriches search results with specific fields fetched from MantisBT. Without `sel
 ```
 
 > **Note:** Using `select` triggers additional API calls to MantisBT for each result. Keep `top_n` small when using enrichment to avoid excessive requests.
+
+---
+
+### Search with keyword highlights
+
+Shows which part of an issue matched the search query. Each result that has keyword overlap with the query receives a `highlights` field with bold-marked excerpts. Highlights are keyword-based (lexical), not semantic — results with no lexical overlap will not have a `highlights` field.
+
+**Tool:** `search_issues`
+
+**Parameters:**
+- `query` — natural language search query
+- `top_n` — _(optional)_ number of results; default 10
+- `highlight` — set to `true` to enable highlights
+
+**Request:**
+
+```json
+{
+  "query": "login error after password reset",
+  "top_n": 5,
+  "highlight": true
+}
+```
+
+**Response:**
+
+```json
+[
+  {
+    "id": 1042,
+    "score": 0.91,
+    "highlights": {
+      "summary": "**Login** button unresponsive after **password** **reset** on mobile Safari",
+      "description": "…user taps **login** and nothing happens. Reproducible after a **password** **reset** flow…"
+    }
+  },
+  {
+    "id": 987,
+    "score": 0.84,
+    "highlights": {
+      "summary": "**Login** fails with 401 — token invalidated"
+    }
+  },
+  {
+    "id": 1015,
+    "score": 0.79
+  }
+]
+```
+
+> **Note:** Only results with at least one keyword match in `summary` or `description` receive a `highlights` field. The `description` excerpt is approximately 300 characters, centred around the first match. When `select` is also set and includes `summary` or `description`, highlights are generated from the fetched fields; otherwise they come from the indexed metadata.
 
 ---
 

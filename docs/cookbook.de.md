@@ -1246,6 +1246,7 @@ Findet Issues, die einem natürlichsprachigen Suchbegriff semantisch ähnlich si
 **Parameter:**
 - `query` — Suchanfrage in natürlicher Sprache
 - `top_n` — _(optional)_ Anzahl zurückzugebender Ergebnisse; Standard 10
+- `highlight` — _(optional)_ bei `true` werden keyword-basierte Ausschnitte je Ergebnis ergänzt; Standard `false`
 
 **Request:**
 
@@ -1280,6 +1281,7 @@ Reichert Suchergebnisse mit bestimmten Feldern aus MantisBT an. Ohne `select` we
 - `query` — Suchanfrage in natürlicher Sprache
 - `top_n` — _(optional)_ Anzahl der Ergebnisse
 - `select` — kommagetrennte Feldnamen, die für jedes Ergebnis abgerufen werden
+- `highlight` — _(optional)_ bei `true` werden keyword-basierte Ausschnitte je Ergebnis ergänzt; Standard `false`
 
 **Request:**
 
@@ -1307,6 +1309,57 @@ Reichert Suchergebnisse mit bestimmten Feldern aus MantisBT an. Ohne `select` we
 ```
 
 > **Hinweis:** Die Verwendung von `select` löst für jedes Ergebnis zusätzliche API-Aufrufe an MantisBT aus. `top_n` bei Verwendung der Felderweiterung klein halten, um übermäßige Anfragen zu vermeiden.
+
+---
+
+### Suche mit Keyword-Highlights
+
+Zeigt, welcher Teil eines Issues mit der Suchanfrage übereinstimmt. Jedes Ergebnis, das lexikalisch mit der Anfrage übereinstimmt, erhält ein `highlights`-Feld mit fett hervorgehobenen Ausschnitten. Highlights sind keyword-basiert (lexikalisch), nicht semantisch — Ergebnisse ohne lexikalische Übereinstimmung haben kein `highlights`-Feld.
+
+**Tool:** `search_issues`
+
+**Parameter:**
+- `query` — Suchanfrage in natürlicher Sprache
+- `top_n` — _(optional)_ Anzahl der Ergebnisse; Standard 10
+- `highlight` — auf `true` setzen, um Highlights zu aktivieren
+
+**Request:**
+
+```json
+{
+  "query": "Login-Fehler nach Passwort-Reset",
+  "top_n": 5,
+  "highlight": true
+}
+```
+
+**Response:**
+
+```json
+[
+  {
+    "id": 1042,
+    "score": 0.91,
+    "highlights": {
+      "summary": "**Login**-Button reagiert nach **Passwort**-**Reset** auf Mobile Safari nicht",
+      "description": "…Benutzer tippt auf **Login** und es passiert nichts. Reproduzierbar nach einem **Passwort**-**Reset**-Vorgang…"
+    }
+  },
+  {
+    "id": 987,
+    "score": 0.84,
+    "highlights": {
+      "summary": "**Login** schlägt mit 401 fehl — Token ungültig"
+    }
+  },
+  {
+    "id": 1015,
+    "score": 0.79
+  }
+]
+```
+
+> **Hinweis:** Nur Ergebnisse mit mindestens einer Keyword-Übereinstimmung in `summary` oder `description` erhalten ein `highlights`-Feld. Der `description`-Ausschnitt umfasst ca. 300 Zeichen, zentriert um den ersten Treffer. Wenn zusätzlich `select` gesetzt ist und `summary` oder `description` enthält, werden die Highlights aus den abgerufenen Feldern generiert; andernfalls stammen sie aus den indizierten Metadaten.
 
 ---
 

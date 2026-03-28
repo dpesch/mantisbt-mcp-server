@@ -153,7 +153,7 @@ Activate with `MANTIS_SEARCH_ENABLED=true`.
 
 | Tool | Description |
 |---|---|
-| `search_issues` | Natural language search over all indexed issues — returns top-N results with cosine similarity score; optional `select` (comma-separated field names) enriches each result with the requested issue fields |
+| `search_issues` | Natural language search over all indexed issues — returns top-N results with cosine similarity score; optional `select` (comma-separated field names) enriches each result with the requested issue fields; optional `highlight` (boolean, default `false`) adds a `highlights` field per result with keyword-matched excerpts from `summary` and `description` (matched terms shown in `**bold**`) |
 | `rebuild_search_index` | Build or update the search index; `full: true` clears and rebuilds from scratch |
 | `get_search_index_status` | Return the current fill level of the search index: how many issues are indexed vs. total, and the timestamp of the last sync |
 

@@ -153,7 +153,7 @@ Aktivierung mit `MANTIS_SEARCH_ENABLED=true`.
 
 | Tool | Beschreibung |
 |---|---|
-| `search_issues` | Natürlichsprachige Suche über alle indizierten Issues – liefert Top-N-Ergebnisse mit Cosine-Similarity-Score; optionales `select` (kommagetrennte Feldnamen) reichert jedes Ergebnis mit den angeforderten Issue-Feldern an |
+| `search_issues` | Natürlichsprachige Suche über alle indizierten Issues – liefert Top-N-Ergebnisse mit Cosine-Similarity-Score; optionales `select` (kommagetrennte Feldnamen) reichert jedes Ergebnis mit den angeforderten Issue-Feldern an; optionales `highlight` (boolean, Standard `false`) fügt je Ergebnis ein `highlights`-Feld mit keyword-basierten Ausschnitten aus `summary` und `description` hinzu (Treffer werden in `**fett**` dargestellt) |
 | `rebuild_search_index` | Suchindex aufbauen oder aktualisieren; `full: true` löscht und baut ihn vollständig neu |
 | `get_search_index_status` | Aktuellen Füllstand des Suchindex zurückgeben: wie viele Issues bereits indiziert sind im Verhältnis zur Gesamtanzahl, plus Zeitstempel der letzten Synchronisation |
 

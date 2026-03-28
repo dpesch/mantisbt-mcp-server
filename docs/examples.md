@@ -155,6 +155,18 @@ Semantic search understands the *meaning* of your question — not just keywords
 
 ---
 
+### Keyword highlights
+
+> "Search for login errors and show me which part of each ticket is relevant."
+
+> "Find issues about the password reset flow and highlight the matching passages so I can quickly scan the results."
+
+> "Search for 'invoice export' and highlight the relevant excerpts in summary and description."
+
+For exact parameters and response shape, see the [Cookbook — Search with keyword highlights](cookbook.md#search-with-keyword-highlights).
+
+---
+
 ### Fuzzy / terminology-independent search
 
 > "Find issues about 'duplicate entries' — they might also be described as 'shown twice', 'double records', or 'phantom rows'."
