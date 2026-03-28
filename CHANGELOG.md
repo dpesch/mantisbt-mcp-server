@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- `get_issue` tool description now explicitly states that notes are always included in the response — no separate `list_notes` call needed.
+- `list_notes` tool description now clarifies it is only needed when fetching notes without the full issue object.
+
 ---
 
 ## [1.8.3] – 2026-03-28

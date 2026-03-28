@@ -58,6 +58,28 @@
       "sticky": false,
       "created_at": "2026-03-16T15:40:38+01:00",
       "updated_at": "2026-03-16T15:40:38+01:00",
+      "notes": [
+        {
+          "id": 1001,
+          "reporter": { "id": 51, "name": "user_1" },
+          "text": "First note on this issue.",
+          "view_state": { "id": 10, "name": "public", "label": "öffentlich" },
+          "attachments": [],
+          "type": "note",
+          "created_at": "2026-03-16T16:00:00+01:00",
+          "updated_at": "2026-03-16T16:00:00+01:00"
+        },
+        {
+          "id": 1002,
+          "reporter": { "id": 51, "name": "user_1" },
+          "text": "Second note on this issue.",
+          "view_state": { "id": 10, "name": "public", "label": "öffentlich" },
+          "attachments": [],
+          "type": "note",
+          "created_at": "2026-03-16T17:00:00+01:00",
+          "updated_at": "2026-03-16T17:00:00+01:00"
+        }
+      ],
       "history": [
         {
           "created_at": "2026-03-16T15:40:38+01:00",

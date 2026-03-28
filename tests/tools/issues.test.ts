@@ -31,7 +31,7 @@ const getIssueFixturePath = join(fixturesDir, 'get_issue.json');
 const listIssuesFixturePath = join(fixturesDir, 'list_issues.json');
 
 const getIssueFixture = existsSync(getIssueFixturePath)
-  ? (JSON.parse(readFileSync(getIssueFixturePath, 'utf-8')) as { issues: Array<{ id: number; summary: string }> })
+  ? (JSON.parse(readFileSync(getIssueFixturePath, 'utf-8')) as { issues: Array<{ id: number; summary: string; notes?: Array<{ id: number }> }> })
   : { issues: [{ id: 42, summary: 'Test Issue' }] };
 
 const listIssuesFixture = existsSync(listIssuesFixturePath)
@@ -100,6 +100,19 @@ describe('get_issue', () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0]!.text).toContain('Error:');
+  });
+
+  it('enthält notes direkt in der Response (kein separater list_notes-Call nötig)', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(getIssueFixture)));
+
+    const result = await mockServer.callTool('get_issue', { id: getIssueFixture.issues[0]!.id });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { notes?: Array<{ id: number }> };
+    const fixtureNotes = getIssueFixture.issues[0]!.notes!;
+    expect(Array.isArray(parsed.notes)).toBe(true);
+    expect(parsed.notes!.length).toBe(fixtureNotes.length);
+    expect(parsed.notes![0]!.id).toBe(fixtureNotes[0]!.id);
   });
 });
 

@@ -33,7 +33,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
     'get_issue',
     {
       title: 'Get Issue',
-      description: 'Retrieve a single MantisBT issue by its numeric ID. Returns all issue fields including notes, attachments, and relationships.',
+      description: 'Retrieve a single MantisBT issue by its numeric ID. Returns all issue fields including notes, attachments, and relationships. Notes are always included — no separate list_notes call needed.',
       inputSchema: z.object({
         id: z.coerce.number().int().positive().describe('Numeric issue ID'),
       }),

@@ -21,7 +21,7 @@ export function registerNoteTools(server: McpServer, client: MantisClient): void
     'list_notes',
     {
       title: 'List Issue Notes',
-      description: 'List all notes (comments) attached to a MantisBT issue.',
+      description: 'List all notes (comments) attached to a MantisBT issue. Note: get_issue already includes notes in its response — use list_notes only when you need notes without fetching the full issue.',
       inputSchema: z.object({
         issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
       }),
