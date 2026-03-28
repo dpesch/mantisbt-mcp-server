@@ -5,6 +5,7 @@ import { MetadataCache } from '../cache.js';
 import type { MantisIssue, MantisUser, MantisPaginatedIssues } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
 import { MANTIS_CANONICAL_ENUM_NAMES, MANTIS_RESOLVED_STATUS_ID, resolveEnumId } from '../constants.js';
+import { dateFilterSchema, matchesDateFilter, hasDateFilter, type DateFilter } from '../date-filter.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -65,7 +66,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
     'list_issues',
     {
       title: 'List Issues',
-      description: 'List MantisBT issues with optional filtering. Returns a paginated list of issues. Use the "select" parameter to limit returned fields and reduce response size significantly.\n\nNote: "assigned_to", "reporter_id", and "status" filters are applied client-side (the MantisBT REST API does not reliably support these as server-side filters). When any of these filters are active the tool automatically fetches multiple pages internally until enough matching results are found (up to 500 issues scanned). The "page" and "page_size" parameters refer to the resulting filtered list.',
+      description: 'List MantisBT issues with optional filtering. Returns a paginated list of issues. Use the "select" parameter to limit returned fields and reduce response size significantly.\n\nNote: "assigned_to", "reporter_id", "status", and date filters are applied client-side (the MantisBT REST API does not support these as server-side filters). When any of these filters are active the tool automatically fetches multiple pages internally until enough matching results are found (up to 500 issues scanned). The "page" and "page_size" parameters refer to the resulting filtered list.\n\nTip for date queries: fetching with select="id,updated_at,created_at" plus a date filter is very compact and efficient.',
       inputSchema: z.object({
         project_id: z.coerce.number().int().positive().optional().describe('Filter by project ID'),
         page: z.coerce.number().int().positive().default(1).describe('Page number (default: 1)'),
@@ -77,6 +78,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         direction: z.enum(['ASC', 'DESC']).optional().describe('Sort direction'),
         select: z.string().optional().describe('Comma-separated list of fields to include in the response (server-side projection). Significantly reduces response size. Example: "id,summary,status,priority,handler,updated_at"'),
         status: z.string().optional().describe('Filter issues by status name (e.g. "new", "feedback", "acknowledged", "confirmed", "assigned", "resolved", "closed") or use "open" as shorthand for all statuses with id < 80 (i.e. not yet resolved or closed). Applied client-side after fetching — when combined with pagination, a page may contain fewer results than page_size.'),
+        ...dateFilterSchema,
       }),
       annotations: {
         readOnlyHint: true,
@@ -84,7 +86,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         idempotentHint: true,
       },
     },
-    async ({ project_id, page, page_size, assigned_to, reporter_id, filter_id, sort, direction, select, status }) => {
+    async ({ project_id, page, page_size, assigned_to, reporter_id, filter_id, sort, direction, select, status, updated_after, updated_before, created_after, created_before }) => {
       try {
         const baseParams: Record<string, string | number | boolean | undefined> = {
           project_id,
@@ -96,7 +98,8 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
           select,
         };
 
-        const needsClientFilter = status !== undefined || assigned_to !== undefined || reporter_id !== undefined;
+        const dateFilter: DateFilter = { updated_after, updated_before, created_after, created_before };
+        const needsClientFilter = status !== undefined || assigned_to !== undefined || reporter_id !== undefined || hasDateFilter(dateFilter);
 
         if (!needsClientFilter) {
           // No client-side filtering — single API call, pass pagination as-is
@@ -117,6 +120,8 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         let hasMore = true;
 
         const statusLower = status?.toLowerCase();
+        // Pre-parse date thresholds once — avoids repeated new Date() inside the scan loop
+        const updatedAfterMs = updated_after ? new Date(updated_after).getTime() : undefined;
 
         while (matching.length < neededTotal && serverPage <= MAX_API_PAGES && hasMore) {
           const batch = await client.get<MantisPaginatedIssues>('issues', {
@@ -128,6 +133,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
           const issues = batch.issues ?? [];
           hasMore = issues.length === API_PAGE_SIZE;
 
+          let stopAfterBatch = false;
           for (const issue of issues) {
             if (statusLower) {
               if (!issue.status) continue;
@@ -139,9 +145,20 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
             }
             if (assigned_to !== undefined && issue.handler?.id !== assigned_to) continue;
             if (reporter_id !== undefined && issue.reporter?.id !== reporter_id) continue;
+            if (!matchesDateFilter(issue, dateFilter)) {
+              // MantisBT returns results newest-first. Once updated_at drops below
+              // updated_after, all subsequent pages are guaranteed to be older too.
+              // Finish the current batch first (items within it may still be newer),
+              // then stop fetching further pages.
+              if (updatedAfterMs && issue.updated_at && new Date(issue.updated_at).getTime() <= updatedAfterMs) {
+                stopAfterBatch = true;
+              }
+              continue;
+            }
             matching.push(issue);
           }
 
+          if (stopAfterBatch) break;
           serverPage++;
         }
 

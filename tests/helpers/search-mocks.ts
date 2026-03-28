@@ -12,10 +12,29 @@ export const MOCK_VECTOR = Array(384).fill(0.1) as number[];
 // makeMockStore
 // ---------------------------------------------------------------------------
 
-export function makeMockStore(options?: { lastSyncedAt?: string | null; itemCount?: number; lastKnownTotal?: number | null }): VectorStore {
+export interface MockStoreItem {
+  id: number;
+  score?: number;
+  updated_at?: string;
+}
+
+export function makeMockStore(options?: {
+  lastSyncedAt?: string | null;
+  itemCount?: number;
+  lastKnownTotal?: number | null;
+  items?: MockStoreItem[];
+}): VectorStore {
   const lastSyncedAt = options?.lastSyncedAt ?? null;
+  const seedItems = options?.items ?? null;
   const addedItems: VectorStoreItem[] = [];
-  let count = options?.itemCount ?? 0;
+  const itemMap = new Map<number, VectorStoreItem>(
+    (seedItems ?? []).map(i => [i.id, {
+      id: i.id,
+      vector: MOCK_VECTOR,
+      metadata: { summary: `Issue ${i.id}`, updated_at: i.updated_at },
+    }])
+  );
+  let count = options?.itemCount ?? seedItems?.length ?? 0;
 
   return {
     add: vi.fn(async (item: VectorStoreItem) => {
@@ -28,12 +47,16 @@ export function makeMockStore(options?: { lastSyncedAt?: string | null; itemCoun
       }
       count += items.length;
     }),
-    search: vi.fn(async (_vec: number[], topN: number) =>
-      Array.from({ length: Math.min(topN, count) }, (_, i) => ({
+    search: vi.fn(async (_vec: number[], topN: number) => {
+      if (seedItems) {
+        return seedItems.slice(0, topN).map(i => ({ id: i.id, score: i.score ?? 0.9 }));
+      }
+      return Array.from({ length: Math.min(topN, count) }, (_, i) => ({
         id: i + 1,
         score: 1 - i * 0.1,
-      }))
-    ),
+      }));
+    }),
+    getItem: vi.fn(async (id: number) => itemMap.get(id) ?? null),
     delete: vi.fn(async () => {}),
     count: vi.fn(async () => count),
     clear: vi.fn(async () => {

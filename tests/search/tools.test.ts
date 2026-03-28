@@ -332,6 +332,100 @@ describe('get_search_index_status – with stored total', () => {
 // get_search_index_status – edge cases
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// search_issues – date filters
+// ---------------------------------------------------------------------------
+
+describe('search_issues – updated_after filter (no select, uses store metadata)', () => {
+  it('returns only results whose store metadata updated_at is after the threshold', async () => {
+    const store = makeMockStore({
+      items: [
+        { id: 1, score: 0.9, updated_at: '2026-03-26T00:00:00Z' }, // pass
+        { id: 2, score: 0.8, updated_at: '2026-03-23T00:00:00Z' }, // fail
+        { id: 3, score: 0.7, updated_at: '2026-03-25T12:00:00Z' }, // pass
+      ],
+    });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    const result = await mockServer.callTool('search_issues', {
+      query: 'test',
+      top_n: 10,
+      updated_after: '2026-03-25T00:00:00Z',
+    });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as Array<{ id: number }>;
+    expect(parsed.map(r => r.id)).toEqual([1, 3]);
+  });
+
+  it('makes no API calls when filtering via store metadata (no select)', async () => {
+    const store = makeMockStore({
+      items: [{ id: 1, updated_at: '2026-03-26T00:00:00Z' }],
+    });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    await mockServer.callTool('search_issues', {
+      query: 'test',
+      top_n: 5,
+      updated_after: '2026-03-25T00:00:00Z',
+    });
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('excludes results with no updated_at in store metadata', async () => {
+    const store = makeMockStore({
+      items: [
+        { id: 1, score: 0.9 },              // no updated_at → excluded
+        { id: 2, score: 0.8, updated_at: '2026-03-26T00:00:00Z' }, // pass
+      ],
+    });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    const result = await mockServer.callTool('search_issues', {
+      query: 'test',
+      top_n: 10,
+      updated_after: '2026-03-25T00:00:00Z',
+    });
+
+    const parsed = JSON.parse(result.content[0]!.text) as Array<{ id: number }>;
+    expect(parsed.map(r => r.id)).toEqual([2]);
+  });
+});
+
+describe('search_issues – updated_after filter (with select, uses fetched issue data)', () => {
+  it('returns only results whose fetched updated_at is after the threshold', async () => {
+    const store = makeMockStore({
+      items: [
+        { id: 1, score: 0.9 },
+        { id: 2, score: 0.8 },
+      ],
+    });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({
+        issues: [{ id: 1, summary: 'Recent bug', updated_at: '2026-03-26T00:00:00Z' }],
+      })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({
+        issues: [{ id: 2, summary: 'Old bug', updated_at: '2026-03-20T00:00:00Z' }],
+      })));
+
+    const result = await mockServer.callTool('search_issues', {
+      query: 'test',
+      top_n: 10,
+      select: 'summary',
+      updated_after: '2026-03-25T00:00:00Z',
+    });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as Array<{ id: number; summary: string }>;
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]!.id).toBe(1);
+    expect(parsed[0]!.summary).toBe('Recent bug');
+  });
+});
+
 describe('get_search_index_status – edge cases', () => {
   it('returns 0 % when stored total is 0', async () => {
     const store = makeMockStore({ itemCount: 0, lastKnownTotal: 0 });

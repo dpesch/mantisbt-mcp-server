@@ -749,3 +749,96 @@ describe('update_issue – fields allowlist', () => {
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// list_issues – date filters
+// ---------------------------------------------------------------------------
+
+function makeIssuePage(issues: Array<{ id: number; updated_at: string; created_at: string }>) {
+  return { issues, total_count: issues.length };
+}
+
+describe('list_issues – updated_after filter', () => {
+  it('returns only issues updated after the given date', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(makeIssuePage([
+      { id: 1, updated_at: '2026-03-26T10:00:00Z', created_at: '2026-03-01T00:00:00Z' },
+      { id: 2, updated_at: '2026-03-23T10:00:00Z', created_at: '2026-03-01T00:00:00Z' },
+      { id: 3, updated_at: '2026-03-25T00:00:01Z', created_at: '2026-03-01T00:00:00Z' },
+    ]))));
+
+    const result = await mockServer.callTool('list_issues', {
+      updated_after: '2026-03-25T00:00:00Z',
+    });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { issues: Array<{ id: number }> };
+    expect(parsed.issues.map(i => i.id)).toEqual([1, 3]);
+  });
+
+  it('returns an empty list when no issue matches', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(makeIssuePage([
+      { id: 1, updated_at: '2026-03-20T00:00:00Z', created_at: '2026-03-01T00:00:00Z' },
+    ]))));
+
+    const result = await mockServer.callTool('list_issues', {
+      updated_after: '2026-03-25T00:00:00Z',
+    });
+
+    const parsed = JSON.parse(result.content[0]!.text) as { issues: Array<unknown> };
+    expect(parsed.issues).toHaveLength(0);
+  });
+
+  it('stops scanning pages when all issues in a batch are older than updated_after (early-exit)', async () => {
+    // Page 1: one matching issue, one too old
+    // Page 2: should NOT be fetched because the last item of page 1 is already older
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(makeIssuePage([
+        { id: 10, updated_at: '2026-03-26T00:00:00Z', created_at: '2026-03-01T00:00:00Z' },
+        { id: 9,  updated_at: '2026-03-20T00:00:00Z', created_at: '2026-03-01T00:00:00Z' },
+      ]))))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(makeIssuePage([
+        { id: 8, updated_at: '2026-03-18T00:00:00Z', created_at: '2026-03-01T00:00:00Z' },
+      ]))));
+
+    await mockServer.callTool('list_issues', {
+      updated_after: '2026-03-25T00:00:00Z',
+      page_size: 50,
+    });
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('list_issues – created_after filter', () => {
+  it('returns only issues created after the given date', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(makeIssuePage([
+      { id: 1, updated_at: '2026-03-26T00:00:00Z', created_at: '2026-03-26T00:00:00Z' },
+      { id: 2, updated_at: '2026-03-26T00:00:00Z', created_at: '2026-03-23T00:00:00Z' },
+    ]))));
+
+    const result = await mockServer.callTool('list_issues', {
+      created_after: '2026-03-25T00:00:00Z',
+    });
+
+    const parsed = JSON.parse(result.content[0]!.text) as { issues: Array<{ id: number }> };
+    expect(parsed.issues.map(i => i.id)).toEqual([1]);
+  });
+});
+
+describe('list_issues – combined date window', () => {
+  it('returns only issues within the updated_after + updated_before window', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(makeIssuePage([
+      { id: 1, updated_at: '2026-03-22T00:00:00Z', created_at: '2026-03-01T00:00:00Z' }, // in window
+      { id: 2, updated_at: '2026-03-19T00:00:00Z', created_at: '2026-03-01T00:00:00Z' }, // too old
+      { id: 3, updated_at: '2026-03-26T00:00:00Z', created_at: '2026-03-01T00:00:00Z' }, // too new
+    ]))));
+
+    const result = await mockServer.callTool('list_issues', {
+      updated_after:  '2026-03-20T00:00:00Z',
+      updated_before: '2026-03-25T00:00:00Z',
+    });
+
+    const parsed = JSON.parse(result.content[0]!.text) as { issues: Array<{ id: number }> };
+    expect(parsed.issues.map(i => i.id)).toEqual([1]);
+  });
+});

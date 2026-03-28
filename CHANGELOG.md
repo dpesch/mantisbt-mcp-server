@@ -9,6 +9,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- `list_issues` now accepts four date filter parameters: `updated_after`, `updated_before`, `created_after`, `created_before` (ISO-8601, exclusive). Filters are applied client-side with an early-exit optimisation: once a batch of results is fully older than `updated_after`, further pages are not fetched.
+- `search_issues` now accepts the same four date filter parameters. Without `select`, filtering uses VectraStore metadata (no extra API calls). With `select`, filtering uses the already-fetched issue object.
+- `VectorStore` interface extended with `getItem(id)` to support metadata lookups without re-fetching from the API.
+- New internal module `src/date-filter.ts` with shared `matchesDateFilter`, `hasDateFilter`, and `dateFilterSchema` — reused by both tools.
+
 ### Changed
 - `get_issue` tool description now explicitly states that notes are always included in the response — no separate `list_notes` call needed.
 - `list_notes` tool description now clarifies it is only needed when fetching notes without the full issue object.

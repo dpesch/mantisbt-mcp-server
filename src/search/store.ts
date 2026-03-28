@@ -16,6 +16,7 @@ export interface VectorStore {
   addBatch(items: VectorStoreItem[]): Promise<void>;
   flush(): Promise<void>;
   search(vector: number[], topN: number): Promise<Array<{ id: number; score: number }>>;
+  getItem(id: number): Promise<VectorStoreItem | null>;
   delete(id: number): Promise<void>;
   count(): Promise<number>;
   clear(): Promise<void>;
@@ -95,6 +96,11 @@ export class VectraStore implements VectorStore {
 
     results.sort((a, b) => b.score - a.score);
     return results.slice(0, topN);
+  }
+
+  async getItem(id: number): Promise<VectorStoreItem | null> {
+    await this.ensureLoaded();
+    return this.items.get(id) ?? null;
   }
 
   async delete(id: number): Promise<void> {

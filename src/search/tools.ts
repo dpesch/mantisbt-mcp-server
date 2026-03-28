@@ -5,6 +5,7 @@ import type { VectorStore } from './store.js';
 import type { Embedder } from './embedder.js';
 import { SearchSyncService } from './sync.js';
 import { getVersionHint } from '../version-hint.js';
+import { dateFilterSchema, matchesDateFilter, hasDateFilter, type DateFilter } from '../date-filter.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -49,6 +50,7 @@ export function registerSearchTools(
           'When provided, each matching issue is fetched from MantisBT and enriched with the requested fields. ' +
           'The relevance score is always included. Without this parameter only id and score are returned.'
         ),
+        ...dateFilterSchema,
       }),
       annotations: {
         readOnlyHint: true,
@@ -56,7 +58,7 @@ export function registerSearchTools(
         idempotentHint: true,
       },
     },
-    async ({ query, top_n, select }) => {
+    async ({ query, top_n, select, updated_after, updated_before, created_after, created_before }) => {
       try {
         const count = await store.count();
         if (count === 0) {
@@ -71,12 +73,27 @@ export function registerSearchTools(
           };
         }
 
+        const dateFilter: DateFilter = { updated_after, updated_before, created_after, created_before };
+        const filterActive = hasDateFilter(dateFilter);
         const queryVector = await embedder.embed(query);
         const results = await store.search(queryVector, top_n);
 
         if (!select) {
+          if (!filterActive) {
+            return {
+              content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
+            };
+          }
+          // Filter via store metadata — no extra API calls needed
+          const filtered = await Promise.all(
+            results.map(async ({ id, score }) => {
+              const item = await store.getItem(id);
+              if (!matchesDateFilter(item?.metadata ?? {}, dateFilter)) return null;
+              return { id, score };
+            })
+          );
           return {
-            content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
+            content: [{ type: 'text', text: JSON.stringify(filtered.filter(Boolean), null, 2) }],
           };
         }
 
@@ -86,6 +103,9 @@ export function registerSearchTools(
             try {
               const issueResult = await client.get<{ issues: Array<Record<string, unknown>> }>(`issues/${id}`);
               const issue = issueResult.issues?.[0] ?? {};
+              if (filterActive && !matchesDateFilter(issue as { updated_at?: string; created_at?: string }, dateFilter)) {
+                return null;
+              }
               const projected: Record<string, unknown> = { id, score };
               for (const field of fields) {
                 if (field !== 'id' && field in issue) {
@@ -100,7 +120,7 @@ export function registerSearchTools(
         );
 
         return {
-          content: [{ type: 'text', text: JSON.stringify(enriched, null, 2) }],
+          content: [{ type: 'text', text: JSON.stringify(enriched.filter(Boolean), null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
