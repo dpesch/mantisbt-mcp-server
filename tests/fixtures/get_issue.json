@@ -1,0 +1,111 @@
+{
+  "issues": [
+    {
+      "id": 7860,
+      "summary": "Issue summary 1",
+      "description": "Issue description 1",
+      "project": {
+        "id": 54,
+        "name": "Project 2"
+      },
+      "category": {
+        "id": 393,
+        "name": "Skills"
+      },
+      "reporter": {
+        "id": 51,
+        "name": "user_1",
+        "real_name": "User One",
+        "email": "user1@example.com"
+      },
+      "handler": {
+        "id": 51,
+        "name": "user_1",
+        "real_name": "User One",
+        "email": "user1@example.com"
+      },
+      "status": {
+        "id": 50,
+        "name": "assigned",
+        "label": "zugewiesen",
+        "color": "#afbed5"
+      },
+      "resolution": {
+        "id": 10,
+        "name": "open",
+        "label": "offen"
+      },
+      "view_state": {
+        "id": 10,
+        "name": "public",
+        "label": "öffentlich"
+      },
+      "priority": {
+        "id": 30,
+        "name": "normal",
+        "label": "normal"
+      },
+      "severity": {
+        "id": 200,
+        "name": "Technische Schuld",
+        "label": "Technische Schuld"
+      },
+      "reproducibility": {
+        "id": 70,
+        "name": "have not tried",
+        "label": "nicht getestet"
+      },
+      "sticky": false,
+      "created_at": "2026-03-16T15:40:38+01:00",
+      "updated_at": "2026-03-16T15:40:38+01:00",
+      "history": [
+        {
+          "created_at": "2026-03-16T15:40:38+01:00",
+          "user": {
+            "id": 51,
+            "name": "user_1",
+            "real_name": "User One",
+            "email": "user1@example.com"
+          },
+          "type": { "id": 1, "name": "issue-new" },
+          "message": "Neuer Eintrag"
+        },
+        {
+          "created_at": "2026-03-16T15:40:38+01:00",
+          "user": {
+            "id": 51,
+            "name": "user_1",
+            "real_name": "User One",
+            "email": "user1@example.com"
+          },
+          "field": { "name": "status", "label": "Status" },
+          "type": { "id": 0, "name": "field-updated" },
+          "old_value": { "id": 10, "name": "new", "label": "neu", "color": "#eeb3aa" },
+          "new_value": { "id": 50, "name": "assigned", "label": "zugewiesen", "color": "#afbed5" },
+          "message": "Status",
+          "change": "neu => zugewiesen"
+        },
+        {
+          "created_at": "2026-03-16T15:40:38+01:00",
+          "user": {
+            "id": 51,
+            "name": "user_1",
+            "real_name": "User One",
+            "email": "user1@example.com"
+          },
+          "field": { "name": "handler", "label": "Bearbeitung durch" },
+          "type": { "id": 0, "name": "field-updated" },
+          "old_value": { "id": 0 },
+          "new_value": {
+            "id": 51,
+            "name": "user_1",
+            "real_name": "User One",
+            "email": "user1@example.com"
+          },
+          "message": "Bearbeitung durch",
+          "change": " => user_1"
+        }
+      ]
+    }
+  ]
+}
