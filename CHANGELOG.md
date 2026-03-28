@@ -11,6 +11,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.3] – 2026-03-28
+
+### Added
+- New optional env var `MCP_TEST_ENVIRONMENT=true`. When set, `resources/list` skips live API calls and returns only static resources. Intended for automated inspection environments (e.g. Glama Docker builds) that start the server with placeholder credentials and restricted network access.
+
+### Fixed
+- All `MantisClient` fetch calls now use a 30-second timeout via `AbortSignal.timeout()`. Previously, a slow or unreachable MantisBT instance would cause fetch calls to hang indefinitely.
+
+---
+
 ## [1.8.2] – 2026-03-27
 
 ### Fixed

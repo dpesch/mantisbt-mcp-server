@@ -12,7 +12,7 @@ function jsonResource(uri: URL, data: unknown): { contents: Array<{ uri: string;
   };
 }
 
-export function registerResources(server: McpServer, client: MantisClient, cache: MetadataCache): void {
+export function registerResources(server: McpServer, client: MantisClient, cache: MetadataCache, testEnvironment = false): void {
 
   async function loadProjects(): Promise<MantisProject[]> {
     const cached = await cache.loadIfValid();
@@ -47,13 +47,12 @@ export function registerResources(server: McpServer, client: MantisClient, cache
     'project-detail',
     new ResourceTemplate('mantis://projects/{id}', {
       list: async () => {
-        // Only serve from cache — never make a live API call during resource
-        // enumeration. A live fetch would block tools/list and resources/list
-        // responses (e.g. during Glama inspection) when the network is slow or
-        // the server is unreachable with placeholder credentials.
-        const cached = await cache.loadIfValid();
+        // In test environments (MCP_TEST_ENVIRONMENT=true, e.g. Glama inspection
+        // with placeholder credentials) skip the live API call and return an
+        // empty list so resources/list responds immediately without timing out.
+        if (testEnvironment) return { resources: [] };
         return {
-          resources: (cached?.projects ?? []).map((p) => ({
+          resources: (await loadProjects()).map((p) => ({
             uri: `mantis://projects/${p.id}`,
             name: p.name,
           })),

@@ -26,6 +26,7 @@ export interface MantisConfig {
   httpPort: number;
   httpToken?: string;
   search: SearchConfig;
+  testEnvironment: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -89,6 +90,7 @@ function readNonCredentialConfig(): StartupConfig {
       modelName: searchModelName,
       numThreads: searchNumThreads,
     },
+    testEnvironment: process.env.MCP_TEST_ENVIRONMENT === 'true',
   };
 }
 

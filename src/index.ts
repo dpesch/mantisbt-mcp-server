@@ -77,7 +77,7 @@ async function createMcpServer(): Promise<McpServer> {
   registerTagTools(server, client);
   registerVersionTools(server, client, versionHint, version);
   registerPrompts(server);
-  registerResources(server, client, cache);
+  registerResources(server, client, cache, startupConfig.testEnvironment);
 
   // Optional: Semantic search module
   if (startupConfig.search.enabled) {
