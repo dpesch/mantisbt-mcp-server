@@ -14,8 +14,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - `update_issue` now accepts an optional `dry_run` parameter. When `dry_run: true`, the tool returns the patch payload that would be sent without actually updating the issue — useful for previewing changes before committing them.
 - `list_issues` now accepts four date filter parameters: `updated_after`, `updated_before`, `created_after`, `created_before` (ISO-8601, exclusive). Filters are applied client-side with an early-exit optimisation: once a batch of results is fully older than `updated_after`, further pages are not fetched.
 - `search_issues` now accepts the same four date filter parameters. Without `select`, filtering uses VectraStore metadata (no extra API calls). With `select`, filtering uses the already-fetched issue object.
+- `search_issues` now accepts an optional `highlight` parameter (default: `false`). When `true`, each result gains a `highlights` field containing the issue summary with matching query terms wrapped in `**bold**` markdown, and a short description snippet (~300 chars) centered around the first match. Highlights are keyword-based (lexical), not semantic — results without a lexical overlap will not have a `highlights` field. Without `select`, highlights are built from the VectraStore metadata (no extra API calls); with `select`, from the fetched issue fields.
 - `VectorStore` interface extended with `getItem(id)` to support metadata lookups without re-fetching from the API.
 - New internal module `src/date-filter.ts` with shared `matchesDateFilter`, `hasDateFilter`, and `dateFilterSchema` — reused by both tools.
+- New internal module `src/search/highlight.ts` with `extractTerms`, `highlightText`, `hasTermMatch`, and `extractSnippet` — used by `search_issues` highlighting.
 
 ### Changed
 - `get_issue` tool description now explicitly states that notes are always included in the response — no separate `list_notes` call needed.

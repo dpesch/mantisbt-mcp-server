@@ -6,6 +6,23 @@ import type { Embedder } from './embedder.js';
 import { SearchSyncService } from './sync.js';
 import { getVersionHint } from '../version-hint.js';
 import { dateFilterSchema, matchesDateFilter, hasDateFilter, type DateFilter } from '../date-filter.js';
+import { extractTerms, highlightText, extractSnippet, hasTermMatch } from './highlight.js';
+
+function buildHighlights(
+  summary: string | undefined,
+  description: string | undefined,
+  terms: string[],
+): Record<string, string> | null {
+  const h: Record<string, string> = {};
+  if (summary) {
+    const highlighted = highlightText(summary, terms);
+    if (highlighted !== summary) h['summary'] = highlighted;
+  }
+  if (description && hasTermMatch(description, terms)) {
+    h['description'] = extractSnippet(description, terms);
+  }
+  return Object.keys(h).length > 0 ? h : null;
+}
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -50,6 +67,14 @@ export function registerSearchTools(
           'When provided, each matching issue is fetched from MantisBT and enriched with the requested fields. ' +
           'The relevance score is always included. Without this parameter only id and score are returned.'
         ),
+        highlight: z
+          .boolean()
+          .default(false)
+          .describe(
+            'If true, adds a "highlights" field per result with query terms bolded (**term**) ' +
+            'in the issue summary and a short description snippet. ' +
+            'Note: highlights are keyword-based, not semantic — some results may have no highlighted terms.'
+          ),
         ...dateFilterSchema,
       }),
       annotations: {
@@ -58,7 +83,7 @@ export function registerSearchTools(
         idempotentHint: true,
       },
     },
-    async ({ query, top_n, select, updated_after, updated_before, created_after, created_before }) => {
+    async ({ query, top_n, select, highlight, updated_after, updated_before, created_after, created_before }) => {
       try {
         const count = await store.count();
         if (count === 0) {
@@ -75,21 +100,27 @@ export function registerSearchTools(
 
         const dateFilter: DateFilter = { updated_after, updated_before, created_after, created_before };
         const filterActive = hasDateFilter(dateFilter);
+        const terms = highlight ? extractTerms(query) : [];
         const queryVector = await embedder.embed(query);
         const results = await store.search(queryVector, top_n);
 
         if (!select) {
-          if (!filterActive) {
+          // For filtering or highlighting we need store metadata per result
+          if (!filterActive && !terms.length) {
             return {
               content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
             };
           }
-          // Filter via store metadata — no extra API calls needed
           const filtered = await Promise.all(
             results.map(async ({ id, score }) => {
               const item = await store.getItem(id);
-              if (!matchesDateFilter(item?.metadata ?? {}, dateFilter)) return null;
-              return { id, score };
+              if (filterActive && !matchesDateFilter(item?.metadata ?? {}, dateFilter)) return null;
+              const result: Record<string, unknown> = { id, score };
+              if (terms.length > 0 && item) {
+                const h = buildHighlights(item.metadata.summary, item.metadata.description, terms);
+                if (h) result['highlights'] = h;
+              }
+              return result;
             })
           );
           return {
@@ -112,9 +143,23 @@ export function registerSearchTools(
                   projected[field] = issue[field];
                 }
               }
+              if (terms.length > 0) {
+                const summary = typeof issue['summary'] === 'string' ? issue['summary'] : undefined;
+                const description = typeof issue['description'] === 'string' ? issue['description'] : undefined;
+                const h = buildHighlights(summary, description, terms);
+                if (h) projected['highlights'] = h;
+              }
               return projected;
             } catch {
-              return { id, score };
+              const result: Record<string, unknown> = { id, score };
+              if (terms.length > 0) {
+                const item = await store.getItem(id);
+                if (item) {
+                  const h = buildHighlights(item.metadata.summary, item.metadata.description, terms);
+                  if (h) result['highlights'] = h;
+                }
+              }
+              return result;
             }
           })
         );

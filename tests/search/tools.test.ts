@@ -466,3 +466,167 @@ describe('get_search_index_status – edge cases', () => {
     expect(parsed.summary).toContain('total unknown');
   });
 });
+
+// ---------------------------------------------------------------------------
+// search_issues – highlight parameter
+// ---------------------------------------------------------------------------
+
+describe('search_issues – highlight: true (no select, uses store metadata)', () => {
+  it('adds highlights field with bolded terms from store metadata summary', async () => {
+    const store = makeMockStore({
+      items: [{ id: 1, score: 0.9 }],
+    });
+    vi.mocked(store.getItem).mockResolvedValue({
+      id: 1,
+      vector: [],
+      metadata: { summary: 'Login error occurred', description: 'The login fails with error code 500.' },
+    });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    const result = await mockServer.callTool('search_issues', {
+      query: 'login error',
+      top_n: 1,
+      highlight: true,
+    });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as Array<Record<string, unknown>>;
+    expect(parsed[0]).toHaveProperty('highlights');
+    const highlights = parsed[0]!['highlights'] as Record<string, string>;
+    expect(highlights['summary']).toContain('**');
+  });
+
+  it('omits highlights field when no query terms match', async () => {
+    const store = makeMockStore({
+      items: [{ id: 1, score: 0.9 }],
+    });
+    vi.mocked(store.getItem).mockResolvedValue({
+      id: 1,
+      vector: [],
+      metadata: { summary: 'Unrelated issue', description: undefined },
+    });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    const result = await mockServer.callTool('search_issues', {
+      query: 'xyzzy',
+      top_n: 1,
+      highlight: true,
+    });
+
+    const parsed = JSON.parse(result.content[0]!.text) as Array<Record<string, unknown>>;
+    expect(parsed[0]).not.toHaveProperty('highlights');
+  });
+
+  it('does not call store.getItem for highlighting when highlight is false', async () => {
+    const store = makeMockStore({ itemCount: 2 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    await mockServer.callTool('search_issues', { query: 'login', top_n: 2 });
+
+    // getItem should NOT have been called (no date filter, no highlight)
+    expect(store.getItem).not.toHaveBeenCalled();
+  });
+
+  it('still returns id and score alongside highlights', async () => {
+    const store = makeMockStore({
+      items: [{ id: 42, score: 0.85 }],
+    });
+    vi.mocked(store.getItem).mockResolvedValue({
+      id: 42,
+      vector: [],
+      metadata: { summary: 'Login timeout issue' },
+    });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    const result = await mockServer.callTool('search_issues', {
+      query: 'login',
+      top_n: 1,
+      highlight: true,
+    });
+
+    const parsed = JSON.parse(result.content[0]!.text) as Array<Record<string, unknown>>;
+    expect(parsed[0]).toHaveProperty('id', 42);
+    expect(parsed[0]).toHaveProperty('score');
+    expect(parsed[0]).toHaveProperty('highlights');
+  });
+});
+
+describe('search_issues – highlight: true (with select)', () => {
+  it('highlights summary from fetched issue when summary is in select', async () => {
+    const store = makeMockStore({ itemCount: 1 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse(200, JSON.stringify({
+        issues: [{ id: 1, summary: 'Login error in dashboard', status: { id: 10, name: 'new' } }],
+      }))
+    );
+
+    const result = await mockServer.callTool('search_issues', {
+      query: 'login error',
+      top_n: 1,
+      select: 'summary,status',
+      highlight: true,
+    });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as Array<Record<string, unknown>>;
+    expect(parsed[0]).toHaveProperty('highlights');
+    const highlights = parsed[0]!['highlights'] as Record<string, string>;
+    expect(highlights['summary']).toContain('**Login**');
+  });
+
+  it('falls back to store metadata for highlighting when API fetch fails', async () => {
+    const store = makeMockStore({ items: [{ id: 1, score: 0.9 }] });
+    vi.mocked(store.getItem).mockResolvedValue({
+      id: 1,
+      vector: [],
+      metadata: { summary: 'Login crash issue' },
+    });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch).mockResolvedValueOnce(makeResponse(500, 'Server Error'));
+
+    const result = await mockServer.callTool('search_issues', {
+      query: 'login',
+      top_n: 1,
+      select: 'summary',
+      highlight: true,
+    });
+
+    // Falls back to {id, score} but we still try to add highlights from store metadata
+    const parsed = JSON.parse(result.content[0]!.text) as Array<Record<string, unknown>>;
+    expect(parsed[0]).toHaveProperty('id', 1);
+  });
+});
+
+describe('search_issues – highlight: true combined with date filter', () => {
+  it('returns highlights only for date-filtered results (no select)', async () => {
+    const store = makeMockStore({
+      items: [
+        { id: 1, score: 0.9, updated_at: '2026-03-26T00:00:00Z' }, // passes filter
+        { id: 2, score: 0.8, updated_at: '2026-03-20T00:00:00Z' }, // filtered out
+      ],
+    });
+    vi.mocked(store.getItem).mockImplementation(async (id: number) => ({
+      id,
+      vector: [],
+      metadata: {
+        summary: id === 1 ? 'Login crash issue' : 'Old login bug',
+        updated_at: id === 1 ? '2026-03-26T00:00:00Z' : '2026-03-20T00:00:00Z',
+      },
+    }));
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    const result = await mockServer.callTool('search_issues', {
+      query: 'login',
+      top_n: 10,
+      highlight: true,
+      updated_after: '2026-03-25T00:00:00Z',
+    });
+
+    const parsed = JSON.parse(result.content[0]!.text) as Array<{ id: number }>;
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]!.id).toBe(1);
+  });
+});
