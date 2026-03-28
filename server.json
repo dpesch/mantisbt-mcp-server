@@ -3,12 +3,12 @@
   "name": "io.github.dpesch/mantisbt-mcp-server",
   "title": "MantisBT MCP Server",
   "description": "MantisBT MCP server – manage issues, notes, files, tags, and relationships. With semantic search.",
-  "version": "1.8.3",
+  "version": "1.9.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@dpesch/mantisbt-mcp-server",
-      "version": "1.8.3",
+      "version": "1.9.0",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
