@@ -117,6 +117,126 @@ describe('get_issue', () => {
 });
 
 // ---------------------------------------------------------------------------
+// get_issues
+// ---------------------------------------------------------------------------
+
+describe('get_issues', () => {
+  it('ist registriert', () => {
+    expect(mockServer.hasToolRegistered('get_issues')).toBe(true);
+  });
+
+  it('gibt ein Array von Issues zurück wenn alle IDs existieren', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 42, summary: 'Issue 42' }] })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 43, summary: 'Issue 43' }] })));
+
+    const result = await mockServer.callTool('get_issues', { ids: [42, 43] });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as {
+      issues: Array<{ id: number } | null>;
+      requested: number;
+      found: number;
+      failed: number;
+    };
+    expect(parsed.requested).toBe(2);
+    expect(parsed.found).toBe(2);
+    expect(parsed.failed).toBe(0);
+    expect(parsed.issues[0]?.id).toBe(42);
+    expect(parsed.issues[1]?.id).toBe(43);
+  });
+
+  it('gibt null für nicht gefundene IDs zurück ohne isError zu setzen', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 42, summary: 'Issue 42' }] })))
+      .mockResolvedValueOnce(makeResponse(404, JSON.stringify({ message: 'Issue not found' })));
+
+    const result = await mockServer.callTool('get_issues', { ids: [42, 9999] });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as {
+      issues: Array<{ id: number } | null>;
+      found: number;
+      failed: number;
+    };
+    expect(parsed.found).toBe(1);
+    expect(parsed.failed).toBe(1);
+    expect(parsed.issues[0]?.id).toBe(42);
+    expect(parsed.issues[1]).toBeNull();
+  });
+
+  it('gibt isError nicht zurück auch wenn alle IDs fehlschlagen', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(404, JSON.stringify({ message: 'Not found' })),
+    );
+
+    const result = await mockServer.callTool('get_issues', { ids: [9001, 9002] });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as {
+      issues: Array<null>;
+      found: number;
+      failed: number;
+    };
+    expect(parsed.found).toBe(0);
+    expect(parsed.failed).toBe(2);
+    expect(parsed.issues).toEqual([null, null]);
+  });
+
+  it('erhält die Reihenfolge der Input-IDs im Ergebnis-Array', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 10, summary: 'A' }] })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 20, summary: 'B' }] })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 30, summary: 'C' }] })));
+
+    const result = await mockServer.callTool('get_issues', { ids: [10, 20, 30] });
+
+    const parsed = JSON.parse(result.content[0]!.text) as { issues: Array<{ id: number }> };
+    expect(parsed.issues.map((i) => i.id)).toEqual([10, 20, 30]);
+  });
+
+  it('validiert: leeres ids-Array wird abgelehnt', async () => {
+    const result = await mockServer.callTool('get_issues', { ids: [] }, { validate: true });
+    expect(result.isError).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('validiert: mehr als 50 IDs werden abgelehnt', async () => {
+    const ids = Array.from({ length: 51 }, (_, i) => i + 1);
+    const result = await mockServer.callTool('get_issues', { ids }, { validate: true });
+    expect(result.isError).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('akzeptiert String-IDs via z.coerce', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: [{ id: 42, summary: 'Test' }] })),
+    );
+
+    const result = await mockServer.callTool('get_issues', { ids: ['42'] }, { validate: true });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { issues: Array<{ id: number }> };
+    expect(parsed.issues[0]?.id).toBe(42);
+  });
+
+  it('führt alle Requests aus (Concurrency-Nachweis mit 6 IDs)', async () => {
+    Array.from({ length: 6 }, (_, i) => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        makeResponse(200, JSON.stringify({ issues: [{ id: i + 1, summary: 'x' }] })),
+      );
+    });
+
+    const result = await mockServer.callTool('get_issues', { ids: [1, 2, 3, 4, 5, 6] });
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(6);
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { requested: number };
+    expect(parsed.requested).toBe(6);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // create_issue
 // ---------------------------------------------------------------------------
 

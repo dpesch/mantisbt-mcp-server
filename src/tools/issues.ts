@@ -14,6 +14,29 @@ function errorText(msg: string): string {
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
 
+const GET_ISSUES_CONCURRENCY = 5;
+
+// Worker-pool: runs `fn` over all `items` with at most `concurrency` in-flight at once.
+// nextIndex is only incremented inside microtasks, so the ++ is safe without a lock.
+async function runWithConcurrency<T>(
+  items: number[],
+  concurrency: number,
+  fn: (item: number) => Promise<T>,
+): Promise<T[]> {
+  const results: T[] = new Array(items.length);
+  let nextIndex = 0;
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const i = nextIndex++;
+      results[i] = await fn(items[i]!);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
+  );
+  return results;
+}
+
 // Resolves a canonical enum name to { id } or returns an error string.
 function resolveEnum(group: keyof typeof MANTIS_CANONICAL_ENUM_NAMES, value: string): { id: number } | string {
   const id = resolveEnumId(group, value);
@@ -56,6 +79,60 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
       }
     }
+  );
+
+  // ---------------------------------------------------------------------------
+  // get_issues
+  // ---------------------------------------------------------------------------
+
+  server.registerTool(
+    'get_issues',
+    {
+      title: 'Get Multiple Issues',
+      description:
+        'Retrieve multiple MantisBT issues by their numeric IDs in a single MCP call. ' +
+        'Requests run in parallel (max 5 concurrent). ' +
+        'Missing or inaccessible IDs return null at their array position — ' +
+        'the call never fails due to individual missing IDs. ' +
+        'Response includes "requested", "found", and "failed" counters for quick validation.',
+      inputSchema: z.object({
+        ids: z
+          .array(z.coerce.number().int().positive())
+          .min(1)
+          .max(50)
+          .describe('Array of numeric issue IDs to fetch (1–50). null is returned per ID on 404/403/error instead of failing the whole call.'),
+      }),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async ({ ids }) => {
+      const results = await runWithConcurrency(
+        ids,
+        GET_ISSUES_CONCURRENCY,
+        async (id): Promise<MantisIssue | null> => {
+          try {
+            const result = await client.get<{ issues: MantisIssue[] }>(`issues/${id}`);
+            return result.issues?.[0] ?? (result as unknown as MantisIssue);
+          } catch {
+            return null;
+          }
+        },
+      );
+      const found = results.filter((r) => r !== null).length;
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify(
+            { issues: results, requested: ids.length, found, failed: ids.length - found },
+            null,
+            2,
+          ),
+        }],
+      };
+    },
   );
 
   // ---------------------------------------------------------------------------

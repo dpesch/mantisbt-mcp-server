@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New tool `get_issues`: fetch multiple MantisBT issues by ID in a single MCP call. Requests run in parallel (max 5 concurrent). Missing or inaccessible IDs return `null` at their array position instead of failing the entire call. Response includes `requested`, `found`, and `failed` counters. Accepts 1–50 IDs per call.
 - `update_issue` now accepts an optional `dry_run` parameter. When `dry_run: true`, the tool returns the patch payload that would be sent without actually updating the issue — useful for previewing changes before committing them.
 - `list_issues` now accepts four date filter parameters: `updated_after`, `updated_before`, `created_after`, `created_before` (ISO-8601, exclusive). Filters are applied client-side with an early-exit optimisation: once a batch of results is fully older than `updated_after`, further pages are not fetched.
 - `search_issues` now accepts the same four date filter parameters. Without `select`, filtering uses VectraStore metadata (no extra API calls). With `select`, filtering uses the already-fetched issue object.
