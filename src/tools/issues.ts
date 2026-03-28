@@ -318,6 +318,7 @@ The "fields" object accepts any combination of:
 Important: when resolving an issue, always set BOTH status and resolution to avoid leaving resolution as "open".`,
       inputSchema: z.object({
         id: z.coerce.number().int().positive().describe('Numeric issue ID to update'),
+        dry_run: z.boolean().optional().describe('If true, return the patch payload that would be sent without actually updating the issue. Useful for previewing changes before committing them.'),
         fields: z.object({
           summary: z.string().optional(),
           description: z.string().optional(),
@@ -342,7 +343,12 @@ Important: when resolving an issue, always set BOTH status and resolution to avo
         idempotentHint: false,
       },
     },
-    async ({ id, fields }) => {
+    async ({ id, fields, dry_run }) => {
+      if (dry_run) {
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ dry_run: true, id, would_patch: fields }, null, 2) }],
+        };
+      }
       try {
         const result = await client.patch<{ issue: MantisIssue }>(`issues/${id}`, fields);
         return {

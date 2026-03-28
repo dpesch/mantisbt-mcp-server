@@ -751,6 +751,52 @@ describe('update_issue – fields allowlist', () => {
 });
 
 // ---------------------------------------------------------------------------
+// update_issue – dry_run
+// ---------------------------------------------------------------------------
+
+describe('update_issue – dry_run', () => {
+  it('returns preview payload without calling the API', async () => {
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { summary: 'Preview title', status: { name: 'resolved' } }, dry_run: true },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+
+    const parsed = JSON.parse(result.content[0]!.text) as { dry_run: boolean; id: number; would_patch: Record<string, unknown> };
+    expect(parsed.dry_run).toBe(true);
+    expect(parsed.id).toBe(42);
+    expect(parsed.would_patch).toEqual({ summary: 'Preview title', status: { name: 'resolved' } });
+  });
+
+  it('defaults to false (normal update) when dry_run is omitted', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issue: { id: 42, summary: 'Updated' } })));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { summary: 'Updated' } },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(vi.mocked(fetch)).toHaveBeenCalledOnce();
+  });
+
+  it('also rejects unknown fields in dry_run mode without calling the API', async () => {
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { unknown_field: 'bad' }, dry_run: true },
+      { validate: true },
+    );
+
+    expect(result.isError).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // list_issues – date filters
 // ---------------------------------------------------------------------------
 
