@@ -119,10 +119,13 @@ export class MantisClient {
   // Public API methods
   // ---------------------------------------------------------------------------
 
+  private static readonly TIMEOUT_MS = 30_000;
+
   async get<T>(path: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
     const response = await fetch(await this.buildUrl(path, params), {
       method: 'GET',
       headers: await this.headers(),
+      signal: AbortSignal.timeout(MantisClient.TIMEOUT_MS),
     });
     return this.handleResponse<T>(response);
   }
@@ -132,6 +135,7 @@ export class MantisClient {
       method: 'POST',
       headers: await this.headers(),
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(MantisClient.TIMEOUT_MS),
     });
     return this.handleResponse<T>(response);
   }
@@ -141,6 +145,7 @@ export class MantisClient {
       method: 'PATCH',
       headers: await this.headers(),
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(MantisClient.TIMEOUT_MS),
     });
     return this.handleResponse<T>(response);
   }
@@ -149,6 +154,7 @@ export class MantisClient {
     const response = await fetch(await this.buildUrl(path), {
       method: 'DELETE',
       headers: await this.headers(),
+      signal: AbortSignal.timeout(MantisClient.TIMEOUT_MS),
     });
     return this.handleResponse<T>(response);
   }
@@ -164,6 +170,7 @@ export class MantisClient {
         'Accept': 'application/json',
       },
       body: formData,
+      signal: AbortSignal.timeout(MantisClient.TIMEOUT_MS),
     });
     return this.handleResponse<T>(response);
   }
@@ -172,6 +179,7 @@ export class MantisClient {
     const response = await fetch(await this.buildUrl('users/me'), {
       method: 'GET',
       headers: await this.headers(),
+      signal: AbortSignal.timeout(MantisClient.TIMEOUT_MS),
     });
     if (!response.ok) {
       throw new MantisApiError(response.status, response.statusText);

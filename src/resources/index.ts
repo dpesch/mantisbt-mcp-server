@@ -46,12 +46,19 @@ export function registerResources(server: McpServer, client: MantisClient, cache
   server.registerResource(
     'project-detail',
     new ResourceTemplate('mantis://projects/{id}', {
-      list: async () => ({
-        resources: (await loadProjects()).map((p) => ({
-          uri: `mantis://projects/${p.id}`,
-          name: p.name,
-        })),
-      }),
+      list: async () => {
+        // Only serve from cache — never make a live API call during resource
+        // enumeration. A live fetch would block tools/list and resources/list
+        // responses (e.g. during Glama inspection) when the network is slow or
+        // the server is unreachable with placeholder credentials.
+        const cached = await cache.loadIfValid();
+        return {
+          resources: (cached?.projects ?? []).map((p) => ({
+            uri: `mantis://projects/${p.id}`,
+            name: p.name,
+          })),
+        };
+      },
     }),
     {
       title: 'Project Detail',
