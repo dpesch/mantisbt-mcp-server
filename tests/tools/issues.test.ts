@@ -7,6 +7,7 @@ import { registerIssueTools } from '../../src/tools/issues.js';
 import { MetadataCache } from '../../src/cache.js';
 import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
 import { MANTIS_RESOLVED_STATUS_ID } from '../../src/constants.js';
+import { clearIssueEnumCache } from '../../src/tools/config.js';
 
 function makeStubCache(projectUsers?: Array<{ id: number; name: string; real_name?: string }>): MetadataCache {
   return {
@@ -55,6 +56,7 @@ beforeEach(() => {
   client = new MantisClient('https://mantis.example.com', 'test-token');
   registerIssueTools(mockServer as never, client, makeStubCache());
   vi.stubGlobal('fetch', vi.fn());
+  clearIssueEnumCache();
 });
 
 afterEach(() => {
@@ -785,6 +787,45 @@ describe('list_issues', () => {
     expect(parsedUpper.issues.length).toBe(parsedLower.issues.length);
     expect(parsedUpper.issues).toEqual(parsedLower.issues);
   });
+
+  it('status canonical name matches by ID even when API returns localized status names', async () => {
+    // Simulate a German MantisBT installation where issue.status.name is localized
+    const localizedFixture = {
+      issues: [
+        { id: 1, status: { id: 10, name: 'Neu' } },
+        { id: 2, status: { id: 80, name: 'Erledigt' } },
+        { id: 3, status: { id: 10, name: 'Neu' } },
+      ],
+      total_count: 3,
+    };
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(localizedFixture)));
+
+    const result = await mockServer.callTool('list_issues', { status: 'new', page: 1, page_size: 50 });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { issues: Array<{ id: number }> };
+    expect(parsed.issues).toHaveLength(2);
+    expect(parsed.issues.map(i => i.id)).toEqual([1, 3]);
+  });
+
+  it('status filter falls back to name comparison for non-canonical values', async () => {
+    // "Neu" is not a canonical status name → falls back to name comparison
+    const localizedFixture = {
+      issues: [
+        { id: 1, status: { id: 10, name: 'Neu' } },
+        { id: 2, status: { id: 80, name: 'Erledigt' } },
+      ],
+      total_count: 2,
+    };
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(localizedFixture)));
+
+    const result = await mockServer.callTool('list_issues', { status: 'Neu', page: 1, page_size: 50 });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { issues: Array<{ id: number }> };
+    expect(parsed.issues).toHaveLength(1);
+    expect(parsed.issues[0]!.id).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -910,6 +951,138 @@ describe('update_issue – dry_run', () => {
 
     expect(result.isError).toBe(true);
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// update_issue – enum resolution
+// ---------------------------------------------------------------------------
+
+describe('update_issue – enum resolution', () => {
+  it('resolves canonical severity name to { id } before sending to API', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issue: { id: 1 } })),
+    );
+
+    await mockServer.callTool(
+      'update_issue',
+      { id: 1, fields: { severity: { name: 'major' } } },
+      { validate: true },
+    );
+
+    // Only one fetch call (the PATCH itself — canonical lookup needs no API call)
+    expect(vi.mocked(fetch)).toHaveBeenCalledOnce();
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<string, unknown>;
+    expect(body.severity).toEqual({ id: 60 }); // major = id 60
+  });
+
+  it('resolves canonical priority name to { id } before sending to API', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issue: { id: 1 } })),
+    );
+
+    await mockServer.callTool(
+      'update_issue',
+      { id: 1, fields: { priority: { name: 'high' } } },
+      { validate: true },
+    );
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledOnce();
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<string, unknown>;
+    expect(body.priority).toEqual({ id: 40 }); // high = id 40
+  });
+
+  it('resolves canonical status name to { id } before sending to API', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issue: { id: 1 } })),
+    );
+
+    await mockServer.callTool(
+      'update_issue',
+      { id: 1, fields: { status: { name: 'resolved' } } },
+      { validate: true },
+    );
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledOnce();
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<string, unknown>;
+    expect(body.status).toEqual({ id: 80 }); // resolved = id 80
+  });
+
+  it('does not resolve when id is already provided', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issue: { id: 1 } })),
+    );
+
+    await mockServer.callTool(
+      'update_issue',
+      { id: 1, fields: { severity: { id: 60 } } },
+      { validate: true },
+    );
+
+    // Only one fetch call — no enum resolution needed
+    expect(vi.mocked(fetch)).toHaveBeenCalledOnce();
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<string, unknown>;
+    expect(body.severity).toEqual({ id: 60 });
+  });
+
+  it('resolves localized enum name to { id } via live enum lookup', async () => {
+    // First fetch: config endpoint for enum data
+    // Second fetch: the actual PATCH
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({
+        configs: [{
+          option: 'severity_enum_string',
+          value: [
+            { id: 50, name: 'Kleiner Fehler' },
+            { id: 60, name: 'Großer Fehler' },
+          ],
+        }],
+      })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 1 } })));
+
+    await mockServer.callTool(
+      'update_issue',
+      { id: 1, fields: { severity: { name: 'Großer Fehler' } } },
+      { validate: true },
+    );
+
+    // Call 0 = config endpoint, Call 1 = PATCH
+    const patchBody = JSON.parse(vi.mocked(fetch).mock.calls[1]![1]!.body as string) as Record<string, unknown>;
+    expect(patchBody.severity).toEqual({ id: 60 });
+  });
+
+  it('passes unknown enum name through unchanged when resolution fails', async () => {
+    // Config returns no useful data → name stays unchanged
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ configs: [] })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 1 } })));
+
+    await mockServer.callTool(
+      'update_issue',
+      { id: 1, fields: { severity: { name: 'völlig_unbekannt' } } },
+      { validate: true },
+    );
+
+    const patchBody = JSON.parse(vi.mocked(fetch).mock.calls[1]![1]!.body as string) as Record<string, unknown>;
+    expect(patchBody.severity).toEqual({ name: 'völlig_unbekannt' });
+  });
+
+  it('resolves multiple enum fields in one patch call', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issue: { id: 1 } })),
+    );
+
+    await mockServer.callTool(
+      'update_issue',
+      { id: 1, fields: { status: { name: 'resolved' }, priority: { name: 'high' }, severity: { name: 'major' } } },
+      { validate: true },
+    );
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledOnce(); // all canonical → single PATCH call
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<string, unknown>;
+    expect(body.status).toEqual({ id: 80 });
+    expect(body.priority).toEqual({ id: 40 });
+    expect(body.severity).toEqual({ id: 60 });
   });
 });
 

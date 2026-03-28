@@ -87,9 +87,9 @@ npm run build
 | Tool | Description |
 |---|---|
 | `get_issue` | Retrieve an issue by its numeric ID |
-| `list_issues` | Filter issues by project, status, author, and more; optional `select` for field projection and `status` for client-side status filtering |
+| `list_issues` | Filter issues by project, status, author, and more; optional `select` for field projection and `status` for client-side status filtering — canonical English status names (e.g. `"new"`, `"resolved"`) are matched by ID, making the filter language-independent on localized installations |
 | `create_issue` | Create a new issue; `severity` and `priority` must be canonical English names (e.g. `minor`, `major`, `normal`, `high`) — call `get_issue_enums` to see all valid values and their localized labels; optional `handler` parameter accepts a username as alternative to `handler_id` (resolved against project members) |
-| `update_issue` | Update an existing issue |
+| `update_issue` | Update an existing issue; enum fields (`status`, `priority`, `severity`, `resolution`, `reproducibility`) accept canonical English names, localized names, or numeric IDs — the server resolves names to IDs automatically |
 | `delete_issue` | Delete an issue |
 
 ### Notes

@@ -94,6 +94,11 @@ export async function fetchIssueEnumsWithCache(
   return data;
 }
 
+/** Resets the in-memory enum cache. Intended for use in tests. */
+export function clearIssueEnumCache(): void {
+  _enumDataCache = null;
+}
+
 export function registerConfigTools(server: McpServer, client: MantisClient, cache: MetadataCache): void {
 
   // ---------------------------------------------------------------------------

@@ -214,6 +214,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         let hasMore = true;
 
         const statusLower = status?.toLowerCase();
+        const statusId = status ? resolveEnumId('status', status) : undefined;
         // Pre-parse date thresholds once — avoids repeated new Date() inside the scan loop
         const updatedAfterMs = updated_after ? new Date(updated_after).getTime() : undefined;
 
@@ -233,6 +234,8 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
               if (!issue.status) continue;
               if (statusLower === 'open') {
                 if ((issue.status.id ?? 0) >= MANTIS_RESOLVED_STATUS_ID) continue;
+              } else if (statusId !== undefined) {
+                if (issue.status.id !== statusId) continue;
               } else if (issue.status.name?.toLowerCase() !== statusLower) {
                 continue;
               }
@@ -444,7 +447,15 @@ Important: when resolving an issue, always set BOTH status and resolution to avo
         };
       }
       try {
-        const result = await client.patch<{ issue: MantisIssue }>(`issues/${id}`, fields);
+        const patch: Record<string, unknown> = { ...fields };
+        for (const field of ['status', 'priority', 'severity', 'resolution', 'reproducibility'] as const) {
+          const val = (fields as Record<string, { id?: number; name?: string } | undefined>)[field];
+          if (val?.name !== undefined && val.id === undefined) {
+            const resolved = await resolveEnum(field, val.name, client);
+            if (typeof resolved !== 'string') patch[field] = resolved;
+          }
+        }
+        const result = await client.patch<{ issue: MantisIssue }>(`issues/${id}`, patch);
         return {
           content: [{ type: 'text', text: JSON.stringify(result.issue ?? result, null, 2) }],
         };

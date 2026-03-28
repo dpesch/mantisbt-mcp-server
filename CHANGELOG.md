@@ -23,6 +23,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - `get_issue` tool description now explicitly states that notes are always included in the response — no separate `list_notes` call needed.
 - `list_notes` tool description now clarifies it is only needed when fetching notes without the full issue object.
 - `create_issue` now accepts localized enum names for `severity`, `priority`, and `reproducibility` in addition to canonical English names. The server resolves the value against a static canonical table first; on a miss, it falls back to a live `get_issue_enums` lookup and matches against the `name` and `label` fields (case-insensitive). Only truly unknown values produce an error.
+- `update_issue` now resolves enum names for `status`, `priority`, `severity`, `resolution`, and `reproducibility` before sending the PATCH request. Pass a canonical English name, a localized name, or a numeric `id` — all are accepted. Unknown names are passed through unchanged and validated by the MantisBT API.
+- `list_issues` status filter now compares by ID when a canonical English status name is recognised (e.g. `"new"` → `id=10`). This makes the filter language-independent: it correctly matches issues on localized installations where the API returns translated status names. Non-canonical values (e.g. passing a localized name directly) fall back to name comparison as before.
 
 ---
 

@@ -347,6 +347,8 @@ Returns only issues with a specific status. The filter is applied client-side �
 }
 ```
 
+> **Note:** Canonical status names (e.g. `"new"`, `"resolved"`) are resolved to their numeric ID and matched by `issue.status.id` — this works correctly even on localized installations where the API returns translated status names. Localized names passed directly (e.g. `"Neu"`) are matched by name as a fallback. The `"open"` shorthand (all statuses with id < 80) is always available regardless of installation language.
+
 > **Note:** For large projects with many issues, use a pre-saved MantisBT filter via `filter_id` instead — client-side filtering only scans the first 500 issues (10 pages × 50).
 
 ---
@@ -518,6 +520,8 @@ Resolves and closes an issue. Always set **both** `status` and `resolution` — 
 - `id` — numeric issue ID
 - `fields.status` — status object with name
 - `fields.resolution` — resolution object with id
+
+> **Note:** All enum fields (`status`, `priority`, `severity`, `resolution`, `reproducibility`) accept the canonical English name, a localized name, or a numeric `id`. The server resolves names to IDs automatically — IDs are always sent to the API, ensuring language-independence.
 
 **Request:**
 
