@@ -14,6 +14,9 @@ function errorText(msg: string): string {
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
 
+const coerceBool = (val: unknown) =>
+  val === 'true' ? true : val === 'false' ? false : val;
+
 export function registerProjectTools(server: McpServer, client: MantisClient, cache?: MetadataCache): void {
 
   // ---------------------------------------------------------------------------
@@ -91,8 +94,8 @@ export function registerProjectTools(server: McpServer, client: MantisClient, ca
       description: 'List all versions defined for a MantisBT project.',
       inputSchema: z.object({
         project_id: z.coerce.number().int().positive().describe('Numeric project ID'),
-        obsolete: z.boolean().default(false).describe('Include obsolete (deprecated) versions (default: false)'),
-        inherit: z.boolean().default(false).describe('Include versions inherited from parent projects (default: false)'),
+        obsolete: z.preprocess(coerceBool, z.boolean()).default(false).describe('Include obsolete (deprecated) versions (default: false)'),
+        inherit: z.preprocess(coerceBool, z.boolean()).default(false).describe('Include versions inherited from parent projects (default: false)'),
       }),
       annotations: {
         readOnlyHint: true,

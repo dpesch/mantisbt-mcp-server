@@ -35,6 +35,9 @@ function errorText(msg: string): string {
 // registerSearchTools
 // ---------------------------------------------------------------------------
 
+const coerceBool = (val: unknown) =>
+  val === 'true' ? true : val === 'false' ? false : val;
+
 export function registerSearchTools(
   server: McpServer,
   client: MantisClient,
@@ -68,7 +71,7 @@ export function registerSearchTools(
           'The relevance score is always included. Without this parameter only id and score are returned.'
         ),
         highlight: z
-          .boolean()
+          .preprocess(coerceBool, z.boolean())
           .default(false)
           .describe(
             'If true, adds a "highlights" field per result with query terms bolded (**term**) ' +

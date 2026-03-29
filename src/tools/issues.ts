@@ -385,6 +385,9 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
   // update_issue
   // ---------------------------------------------------------------------------
 
+  const coerceBool = (val: unknown) =>
+    val === 'true' ? true : val === 'false' ? false : val;
+
   // MantisBT reference shape: at least one of id or name must be provided
   const ref = z.object({ id: z.number().optional(), name: z.string().optional() })
     .refine(o => o.id !== undefined || o.name !== undefined, { message: "At least one of 'id' or 'name' must be provided" });
@@ -415,24 +418,30 @@ The "fields" object accepts any combination of:
 Important: when resolving an issue, always set BOTH status and resolution to avoid leaving resolution as "open".`,
       inputSchema: z.object({
         id: z.coerce.number().int().positive().describe('Numeric issue ID to update'),
-        dry_run: z.boolean().optional().describe('If true, return the patch payload that would be sent without actually updating the issue. Useful for previewing changes before committing them.'),
-        fields: z.object({
-          summary: z.string().optional(),
-          description: z.string().optional(),
-          steps_to_reproduce: z.string().optional(),
-          additional_information: z.string().optional(),
-          status: ref.optional(),
-          resolution: ref.optional(),
-          priority: ref.optional(),
-          severity: ref.optional(),
-          reproducibility: ref.optional(),
-          handler: ref.optional(),
-          category: ref.optional(),
-          version: ref.optional(),
-          target_version: ref.optional(),
-          fixed_in_version: ref.optional(),
-          view_state: ref.optional(),
-        }).strict().describe('Fields to update (partial update — only provided fields are changed; unknown keys are rejected)'),
+        dry_run: z.preprocess(coerceBool, z.boolean().optional()).describe('If true, return the patch payload that would be sent without actually updating the issue. Useful for previewing changes before committing them.'),
+        fields: z.preprocess(
+          (v) => {
+            if (typeof v !== 'string') return v;
+            try { return JSON.parse(v); } catch { return v; }
+          },
+          z.object({
+            summary: z.string().optional(),
+            description: z.string().optional(),
+            steps_to_reproduce: z.string().optional(),
+            additional_information: z.string().optional(),
+            status: ref.optional(),
+            resolution: ref.optional(),
+            priority: ref.optional(),
+            severity: ref.optional(),
+            reproducibility: ref.optional(),
+            handler: ref.optional(),
+            category: ref.optional(),
+            version: ref.optional(),
+            target_version: ref.optional(),
+            fixed_in_version: ref.optional(),
+            view_state: ref.optional(),
+          }).strict().describe('Fields to update (partial update — only provided fields are changed; unknown keys are rejected)')
+        ),
       }),
       annotations: {
         readOnlyHint: false,

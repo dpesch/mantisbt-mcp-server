@@ -630,3 +630,31 @@ describe('search_issues – highlight: true combined with date filter', () => {
     expect(parsed[0]!.id).toBe(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// string-coercion – highlight as string
+// ---------------------------------------------------------------------------
+
+describe('string-coercion – search_issues highlight as string', () => {
+  it('accepts highlight "true" as boolean true', async () => {
+    const store = makeMockStore({
+      items: [{ id: 1, score: 0.9 }],
+    });
+    vi.mocked(store.getItem).mockResolvedValue({
+      id: 1,
+      vector: [],
+      metadata: { summary: 'Login error occurred', description: 'The login fails.' },
+    });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    const result = await mockServer.callTool(
+      'search_issues',
+      { query: 'login error', top_n: 1, highlight: 'true' },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as Array<Record<string, unknown>>;
+    expect(parsed[0]).toHaveProperty('highlights');
+  });
+});

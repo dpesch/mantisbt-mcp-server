@@ -19,6 +19,8 @@ import { registerMonitorTools } from '../../src/tools/monitors.js';
 import { registerRelationshipTools } from '../../src/tools/relationships.js';
 import { registerTagTools } from '../../src/tools/tags.js';
 import { registerProjectTools } from '../../src/tools/projects.js';
+import { registerVersionTools } from '../../src/tools/version.js';
+import { VersionHintService } from '../../src/version-hint.js';
 import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
 
 // ---------------------------------------------------------------------------
@@ -39,6 +41,7 @@ beforeEach(() => {
   registerRelationshipTools(mockServer as never, client);
   registerTagTools(mockServer as never, client);
   registerProjectTools(mockServer as never, client);
+  registerVersionTools(mockServer as never, client, new VersionHintService(), '0.0.0-test');
   vi.stubGlobal('fetch', vi.fn());
 });
 
@@ -248,6 +251,67 @@ describe('string-coercion – get_project_versions', () => {
       { validate: true },
     );
 
+    expect(result.isError).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Boolean-Parameter als String
+// ---------------------------------------------------------------------------
+
+describe('string-coercion – update_issue fields as JSON string', () => {
+  it('accepts fields as JSON string', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issue: { id: 99, summary: 'Updated' } })));
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 99, fields: '{"summary":"Updated"}' },
+      { validate: true },
+    );
+    expect(result.isError).toBeUndefined();
+  });
+
+  it('rejects invalid JSON in fields with a validation error (not an uncaught exception)', async () => {
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 99, fields: '{invalid json' },
+      { validate: true },
+    );
+    expect(result.isError).toBe(true);
+  });
+});
+
+describe('string-coercion – update_issue dry_run as string', () => {
+  it('accepts dry_run "true" as boolean true', async () => {
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 99, fields: { summary: 'x' }, dry_run: 'true' },
+      { validate: true },
+    );
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0]?.text).toContain('"dry_run": true');
+  });
+});
+
+describe('string-coercion – get_project_versions boolean flags', () => {
+  it('accepts obsolete "true" and inherit "false" as booleans', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ projects: [{ versions: [] }] })));
+    const result = await mockServer.callTool(
+      'get_project_versions',
+      { project_id: 3, obsolete: 'true', inherit: 'false' },
+      { validate: true },
+    );
+    expect(result.isError).toBeUndefined();
+  });
+});
+
+describe('string-coercion – get_mantis_version check_latest as string', () => {
+  it('accepts check_latest "false" as boolean false', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ version: '2.26.0' })));
+    const result = await mockServer.callTool(
+      'get_mantis_version',
+      { check_latest: 'false' },
+      { validate: true },
+    );
     expect(result.isError).toBeUndefined();
   });
 });

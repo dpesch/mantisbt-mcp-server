@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { MantisClient } from '../client.js';
 import { VersionHintService, parseVersion, compareVersions } from '../version-hint.js';
 
+const coerceBool = (val: unknown) =>
+  val === 'true' ? true : val === 'false' ? false : val;
+
 export function registerVersionTools(server: McpServer, client: MantisClient, versionHint: VersionHintService, mcpVersion: string): void {
 
   // ---------------------------------------------------------------------------
@@ -39,7 +42,7 @@ export function registerVersionTools(server: McpServer, client: MantisClient, ve
 The version is read from the X-Mantis-Version response header sent by every API call.
 The GitHub comparison requires an outbound HTTPS request to the GitHub API.`,
       inputSchema: z.object({
-        check_latest: z.boolean().default(true).describe(
+        check_latest: z.preprocess(coerceBool, z.boolean()).default(true).describe(
           'Whether to fetch the latest release from GitHub and compare (default: true)'
         ),
       }),
