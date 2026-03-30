@@ -7,7 +7,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [1.9.1] – 2026-03-30
 
 ### Fixed
 - Boolean parameters (`dry_run`, `highlight`, `check_latest`, `obsolete`, `inherit`) now accept the strings `"true"` and `"false"` in addition to native booleans. MCP clients that serialize all parameters as JSON strings no longer receive error -32602. Note: `z.coerce.boolean()` was intentionally not used — it would silently convert the string `"false"` to `true` via JavaScript's `Boolean()`.
