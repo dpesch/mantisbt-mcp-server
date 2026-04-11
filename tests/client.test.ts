@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MantisClient, MantisApiError } from '../src/client.js';
+import { MantisClient, MantisApiError, buildIssueViewUrl, buildNoteViewUrl } from '../src/client.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -329,5 +329,44 @@ describe('MantisClient – responseObserver', () => {
     const client = new MantisClient('https://mantis.example.com', 'token', observer);
     await expect(client.get('issues')).rejects.toBeInstanceOf(MantisApiError);
     expect(observer).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// URL helpers
+// ---------------------------------------------------------------------------
+
+describe('buildIssueViewUrl', () => {
+  it('builds the correct MantisBT issue view URL', () => {
+    expect(buildIssueViewUrl('https://mantis.example.com', 42))
+      .toBe('https://mantis.example.com/view.php?id=42');
+  });
+
+  it('works with base URLs that have a path prefix', () => {
+    expect(buildIssueViewUrl('https://example.com/mantis', 1))
+      .toBe('https://example.com/mantis/view.php?id=1');
+  });
+});
+
+describe('buildNoteViewUrl', () => {
+  it('builds the correct MantisBT note anchor URL', () => {
+    expect(buildNoteViewUrl('https://mantis.example.com', 42, 99))
+      .toBe('https://mantis.example.com/view.php?id=42#bugnote99');
+  });
+});
+
+describe('MantisClient – getBaseUrl', () => {
+  it('returns the normalized base URL (direct constructor)', async () => {
+    const client = new MantisClient('https://mantis.example.com', 'token');
+    expect(await client.getBaseUrl()).toBe('https://mantis.example.com');
+  });
+
+  it('returns the base URL from the credential factory', async () => {
+    const factory = vi.fn().mockResolvedValue({
+      baseUrl: 'https://lazy.example.com',
+      apiKey: 'key',
+    });
+    const client = new MantisClient(factory);
+    expect(await client.getBaseUrl()).toBe('https://lazy.example.com');
   });
 });

@@ -7,6 +7,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.10.0] – 2026-04-11
+
+### Added
+- All issue and note responses now include a `view_url` field with the absolute MantisBT web URL for the respective item. The URL is built by the MCP server from `MANTIS_BASE_URL` — it is not provided by the MantisBT REST API. Pattern: `{baseUrl}/view.php?id={issueId}` for issues; `{baseUrl}/view.php?id={issueId}#bugnoteN` for notes. The field is present in all tools that return issues or notes: `get_issue`, `get_issues`, `list_issues`, `create_issue`, `update_issue`, `list_notes`, `add_note`, and `search_issues`. It is always included regardless of the `select` parameter.
+- `MantisClient` gains a new public `getBaseUrl()` method (returns the resolved, normalised base URL).
+
+---
+
 ## [1.9.1] – 2026-03-30
 
 ### Fixed

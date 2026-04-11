@@ -12,6 +12,14 @@ export function normalizeBaseUrl(url: string): string {
   return url.replace(/\/api\/rest\/?$/, '').replace(/\/$/, '');
 }
 
+export function buildIssueViewUrl(baseUrl: string, issueId: number): string {
+  return `${baseUrl}/view.php?id=${issueId}`;
+}
+
+export function buildNoteViewUrl(baseUrl: string, issueId: number, noteId: number): string {
+  return `${baseUrl}/view.php?id=${issueId}#bugnote${noteId}`;
+}
+
 // ---------------------------------------------------------------------------
 // MantisApiError
 // ---------------------------------------------------------------------------
@@ -64,6 +72,10 @@ export class MantisClient {
       this.resolvedCredentials = { baseUrl: normalizeBaseUrl(baseUrl), apiKey };
     }
     return this.resolvedCredentials;
+  }
+
+  async getBaseUrl(): Promise<string> {
+    return (await this.getCredentials()).baseUrl;
   }
 
   private async buildUrl(path: string, params?: Record<string, string | number | boolean | undefined>): Promise<string> {

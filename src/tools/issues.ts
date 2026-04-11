@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { MantisClient } from '../client.js';
+import { MantisClient, buildIssueViewUrl, buildNoteViewUrl } from '../client.js';
 import { MetadataCache } from '../cache.js';
 import type { MantisIssue, MantisUser, MantisPaginatedIssues } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
@@ -13,6 +13,17 @@ function errorText(msg: string): string {
   vh?.triggerLatestVersionFetch();
   const hint = vh?.getUpdateHint();
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
+}
+
+function enrichIssue(issue: MantisIssue, baseUrl: string): MantisIssue {
+  return {
+    ...issue,
+    view_url: buildIssueViewUrl(baseUrl, issue.id),
+    notes: issue.notes?.map(note => ({
+      ...note,
+      view_url: buildNoteViewUrl(baseUrl, issue.id, note.id),
+    })),
+  };
 }
 
 const GET_ISSUES_CONCURRENCY = 5;
@@ -88,8 +99,9 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
       try {
         const result = await client.get<{ issues: MantisIssue[] }>(`issues/${id}`);
         const issue = result.issues?.[0] ?? result;
+        const baseUrl = await client.getBaseUrl();
         return {
-          content: [{ type: 'text', text: JSON.stringify(issue, null, 2) }],
+          content: [{ type: 'text', text: JSON.stringify(enrichIssue(issue, baseUrl), null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -126,18 +138,22 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
       },
     },
     async ({ ids }) => {
-      const results = await runWithConcurrency(
-        ids,
-        GET_ISSUES_CONCURRENCY,
-        async (id): Promise<MantisIssue | null> => {
-          try {
-            const result = await client.get<{ issues: MantisIssue[] }>(`issues/${id}`);
-            return result.issues?.[0] ?? (result as unknown as MantisIssue);
-          } catch {
-            return null;
-          }
-        },
-      );
+      const [rawResults, baseUrl] = await Promise.all([
+        runWithConcurrency(
+          ids,
+          GET_ISSUES_CONCURRENCY,
+          async (id): Promise<MantisIssue | null> => {
+            try {
+              const result = await client.get<{ issues: MantisIssue[] }>(`issues/${id}`);
+              return result.issues?.[0] ?? (result as unknown as MantisIssue);
+            } catch {
+              return null;
+            }
+          },
+        ),
+        client.getBaseUrl(),
+      ]);
+      const results = rawResults.map(issue => issue !== null ? enrichIssue(issue, baseUrl) : null);
       const found = results.filter((r) => r !== null).length;
       return {
         content: [{
@@ -195,11 +211,14 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         const dateFilter: DateFilter = { updated_after, updated_before, created_after, created_before };
         const needsClientFilter = status !== undefined || assigned_to !== undefined || reporter_id !== undefined || hasDateFilter(dateFilter);
 
+        const baseUrl = await client.getBaseUrl();
+
         if (!needsClientFilter) {
           // No client-side filtering — single API call, pass pagination as-is
           const result = await client.get<MantisPaginatedIssues>('issues', { ...baseParams, page, page_size });
+          const enriched = { ...result, issues: result.issues?.map(i => enrichIssue(i, baseUrl)) };
           return {
-            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+            content: [{ type: 'text', text: JSON.stringify(enriched, null, 2) }],
           };
         }
 
@@ -260,10 +279,11 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         }
 
         const start = (page - 1) * page_size;
+        const pageIssues = matching.slice(start, start + page_size).map(i => enrichIssue(i, baseUrl));
         return {
           content: [{
             type: 'text',
-            text: JSON.stringify({ issues: matching.slice(start, start + page_size) }, null, 2),
+            text: JSON.stringify({ issues: pageIssues }, null, 2),
           }],
         };
       } catch (error) {
@@ -371,8 +391,9 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
             // unable to fetch details — return minimal object
           }
         }
+        const baseUrl = await client.getBaseUrl();
         return {
-          content: [{ type: 'text', text: JSON.stringify(issue, null, 2) }],
+          content: [{ type: 'text', text: JSON.stringify(enrichIssue(issue, baseUrl), null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -464,9 +485,13 @@ Important: when resolving an issue, always set BOTH status and resolution to avo
             if (typeof resolved !== 'string') patch[field] = resolved;
           }
         }
-        const result = await client.patch<{ issue: MantisIssue }>(`issues/${id}`, patch);
+        const [result, baseUrl] = await Promise.all([
+          client.patch<{ issue: MantisIssue }>(`issues/${id}`, patch),
+          client.getBaseUrl(),
+        ]);
+        const issue = result.issue ?? (result as unknown as MantisIssue);
         return {
-          content: [{ type: 'text', text: JSON.stringify(result.issue ?? result, null, 2) }],
+          content: [{ type: 'text', text: JSON.stringify(enrichIssue(issue, baseUrl), null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);

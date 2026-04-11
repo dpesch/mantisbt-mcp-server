@@ -65,6 +65,7 @@ export interface MantisNote {
   date_submitted?: string;
   note_type?: number;
   note_attr?: string;
+  view_url?: string;
 }
 
 export interface MantisFile {
@@ -124,6 +125,7 @@ export interface MantisIssue {
   reproducibility?: MantisIdName;
   view_state?: MantisIdName;
   custom_fields?: Array<{ field: MantisIdName; value: string }>;
+  view_url?: string;
 }
 
 // ---------------------------------------------------------------------------

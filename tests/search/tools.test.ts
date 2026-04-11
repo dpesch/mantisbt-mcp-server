@@ -164,16 +164,17 @@ describe('rebuild_search_index – full: false', () => {
 // ---------------------------------------------------------------------------
 
 describe('search_issues – select parameter', () => {
-  it('returns plain {id, score} array when select is not provided', async () => {
+  it('returns plain {id, score, view_url} array when select is not provided', async () => {
     const store = makeMockStore({ itemCount: 2 });
     registerSearchTools(mockServer as never, client, store, embedder);
 
     const result = await mockServer.callTool('search_issues', { query: 'test', top_n: 2 });
 
     expect(result.isError).toBeUndefined();
-    const parsed = JSON.parse(result.content[0]!.text) as Array<{ id: number; score: number }>;
+    const parsed = JSON.parse(result.content[0]!.text) as Array<{ id: number; score: number; view_url: string }>;
     expect(parsed[0]).toEqual(expect.objectContaining({ id: expect.any(Number), score: expect.any(Number) }));
-    expect(Object.keys(parsed[0]!)).toEqual(['id', 'score']);
+    expect(Object.keys(parsed[0]!)).toEqual(['id', 'score', 'view_url']);
+    expect(parsed[0]!.view_url).toBe(`https://mantis.example.com/view.php?id=${parsed[0]!.id}`);
   });
 
   it('fetches issues and projects requested fields when select is provided', async () => {
@@ -234,8 +235,8 @@ describe('search_issues – select parameter', () => {
     expect(parsed).toHaveLength(2);
     // First item enriched
     expect(parsed[0]).toHaveProperty('summary');
-    // Second item fallback — only id and score
-    expect(Object.keys(parsed[1]!).sort()).toEqual(['id', 'score']);
+    // Second item fallback — id, score, and view_url
+    expect(Object.keys(parsed[1]!).sort()).toEqual(['id', 'score', 'view_url']);
   });
 
   it('omits non-existent fields silently', async () => {

@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { MantisClient } from '../client.js';
+import { buildIssueViewUrl, type MantisClient } from '../client.js';
 import type { VectorStore } from './store.js';
 import type { Embedder } from './embedder.js';
 import { SearchSyncService } from './sync.js';
@@ -104,21 +104,27 @@ export function registerSearchTools(
         const dateFilter: DateFilter = { updated_after, updated_before, created_after, created_before };
         const filterActive = hasDateFilter(dateFilter);
         const terms = highlight ? extractTerms(query) : [];
-        const queryVector = await embedder.embed(query);
+        const [queryVector, baseUrl] = await Promise.all([
+          embedder.embed(query),
+          client.getBaseUrl(),
+        ]);
         const results = await store.search(queryVector, top_n);
 
         if (!select) {
           // For filtering or highlighting we need store metadata per result
           if (!filterActive && !terms.length) {
             return {
-              content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
+              content: [{ type: 'text', text: JSON.stringify(
+                results.map(({ id, score }) => ({ id, score, view_url: buildIssueViewUrl(baseUrl, id) })),
+                null, 2,
+              ) }],
             };
           }
           const filtered = await Promise.all(
             results.map(async ({ id, score }) => {
               const item = await store.getItem(id);
               if (filterActive && !matchesDateFilter(item?.metadata ?? {}, dateFilter)) return null;
-              const result: Record<string, unknown> = { id, score };
+              const result: Record<string, unknown> = { id, score, view_url: buildIssueViewUrl(baseUrl, id) };
               if (terms.length > 0 && item) {
                 const h = buildHighlights(item.metadata.summary, item.metadata.description, terms);
                 if (h) result['highlights'] = h;
@@ -140,7 +146,7 @@ export function registerSearchTools(
               if (filterActive && !matchesDateFilter(issue as { updated_at?: string; created_at?: string }, dateFilter)) {
                 return null;
               }
-              const projected: Record<string, unknown> = { id, score };
+              const projected: Record<string, unknown> = { id, score, view_url: buildIssueViewUrl(baseUrl, id) };
               for (const field of fields) {
                 if (field !== 'id' && field in issue) {
                   projected[field] = issue[field];
@@ -154,7 +160,7 @@ export function registerSearchTools(
               }
               return projected;
             } catch {
-              const result: Record<string, unknown> = { id, score };
+              const result: Record<string, unknown> = { id, score, view_url: buildIssueViewUrl(baseUrl, id) };
               if (terms.length > 0) {
                 const item = await store.getItem(id);
                 if (item) {
