@@ -10,6 +10,7 @@ Tool-orientierte Rezepte für den MantisBT MCP Server — jedes Rezept zeigt gen
   - [Gültige Feldnamen für `select` ermitteln](#gültige-feldnamen-für-select-ermitteln)
 - [Issues](#issues)
   - [Einzelnes Issue abrufen](#einzelnes-issue-abrufen)
+  - [Mehrere Issues in einem Aufruf abrufen](#mehrere-issues-in-einem-aufruf-abrufen)
   - [Issues auflisten (paginiert)](#issues-auflisten-paginiert)
   - [Antwortgröße mit `select` reduzieren](#antwortgröße-mit-select-reduzieren)
   - [Nach Status filtern](#nach-status-filtern)
@@ -222,9 +223,56 @@ Ruft ein einzelnes Issue anhand seiner numerischen ID ab, inklusive Notizen, Anh
   "tags": [],
   "notes": [],
   "attachments": [],
-  "relationships": []
+  "relationships": [],
+  "view_url": "https://mantis.example.com/view.php?id=1042"
 }
 ```
+
+---
+
+### Mehrere Issues in einem Aufruf abrufen
+
+Ruft bis zu 50 Issues in einem einzigen MCP-Aufruf ab. Die Anfragen laufen parallel (max. 5 gleichzeitig). Nicht zugängliche IDs liefern `null` an ihrer Position — der Aufruf schlägt nie wegen einzelner fehlender IDs fehl.
+
+**Tool:** `get_issues`
+
+**Parameter:**
+- `ids` — Array numerischer Issue-IDs (1–50)
+
+**Request:**
+
+```json
+{
+  "ids": [1042, 1041, 9999]
+}
+```
+
+**Response:**
+
+```json
+{
+  "issues": [
+    {
+      "id": 1042,
+      "summary": "Login-Button auf mobilem Safari reagiert nicht",
+      "status": { "id": 50, "name": "assigned" },
+      "view_url": "https://mantis.example.com/view.php?id=1042"
+    },
+    {
+      "id": 1041,
+      "summary": "Checkout-Gesamtbetrag wird falsch gerundet",
+      "status": { "id": 40, "name": "confirmed" },
+      "view_url": "https://mantis.example.com/view.php?id=1041"
+    },
+    null
+  ],
+  "requested": 3,
+  "found": 2,
+  "failed": 1
+}
+```
+
+> **Hinweis:** `null`-Einträge zeigen IDs an, die nicht gefunden oder nicht zugänglich waren. `failed` gibt an, wie viele IDs nicht abgerufen werden konnten.
 
 ---
 
@@ -258,13 +306,15 @@ Gibt eine paginierte Liste von Issues zurück, optional auf ein Projekt beschrä
       "id": 1042,
       "summary": "Login button unresponsive on mobile Safari",
       "status": { "id": 50, "name": "assigned" },
-      "handler": { "id": 7, "name": "jdoe" }
+      "handler": { "id": 7, "name": "jdoe" },
+      "view_url": "https://mantis.example.com/view.php?id=1042"
     },
     {
       "id": 1041,
       "summary": "Checkout total rounds incorrectly",
       "status": { "id": 40, "name": "confirmed" },
-      "handler": { "id": 4, "name": "jsmith" }
+      "handler": { "id": 4, "name": "jsmith" },
+      "view_url": "https://mantis.example.com/view.php?id=1041"
     }
     // ...
   ]
@@ -301,7 +351,8 @@ Eine kommagetrennte Liste von Feldnamen übergeben, um nur die benötigten Felde
       "id": 1042,
       "summary": "Login button unresponsive on mobile Safari",
       "status": { "id": 50, "name": "assigned" },
-      "handler": { "id": 7, "name": "jdoe" }
+      "handler": { "id": 7, "name": "jdoe" },
+      "view_url": "https://mantis.example.com/view.php?id=1042"
     }
     // ...
   ]
@@ -309,6 +360,8 @@ Eine kommagetrennte Liste von Feldnamen übergeben, um nur die benötigten Felde
 ```
 
 > **Hinweis:** Mit `get_issue_fields()` lassen sich alle verfügbaren Feldnamen anzeigen.
+
+> **Hinweis:** `view_url` ist in allen Issue-Responses immer vorhanden — es wird vom MCP-Server injiziert und wird durch den `select`-Parameter nicht beeinflusst.
 
 ---
 
@@ -496,7 +549,8 @@ Legt ein neues Issue in MantisBT an.
   "tags": [],
   "notes": [],
   "attachments": [],
-  "relationships": []
+  "relationships": [],
+  "view_url": "https://mantis.example.com/view.php?id=1042"
 }
 ```
 
@@ -543,7 +597,8 @@ Löst ein Issue auf und schließt es. **Immer beide Felder** `status` und `resol
   "summary": "Login-Button auf mobilem Safari reagiert nicht",
   "status": { "id": 80, "name": "resolved" },
   "resolution": { "id": 20, "name": "fixed" },
-  "updated_at": "2024-11-06T10:30:00+00:00"
+  "updated_at": "2024-11-06T10:30:00+00:00",
+  "view_url": "https://mantis.example.com/view.php?id=1042"
 }
 ```
 
@@ -580,7 +635,8 @@ Löst ein Issue auf und schließt es. **Immer beide Felder** `status` und `resol
   "summary": "Login-Button auf mobilem Safari reagiert nicht",
   "status": { "id": 50, "name": "assigned" },
   "handler": { "id": 7, "name": "jdoe" },
-  "updated_at": "2024-11-06T11:00:00+00:00"
+  "updated_at": "2024-11-06T11:00:00+00:00",
+  "view_url": "https://mantis.example.com/view.php?id=1042"
 }
 ```
 
@@ -614,7 +670,8 @@ Setzt das Feld `fixed_in_version` eines Issues.
   "id": 1042,
   "summary": "Login-Button auf mobilem Safari reagiert nicht",
   "fixed_in_version": { "name": "2.1.0" },
-  "updated_at": "2024-11-06T11:15:00+00:00"
+  "updated_at": "2024-11-06T11:15:00+00:00",
+  "view_url": "https://mantis.example.com/view.php?id=1042"
 }
 ```
 
@@ -652,7 +709,8 @@ Fügt eine öffentlich sichtbare Notiz zu einem Issue hinzu.
   "reporter": { "id": 7, "name": "jdoe" },
   "text": "In Version 2.0.3 reproduziert. Ursache in der Auth-Middleware identifiziert.",
   "view_state": { "id": 10, "name": "public" },
-  "created_at": "2024-11-05T14:02:11+00:00"
+  "created_at": "2024-11-05T14:02:11+00:00",
+  "view_url": "https://mantis.example.com/view.php?id=1042#bugnote88"
 }
 ```
 
@@ -687,7 +745,8 @@ Fügt eine Notiz hinzu, die nur für Entwickler und Manager sichtbar ist.
   "reporter": { "id": 7, "name": "jdoe" },
   "text": "Intern: Ursache ist das nicht erneuerte Session-Token.",
   "view_state": { "id": 50, "name": "private" },
-  "created_at": "2024-11-05T14:05:00+00:00"
+  "created_at": "2024-11-05T14:05:00+00:00",
+  "view_url": "https://mantis.example.com/view.php?id=1042#bugnote89"
 }
 ```
 
@@ -1265,9 +1324,9 @@ Findet Issues, die einem natürlichsprachigen Suchbegriff semantisch ähnlich si
 
 ```json
 [
-  { "id": 1042, "score": 0.91 },
-  { "id": 987,  "score": 0.84 },
-  { "id": 1015, "score": 0.79 }
+  { "id": 1042, "score": 0.91, "view_url": "https://mantis.example.com/view.php?id=1042" },
+  { "id": 987,  "score": 0.84, "view_url": "https://mantis.example.com/view.php?id=987" },
+  { "id": 1015, "score": 0.79, "view_url": "https://mantis.example.com/view.php?id=1015" }
 ]
 ```
 
@@ -1306,7 +1365,8 @@ Reichert Suchergebnisse mit bestimmten Feldern aus MantisBT an. Ohne `select` we
     "score": 0.91,
     "summary": "Login button unresponsive on mobile Safari",
     "status": { "id": 50, "name": "assigned" },
-    "handler": { "id": 7, "name": "jdoe" }
+    "handler": { "id": 7, "name": "jdoe" },
+    "view_url": "https://mantis.example.com/view.php?id=1042"
   }
   // ...
 ]
@@ -1344,6 +1404,7 @@ Zeigt, welcher Teil eines Issues mit der Suchanfrage übereinstimmt. Jedes Ergeb
   {
     "id": 1042,
     "score": 0.91,
+    "view_url": "https://mantis.example.com/view.php?id=1042",
     "highlights": {
       "summary": "**Login**-Button reagiert nach **Passwort**-**Reset** auf Mobile Safari nicht",
       "description": "…Benutzer tippt auf **Login** und es passiert nichts. Reproduzierbar nach einem **Passwort**-**Reset**-Vorgang…"
@@ -1352,13 +1413,15 @@ Zeigt, welcher Teil eines Issues mit der Suchanfrage übereinstimmt. Jedes Ergeb
   {
     "id": 987,
     "score": 0.84,
+    "view_url": "https://mantis.example.com/view.php?id=987",
     "highlights": {
       "summary": "**Login** schlägt mit 401 fehl — Token ungültig"
     }
   },
   {
     "id": 1015,
-    "score": 0.79
+    "score": 0.79,
+    "view_url": "https://mantis.example.com/view.php?id=1015"
   }
 ]
 ```

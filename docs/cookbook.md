@@ -10,6 +10,7 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
   - [Discover valid field names for `select`](#discover-valid-field-names-for-select)
 - [Issues](#issues)
   - [Fetch a single issue](#fetch-a-single-issue)
+  - [Fetch multiple issues in one call](#fetch-multiple-issues-in-one-call)
   - [List issues (paginated)](#list-issues-paginated)
   - [Reduce response size with `select`](#reduce-response-size-with-select)
   - [Filter by status](#filter-by-status)
@@ -222,9 +223,56 @@ Retrieves a single issue by its numeric ID including notes, attachments, tags, a
   "tags": [],
   "notes": [],
   "attachments": [],
-  "relationships": []
+  "relationships": [],
+  "view_url": "https://mantis.example.com/view.php?id=1042"
 }
 ```
+
+---
+
+### Fetch multiple issues in one call
+
+Fetches up to 50 issues in a single MCP call. Requests run in parallel (max 5 concurrent). Missing or inaccessible IDs return `null` at their position — the call never fails due to individual missing IDs.
+
+**Tool:** `get_issues`
+
+**Parameters:**
+- `ids` — array of numeric issue IDs (1–50)
+
+**Request:**
+
+```json
+{
+  "ids": [1042, 1041, 9999]
+}
+```
+
+**Response:**
+
+```json
+{
+  "issues": [
+    {
+      "id": 1042,
+      "summary": "Login button unresponsive on mobile Safari",
+      "status": { "id": 50, "name": "assigned" },
+      "view_url": "https://mantis.example.com/view.php?id=1042"
+    },
+    {
+      "id": 1041,
+      "summary": "Checkout total rounds incorrectly",
+      "status": { "id": 40, "name": "confirmed" },
+      "view_url": "https://mantis.example.com/view.php?id=1041"
+    },
+    null
+  ],
+  "requested": 3,
+  "found": 2,
+  "failed": 1
+}
+```
+
+> **Note:** `null` entries indicate IDs that were not found or could not be accessed. Check `failed` to see how many IDs could not be retrieved.
 
 ---
 
@@ -258,13 +306,15 @@ Returns a paginated list of issues, optionally scoped to a project.
       "id": 1042,
       "summary": "Login button unresponsive on mobile Safari",
       "status": { "id": 50, "name": "assigned" },
-      "handler": { "id": 7, "name": "jdoe" }
+      "handler": { "id": 7, "name": "jdoe" },
+      "view_url": "https://mantis.example.com/view.php?id=1042"
     },
     {
       "id": 1041,
       "summary": "Checkout total rounds incorrectly",
       "status": { "id": 40, "name": "confirmed" },
-      "handler": { "id": 4, "name": "jsmith" }
+      "handler": { "id": 4, "name": "jsmith" },
+      "view_url": "https://mantis.example.com/view.php?id=1041"
     }
     // ...
   ]
@@ -301,7 +351,8 @@ Pass a comma-separated list of field names to receive only the fields you need. 
       "id": 1042,
       "summary": "Login button unresponsive on mobile Safari",
       "status": { "id": 50, "name": "assigned" },
-      "handler": { "id": 7, "name": "jdoe" }
+      "handler": { "id": 7, "name": "jdoe" },
+      "view_url": "https://mantis.example.com/view.php?id=1042"
     }
     // ...
   ]
@@ -309,6 +360,8 @@ Pass a comma-separated list of field names to receive only the fields you need. 
 ```
 
 > **Note:** Use `get_issue_fields()` to see all available field names.
+
+> **Note:** `view_url` is always present in all issue responses — it is injected by the MCP server and is not affected by the `select` parameter.
 
 ---
 
@@ -496,7 +549,8 @@ Creates a new issue in MantisBT.
   "tags": [],
   "notes": [],
   "attachments": [],
-  "relationships": []
+  "relationships": [],
+  "view_url": "https://mantis.example.com/view.php?id=1042"
 }
 ```
 
@@ -543,7 +597,8 @@ Resolves and closes an issue. Always set **both** `status` and `resolution` — 
   "summary": "Login button unresponsive on mobile Safari",
   "status": { "id": 80, "name": "resolved" },
   "resolution": { "id": 20, "name": "fixed" },
-  "updated_at": "2024-11-06T10:30:00+00:00"
+  "updated_at": "2024-11-06T10:30:00+00:00",
+  "view_url": "https://mantis.example.com/view.php?id=1042"
 }
 ```
 
@@ -580,7 +635,8 @@ Changes the handler (assignee) of an existing issue.
   "summary": "Login button unresponsive on mobile Safari",
   "status": { "id": 50, "name": "assigned" },
   "handler": { "id": 7, "name": "jdoe" },
-  "updated_at": "2024-11-06T11:00:00+00:00"
+  "updated_at": "2024-11-06T11:00:00+00:00",
+  "view_url": "https://mantis.example.com/view.php?id=1042"
 }
 ```
 
@@ -614,7 +670,8 @@ Sets the `fixed_in_version` field on an issue.
   "id": 1042,
   "summary": "Login button unresponsive on mobile Safari",
   "fixed_in_version": { "name": "2.1.0" },
-  "updated_at": "2024-11-06T11:15:00+00:00"
+  "updated_at": "2024-11-06T11:15:00+00:00",
+  "view_url": "https://mantis.example.com/view.php?id=1042"
 }
 ```
 
@@ -652,7 +709,8 @@ Adds a publicly visible note to an issue.
   "reporter": { "id": 7, "name": "jdoe" },
   "text": "Reproduced on version 2.0.3. Root cause identified in the auth middleware.",
   "view_state": { "id": 10, "name": "public" },
-  "created_at": "2024-11-05T14:02:11+00:00"
+  "created_at": "2024-11-05T14:02:11+00:00",
+  "view_url": "https://mantis.example.com/view.php?id=1042#bugnote88"
 }
 ```
 
@@ -687,7 +745,8 @@ Adds a note visible only to developers and managers.
   "reporter": { "id": 7, "name": "jdoe" },
   "text": "Internal: this is caused by the session token not being refreshed.",
   "view_state": { "id": 50, "name": "private" },
-  "created_at": "2024-11-05T14:05:00+00:00"
+  "created_at": "2024-11-05T14:05:00+00:00",
+  "view_url": "https://mantis.example.com/view.php?id=1042#bugnote89"
 }
 ```
 
@@ -1265,9 +1324,9 @@ Finds issues semantically similar to a natural language query. Returns issue IDs
 
 ```json
 [
-  { "id": 1042, "score": 0.91 },
-  { "id": 987,  "score": 0.84 },
-  { "id": 1015, "score": 0.79 }
+  { "id": 1042, "score": 0.91, "view_url": "https://mantis.example.com/view.php?id=1042" },
+  { "id": 987,  "score": 0.84, "view_url": "https://mantis.example.com/view.php?id=987" },
+  { "id": 1015, "score": 0.79, "view_url": "https://mantis.example.com/view.php?id=1015" }
 ]
 ```
 
@@ -1306,7 +1365,8 @@ Enriches search results with specific fields fetched from MantisBT. Without `sel
     "score": 0.91,
     "summary": "Login button unresponsive on mobile Safari",
     "status": { "id": 50, "name": "assigned" },
-    "handler": { "id": 7, "name": "jdoe" }
+    "handler": { "id": 7, "name": "jdoe" },
+    "view_url": "https://mantis.example.com/view.php?id=1042"
   }
   // ...
 ]
@@ -1344,6 +1404,7 @@ Shows which part of an issue matched the search query. Each result that has keyw
   {
     "id": 1042,
     "score": 0.91,
+    "view_url": "https://mantis.example.com/view.php?id=1042",
     "highlights": {
       "summary": "**Login** button unresponsive after **password** **reset** on mobile Safari",
       "description": "…user taps **login** and nothing happens. Reproducible after a **password** **reset** flow…"
@@ -1352,13 +1413,15 @@ Shows which part of an issue matched the search query. Each result that has keyw
   {
     "id": 987,
     "score": 0.84,
+    "view_url": "https://mantis.example.com/view.php?id=987",
     "highlights": {
       "summary": "**Login** fails with 401 — token invalidated"
     }
   },
   {
     "id": 1015,
-    "score": 0.79
+    "score": 0.79,
+    "view_url": "https://mantis.example.com/view.php?id=1015"
   }
 ]
 ```
