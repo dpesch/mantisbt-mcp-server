@@ -9,3 +9,5 @@ tests/fixtures/recorded/
 .env.local
 .mcpregistry_*
 mcp-publisher.exe
+
+/.playwright-mcp/
