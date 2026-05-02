@@ -17,6 +17,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - `upload_file`: removed Zod `.refine()` calls from `inputSchema`. MCP SDK 1.27.x serialized `ZodEffects` (the type produced by `.refine()`) to an empty `properties: {}` object, making all parameters invisible to clients. Imperative validation in the handler is unchanged — the same constraints are still enforced at runtime.
+- HTTP transport (`TRANSPORT=http`): concurrent requests (e.g. MCP Inspector sending `resources/list`, `resources/read`, and `tools/list` in parallel) caused `server.close()` to kill the transport of a still-running request, resulting in `ECONNRESET` on the client side. Fixed by serialising requests through a Promise-based queue — each request waits for the previous transport to be fully closed before connecting its own.
 
 ---
 
