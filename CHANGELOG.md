@@ -7,7 +7,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [1.10.1] – 2026-05-02
 
 ### Added
 - GitHub Actions CI workflow (`.github/workflows/ci.yml`): runs on push and pull requests to `main`; steps are typecheck, build, and test on Node.js 20.
