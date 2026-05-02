@@ -7,6 +7,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- GitHub Actions CI workflow (`.github/workflows/ci.yml`): runs on push and pull requests to `main`; steps are typecheck, build, and test on Node.js 20.
+
+### Changed
+- Improved descriptions for `upload_file` and `list_issue_files`: both now include return shape, usage guidelines, and cross-references to related tools.
+
+### Fixed
+- `upload_file`: removed Zod `.refine()` calls from `inputSchema`. MCP SDK 1.27.x serialized `ZodEffects` (the type produced by `.refine()`) to an empty `properties: {}` object, making all parameters invisible to clients. Imperative validation in the handler is unchanged — the same constraints are still enforced at runtime.
+
+---
+
 ## [1.10.0] – 2026-04-11
 
 ### Added
