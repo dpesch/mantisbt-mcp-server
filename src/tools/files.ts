@@ -24,7 +24,9 @@ export function registerFileTools(server: McpServer, client: MantisClient, uploa
     'list_issue_files',
     {
       title: 'List Issue File Attachments',
-      description: 'List all file attachments of a MantisBT issue.',
+      description: `List all file attachments of a MantisBT issue. Returns an array of attachment objects, each containing id, filename, size in bytes, content_type, and download_url. Returns an empty array if the issue has no attachments.
+
+Use this tool when you need to inspect or enumerate files attached to an issue. To add a new attachment, use upload_file instead. To retrieve full issue details that include attachments alongside other fields, use get_issue instead.`,
       inputSchema: z.object({
         issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
       }),
@@ -56,13 +58,15 @@ export function registerFileTools(server: McpServer, client: MantisClient, uploa
     'upload_file',
     {
       title: 'Upload File Attachment',
-      description: `Upload a file as an attachment to a MantisBT issue via multipart/form-data.
+      description: `Upload a file as an attachment to a MantisBT issue. Adds the file to the issue without modifying any issue fields or status. Returns the created attachment metadata on success.
 
-Two input modes (exactly one must be provided):
-- file_path: absolute path to a local file — filename is derived from the path automatically
-- content: Base64-encoded file content — filename must be supplied explicitly via the filename parameter
+Two input modes — exactly one must be provided:
+- file_path: absolute path to a local file; filename is derived from the path automatically
+- content: Base64-encoded file content; filename must be supplied explicitly via the filename parameter
 
-The optional content_type parameter sets the MIME type (e.g. "image/png"). If omitted, "application/octet-stream" is used.`,
+The optional content_type sets the MIME type (e.g. "image/png"); defaults to "application/octet-stream". Use the optional description to annotate the attachment.
+
+Use this tool to attach files such as logs, screenshots, or patches to an existing issue. To list existing attachments, use list_issue_files. To retrieve issue details, use get_issue.`,
       inputSchema: z.object({
         issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
         file_path: z.string().min(1).optional().describe('Absolute path to the local file to upload (mutually exclusive with content)'),
@@ -70,12 +74,6 @@ The optional content_type parameter sets the MIME type (e.g. "image/png"). If om
         filename: z.string().min(1).optional().describe('File name for the attachment (required when using content; overrides the derived name when using file_path)'),
         content_type: z.string().optional().describe('MIME type of the file, e.g. "image/png" (default: "application/octet-stream")'),
         description: z.string().optional().describe('Optional description for the attachment'),
-      }).refine(d => !!(d.file_path ?? d.content), {
-        message: 'Either file_path or content must be provided',
-      }).refine(d => !(d.file_path && d.content), {
-        message: 'Only one of file_path or content may be provided',
-      }).refine(d => !d.content || !!d.filename, {
-        message: 'filename is required when using content',
       }),
       annotations: {
         readOnlyHint: false,
