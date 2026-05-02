@@ -109,6 +109,13 @@ async function runHttp(): Promise<void> {
   const server = await createMcpServer();
   const port = startupConfig.httpPort;
 
+  // Serialize stateless requests: each request waits for the previous transport
+  // to be fully closed before connecting a new one. Without this, concurrent
+  // requests (e.g. from MCP Inspector sending resources/list + resources/read +
+  // tools/list in parallel) would cause server.close() to kill the transport of
+  // a still-running request, leaving those responses never sent.
+  let requestQueue: Promise<void> = Promise.resolve();
+
   const httpServer = createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/mcp') {
       if (startupConfig.httpToken) {
@@ -121,27 +128,31 @@ async function runHttp(): Promise<void> {
       }
       const chunks: Buffer[] = [];
       req.on('data', (chunk: Buffer) => chunks.push(chunk));
-      req.on('end', async () => {
-        try {
-          const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
-          const transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: undefined,
-            enableJsonResponse: true,
-          });
-          res.on('close', () => { void transport.close(); });
-          // Disconnect from any previous transport before connecting the new one.
-          // The res.on('close') handler above closes the transport asynchronously,
-          // but the next request may arrive before it fires — causing connect() to
-          // throw "Already connected". Explicitly closing first avoids that race.
-          await server.close();
-          await server.connect(transport);
-          await transport.handleRequest(req, res, body);
-        } catch {
-          if (!res.headersSent) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Bad Request' }));
+      req.on('end', () => {
+        const prev = requestQueue;
+        let releaseLock!: () => void;
+        requestQueue = new Promise<void>(resolve => { releaseLock = resolve; });
+
+        void prev.then(async () => {
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
+            const transport = new StreamableHTTPServerTransport({
+              sessionIdGenerator: undefined,
+              enableJsonResponse: true,
+            });
+            await server.connect(transport);
+            await transport.handleRequest(req, res, body);
+          } catch (err) {
+            console.error('[HTTP handler error]', err instanceof Error ? err.stack : err);
+            if (!res.headersSent) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Bad Request' }));
+            }
+          } finally {
+            await server.close();
+            releaseLock();
           }
-        }
+        });
       });
     } else if (req.method === 'GET' && req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
