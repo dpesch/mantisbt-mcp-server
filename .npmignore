@@ -1,0 +1,9 @@
+src/
+.claude/
+.idea/
+tsconfig.json
+*.tgz
+.git/
+.gitignore
+CONTRIBUTING.md
+CLAUDE.md
