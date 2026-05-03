@@ -9,6 +9,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Improved descriptions for `create_issue`, `add_monitor`, `add_note`, `delete_note`, `get_project_users`, and `get_project_versions`: response shapes, prerequisites, and cross-references to related tools (e.g. `find_project_member`, `get_issue_enums`) are now spelled out in each tool description — no behavioural change.
+
 ### Fixed
 - HTTP transport (`TRANSPORT=http`): concurrent requests (e.g. MCP Inspector sending `resources/list`, `resources/read`, and `tools/list` in parallel) caused `server.close()` to kill the transport of a still-running request, resulting in `ECONNRESET` on the client side. Fixed by serialising requests through a Promise-based queue — each request waits for the previous transport to be fully closed before connecting its own.
 

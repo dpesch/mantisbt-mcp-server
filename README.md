@@ -119,7 +119,7 @@ npm run build
 
 | Tool | Description |
 |---|---|
-| `add_monitor` | Add yourself as a monitor of an issue |
+| `add_monitor` | Add a user as a monitor of an issue |
 | `remove_monitor` | Remove a user as a monitor of an issue |
 
 ### Tags

@@ -119,7 +119,7 @@ npm run build
 
 | Tool | Beschreibung |
 |---|---|
-| `add_monitor` | Sich selbst als Beobachter eines Issues eintragen |
+| `add_monitor` | Einen Benutzer als Beobachter eines Issues eintragen |
 | `remove_monitor` | Benutzer als Beobachter eines Issues austragen |
 
 ### Tags
