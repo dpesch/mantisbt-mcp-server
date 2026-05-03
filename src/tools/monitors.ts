@@ -20,10 +20,16 @@ export function registerMonitorTools(server: McpServer, client: MantisClient): v
     'add_monitor',
     {
       title: 'Add Issue Monitor',
-      description: 'Add a user as a monitor (watcher) of a MantisBT issue. Monitors receive email notifications for issue updates.',
+      description: `Add a user as a monitor (watcher) of a MantisBT issue. Monitors receive email notifications whenever the issue is updated. Returns a success confirmation object.
+
+Use add_monitor to subscribe team members to issue updates without assigning them as the handler. To unsubscribe a user, call remove_monitor with the same parameters.
+
+Adding a user who is already a monitor is a no-op — the operation succeeds without creating duplicates.
+
+Prerequisites: obtain issue_id from list_issues or get_issue; use find_project_member or get_project_users to look up valid MantisBT login names.`,
       inputSchema: z.object({
-        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
-        username: z.string().min(1).describe('Username of the user to add as monitor'),
+        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID — use list_issues or get_issue to obtain issue IDs'),
+        username: z.string().min(1).describe('MantisBT login name (not the display name) of the user to add as monitor. Use find_project_member or get_project_users to discover valid login names for a project.'),
       }),
       annotations: {
         readOnlyHint: false,

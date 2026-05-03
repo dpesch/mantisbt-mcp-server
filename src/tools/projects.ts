@@ -57,10 +57,16 @@ export function registerProjectTools(server: McpServer, client: MantisClient, ca
     'get_project_users',
     {
       title: 'Get Project Users',
-      description: 'List all users with access to a specific MantisBT project.',
+      description: `List all users with access to a specific MantisBT project. Returns an array of user objects, each containing id, name (login name), real_name, email, and access_level fields.
+
+Use get_project_users when you need the complete user list for a project — for example, to verify who has access or to build a handler list. For name-based lookup of a single user, prefer find_project_member which supports case-insensitive substring search and is significantly faster on large projects.
+
+Access level IDs: 10=viewer, 25=reporter, 40=updater, 55=developer, 70=manager, 90=administrator.
+
+Prerequisites: obtain project_id from list_projects.`,
       inputSchema: z.object({
-        project_id: z.coerce.number().int().positive().describe('Numeric project ID'),
-        access_level: z.coerce.number().int().optional().describe('Minimum access level filter (e.g. 55 = developer, 90 = manager)'),
+        project_id: z.coerce.number().int().positive().describe('Numeric project ID — use list_projects to discover project IDs'),
+        access_level: z.coerce.number().int().optional().describe('Return only users at or above this access level. Common values: 10=viewer, 25=reporter, 40=updater, 55=developer, 70=manager, 90=administrator. Omit to return all users.'),
       }),
       annotations: {
         readOnlyHint: true,
@@ -91,11 +97,17 @@ export function registerProjectTools(server: McpServer, client: MantisClient, ca
     'get_project_versions',
     {
       title: 'Get Project Versions',
-      description: 'List all versions defined for a MantisBT project.',
+      description: `List all versions defined for a MantisBT project. Returns an array of version objects, each containing id, name, released (boolean), obsolete (boolean), and optionally a date field.
+
+Use the returned version names directly when creating or updating issues via create_issue and update_issue (version, target_version, fixed_in_version fields).
+
+By default, obsolete and inherited parent-project versions are excluded. Set obsolete=true to include deprecated versions; set inherit=true to also return versions from parent projects.
+
+Prerequisites: obtain project_id from list_projects.`,
       inputSchema: z.object({
-        project_id: z.coerce.number().int().positive().describe('Numeric project ID'),
-        obsolete: z.preprocess(coerceBool, z.boolean()).default(false).describe('Include obsolete (deprecated) versions (default: false)'),
-        inherit: z.preprocess(coerceBool, z.boolean()).default(false).describe('Include versions inherited from parent projects (default: false)'),
+        project_id: z.coerce.number().int().positive().describe('Numeric project ID — use list_projects to discover project IDs'),
+        obsolete: z.preprocess(coerceBool, z.boolean()).default(false).describe('Include obsolete (deprecated) versions in the response. Default: false. Set to true to see all versions including those no longer actively used.'),
+        inherit: z.preprocess(coerceBool, z.boolean()).default(false).describe('Include versions inherited from parent projects. Default: false. Set to true for sub-projects that share versions with a parent project.'),
       }),
       annotations: {
         readOnlyHint: true,

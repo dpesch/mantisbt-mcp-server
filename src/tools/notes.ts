@@ -59,11 +59,17 @@ export function registerNoteTools(server: McpServer, client: MantisClient): void
     'add_note',
     {
       title: 'Add Note to Issue',
-      description: 'Add a note (comment) to an existing MantisBT issue. Full UTF-8 text is supported.',
+      description: `Add a note (comment) to an existing MantisBT issue. Returns the created note object including id, created_at, reporter, text, view_state, and a view_url linking directly to the note in the MantisBT web UI.
+
+Full UTF-8 text is supported. Markdown syntax is stored as-is — rendering depends on the MantisBT instance's configured text renderer.
+
+Use view_state="private" to restrict the note to users with reporter-level access or higher; public notes are visible to all users who can view the issue.
+
+Prerequisites: obtain issue_id from list_issues, get_issue, or search_issues.`,
       inputSchema: z.object({
-        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
-        text: z.string().min(1).describe('Note text (supports full UTF-8, markdown will be stored as-is)'),
-        view_state: z.enum(['public', 'private']).default('public').describe('Visibility of the note (default: public)'),
+        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID — use list_issues or get_issue to obtain issue IDs'),
+        text: z.string().min(1).describe('Note text (minimum 1 character). Full UTF-8 including emoji is supported. Markdown is stored as-is.'),
+        view_state: z.enum(['public', 'private']).default('public').describe('Visibility of the note: "public" (visible to all, default) or "private" (visible only to users with sufficient access level).'),
       }),
       annotations: {
         readOnlyHint: false,
@@ -103,10 +109,14 @@ export function registerNoteTools(server: McpServer, client: MantisClient): void
     'delete_note',
     {
       title: 'Delete Note',
-      description: 'Permanently delete a note from a MantisBT issue. This action is irreversible.',
+      description: `Permanently delete a note from a MantisBT issue. This action is irreversible — deleted notes cannot be recovered.
+
+Returns a plain-text confirmation message on success. Returns an error if the note does not exist or the current user lacks permission to delete it (MantisBT enforces access control: users can typically only delete their own notes unless they have manager-level access or higher).
+
+Prerequisites: obtain note_id from list_notes or from get_issue (notes[].id); obtain issue_id from the same source.`,
       inputSchema: z.object({
-        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID that owns the note'),
-        note_id: z.coerce.number().int().positive().describe('Numeric note ID to delete'),
+        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID that owns the note — use get_issue or list_notes to identify this value'),
+        note_id: z.coerce.number().int().positive().describe('Numeric note ID to delete — obtain from get_issue (notes[].id) or list_notes'),
       }),
       annotations: {
         readOnlyHint: false,

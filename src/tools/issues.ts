@@ -301,23 +301,34 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
     'create_issue',
     {
       title: 'Create Issue',
-      description: 'Create a new MantisBT issue. Returns the created issue including its assigned ID.',
+      description: `Create a new MantisBT issue. Returns the full created issue object including the assigned id, summary, status, priority, severity, category, reporter, created_at, and view_url.
+
+Required fields: summary, description, project_id, category. All other fields are optional with sensible defaults (priority: "normal", severity: "minor").
+
+Recommended workflow:
+1. Call get_project_categories to obtain a valid category name
+2. Optionally call get_project_versions to obtain version names
+3. Optionally call find_project_member to resolve the assignee's username
+
+Both priority and severity accept canonical English names or localized labels from the connected MantisBT instance — call get_issue_enums to see all available values.
+
+For the handler, prefer the username field (resolved server-side) over handler_id when working interactively.`,
       inputSchema: z.object({
-        summary: z.string().min(1).describe('Issue summary/title'),
-        description: z.string().min(1).describe('Detailed issue description. Required — do not create issues without a description. Plain text or Markdown.'),
-        project_id: z.coerce.number().int().positive().describe('Project ID the issue belongs to'),
-        category: z.string().min(1).describe('Category name (use get_project_categories to list available categories)'),
-        priority: z.string().default('normal').describe('Priority: canonical English name (none, low, normal, high, urgent, immediate) or localized label. Default: "normal". Use get_issue_enums to see all available values.'),
-        severity: z.string().default('minor').describe('Severity: canonical English name (feature, trivial, text, tweak, minor, major, crash, block) or localized label. Default: "minor". Use get_issue_enums to see all available values.'),
-        handler_id: z.coerce.number().int().positive().optional().describe('User ID of the person to assign the issue to'),
-        handler: z.string().optional().describe('Username (login name) of the person to assign the issue to. Alternative to handler_id — the server resolves the name to a user ID from the project members. Use get_project_users to see available users.'),
-        version: z.string().optional().describe('Affected product version name (use get_project_versions to list available versions)'),
-        target_version: z.string().optional().describe('Target version name — version in which the issue is planned to be fixed (use get_project_versions to list available versions)'),
-        fixed_in_version: z.string().optional().describe('Version name in which the issue was fixed (use get_project_versions to list available versions)'),
-        steps_to_reproduce: z.string().optional().describe('Steps to reproduce the issue. Plain text or Markdown.'),
-        additional_information: z.string().optional().describe('Additional information about the issue. Plain text or Markdown.'),
-        reproducibility: z.string().optional().describe('Reproducibility: canonical English name or localized label (always, sometimes, random, have not tried, unable to reproduce, N/A). Use get_issue_enums to see all available values.'),
-        view_state: z.enum(['public', 'private']).optional().describe('Visibility of the issue: "public" (default) or "private"'),
+        summary: z.string().min(1).describe('Issue summary/title (required)'),
+        description: z.string().min(1).describe('Detailed issue description (required). Do not create issues without a description. Plain text or Markdown.'),
+        project_id: z.coerce.number().int().positive().describe('Project ID the issue belongs to — use list_projects to discover project IDs'),
+        category: z.string().min(1).describe('Category name (required). Use get_project_categories to list available categories for the project.'),
+        priority: z.string().default('normal').describe('Priority level. Canonical English names: none, low, normal, high, urgent, immediate. Default: "normal". Use get_issue_enums to see localized labels.'),
+        severity: z.string().default('minor').describe('Severity level. Canonical English names: feature, trivial, text, tweak, minor, major, crash, block. Default: "minor". Use get_issue_enums to see localized labels.'),
+        handler_id: z.coerce.number().int().positive().optional().describe('Numeric user ID of the assignee. Alternative to the handler field — use one or the other, not both.'),
+        handler: z.string().optional().describe('MantisBT login name of the assignee. The server resolves the name to a user ID from the project member list. Use find_project_member or get_project_users to look up valid login names.'),
+        version: z.string().optional().describe('Affected product version name. Use get_project_versions to list available version names for the project.'),
+        target_version: z.string().optional().describe('Target fix version — version in which the issue is planned to be resolved. Use get_project_versions to list available version names.'),
+        fixed_in_version: z.string().optional().describe('Version in which the issue was fixed. Use get_project_versions to list available version names.'),
+        steps_to_reproduce: z.string().optional().describe('Step-by-step instructions to reproduce the issue. Plain text or Markdown.'),
+        additional_information: z.string().optional().describe('Additional context or notes about the issue. Plain text or Markdown.'),
+        reproducibility: z.string().optional().describe('How reliably the issue reproduces. Canonical English names: always, sometimes, random, have not tried, unable to reproduce, N/A. Use get_issue_enums to see localized labels.'),
+        view_state: z.enum(['public', 'private']).optional().describe('Visibility of the issue: "public" (visible to all, default) or "private" (restricted to higher-access users).'),
       }),
       annotations: {
         readOnlyHint: false,
