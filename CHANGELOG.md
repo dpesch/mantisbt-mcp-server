@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [1.10.2] – 2026-05-03
+
 ### Changed
 - Improved descriptions for `create_issue`, `add_monitor`, `add_note`, `delete_note`, `get_project_users`, and `get_project_versions`: response shapes, prerequisites, and cross-references to related tools (e.g. `find_project_member`, `get_issue_enums`) are now spelled out in each tool description — no behavioural change.
 
