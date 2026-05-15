@@ -821,7 +821,7 @@ Attaches a file from the local filesystem to an issue.
 
 ### Upload file content (base64)
 
-Attaches a file by passing its base64-encoded content directly. Use this when the file is not on a local filesystem accessible to the server.
+Attaches a file by passing its base64-encoded content directly. Use this **only** as a fallback when the file is not accessible via a path on the server filesystem (e.g. in-memory data or files generated on the client side). Prefer `file_path` whenever the file exists on disk — the server reads and encodes it automatically.
 
 **Tool:** `upload_file`
 

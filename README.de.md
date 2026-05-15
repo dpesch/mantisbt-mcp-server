@@ -107,7 +107,7 @@ npm run build
 | Tool | Beschreibung |
 |---|---|
 | `list_issue_files` | Anhänge eines Issues auflisten |
-| `upload_file` | Datei an ein Issue anhängen – entweder per lokalem `file_path` oder Base64-kodiertem `content` + `filename` |
+| `upload_file` | Datei an ein Issue anhängen – bevorzugt: lokaler `file_path` (der Server liest und kodiert die Datei automatisch); Fallback: Base64-kodiertes `content` + `filename` (nur verwenden, wenn `file_path` nicht verfügbar ist) |
 
 ### Beziehungen
 

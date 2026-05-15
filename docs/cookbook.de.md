@@ -821,7 +821,7 @@ Hängt eine Datei aus dem lokalen Dateisystem an ein Issue an.
 
 ### Dateiinhalt hochladen (Base64)
 
-Hängt eine Datei an, indem ihr base64-kodierter Inhalt direkt übergeben wird. Verwenden, wenn die Datei nicht auf einem lokal zugänglichen Dateisystem liegt.
+Hängt eine Datei an, indem ihr base64-kodierter Inhalt direkt übergeben wird. Nur als **Fallback** verwenden, wenn die Datei nicht über einen Pfad im Server-Dateisystem erreichbar ist (z.B. im Speicher erzeugte Daten oder Dateien, die nur auf der Client-Seite vorliegen). `file_path` bevorzugen, wenn die Datei auf der Festplatte existiert – der Server liest und kodiert sie automatisch.
 
 **Tool:** `upload_file`
 

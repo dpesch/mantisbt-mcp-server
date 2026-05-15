@@ -107,7 +107,7 @@ npm run build
 | Tool | Description |
 |---|---|
 | `list_issue_files` | List attachments of an issue |
-| `upload_file` | Upload a file to an issue — either by local `file_path` or Base64-encoded `content` + `filename` |
+| `upload_file` | Upload a file to an issue — preferred: local `file_path` (server reads and encodes automatically); fallback: Base64-encoded `content` + `filename` (use only when `file_path` is not available) |
 
 ### Relationships
 
