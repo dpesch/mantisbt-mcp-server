@@ -60,17 +60,17 @@ Use this tool when you need to inspect or enumerate files attached to an issue. 
       title: 'Upload File Attachment',
       description: `Upload a file as an attachment to a MantisBT issue. Adds the file to the issue without modifying any issue fields or status. Returns the created attachment metadata on success.
 
-Two input modes — exactly one must be provided:
-- file_path: absolute path to a local file; filename is derived from the path automatically
-- content: Base64-encoded file content; filename must be supplied explicitly via the filename parameter
+Provide exactly one of the two input modes:
+- file_path (preferred): absolute path to a local file — use this whenever the file exists on disk; the server reads and encodes it automatically; filename is derived from the path
+- content: Base64-encoded file content — only use this when the file is not accessible via a path (e.g. in-memory data); filename must be supplied explicitly via the filename parameter
 
 The optional content_type sets the MIME type (e.g. "image/png"); defaults to "application/octet-stream". Use the optional description to annotate the attachment.
 
 Use this tool to attach files such as logs, screenshots, or patches to an existing issue. To list existing attachments, use list_issue_files. To retrieve issue details, use get_issue.`,
       inputSchema: z.object({
         issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
-        file_path: z.string().min(1).optional().describe('Absolute path to the local file to upload (mutually exclusive with content)'),
-        content: z.string().min(1).optional().describe('Base64-encoded file content (mutually exclusive with file_path)'),
+        file_path: z.string().min(1).optional().describe('Preferred: absolute path to the local file to upload — use this whenever the file exists on disk (mutually exclusive with content)'),
+        content: z.string().min(1).optional().describe('Fallback: Base64-encoded file content — only use when file_path is not available (mutually exclusive with file_path)'),
         filename: z.string().min(1).optional().describe('File name for the attachment (required when using content; overrides the derived name when using file_path)'),
         content_type: z.string().optional().describe('MIME type of the file, e.g. "image/png" (default: "application/octet-stream")'),
         description: z.string().optional().describe('Optional description for the attachment'),
