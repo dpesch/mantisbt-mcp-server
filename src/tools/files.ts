@@ -111,12 +111,10 @@ Use this tool to attach files such as logs, screenshots, or patches to an existi
           fileName = filename;
         }
 
-        const body: Record<string, unknown> = {
+        const body = {
           files: [{ name: fileName, type: content_type ?? 'application/octet-stream', content: base64Content }],
+          ...(description && { description }),
         };
-        if (description) {
-          body['description'] = description;
-        }
         const result = await client.post<unknown>(`issues/${issue_id}/files`, body);
         return {
           content: [{ type: 'text', text: JSON.stringify(result ?? { success: true }, null, 2) }],
