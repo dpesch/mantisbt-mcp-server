@@ -90,7 +90,7 @@ Use this tool to attach files such as logs, screenshots, or patches to an existi
           return { content: [{ type: 'text', text: 'Error: Only one of file_path or content may be provided' }], isError: true };
         }
 
-        let fileBuffer: Buffer;
+        let base64Content: string;
         let fileName: string;
 
         if (file_path) {
@@ -100,23 +100,24 @@ Use this tool to attach files such as logs, screenshots, or patches to an existi
               return { content: [{ type: 'text', text: errorText('file_path is not allowed — access restricted to the designated upload directory') }], isError: true };
             }
           }
-          fileBuffer = await readFile(file_path);
+          const fileBuffer = await readFile(file_path);
+          base64Content = fileBuffer.toString('base64');
           fileName = filename ?? basename(file_path);
         } else {
           if (!filename) {
             return { content: [{ type: 'text', text: 'Error: filename is required when using content' }], isError: true };
           }
-          fileBuffer = Buffer.from(content!, 'base64');
+          base64Content = content!;
           fileName = filename;
         }
 
-        const blob = new Blob([new Uint8Array(fileBuffer)], { type: content_type ?? 'application/octet-stream' });
-        const formData = new FormData();
-        formData.append('file', blob, fileName);
+        const body: Record<string, unknown> = {
+          files: [{ name: fileName, type: content_type ?? 'application/octet-stream', content: base64Content }],
+        };
         if (description) {
-          formData.append('description', description);
+          body['description'] = description;
         }
-        const result = await client.postFormData<unknown>(`issues/${issue_id}/files`, formData);
+        const result = await client.post<unknown>(`issues/${issue_id}/files`, body);
         return {
           content: [{ type: 'text', text: JSON.stringify(result ?? { success: true }, null, 2) }],
         };
