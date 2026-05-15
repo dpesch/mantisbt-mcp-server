@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [1.10.3] – 2026-05-15
+
 ### Fixed
 - `upload_file`: file uploads previously used `multipart/form-data` via a now-removed `postFormData` helper. The MantisBT REST API does not accept `multipart/form-data` for file uploads — it expects a JSON body with Base64-encoded content. The tool now sends `POST issues/{id}/files` with a JSON body containing `{ files: [{ name, type, content }] }`. The caller-facing API is unchanged: `file_path` and `content` continue to work as before; the server handles Base64 encoding internally when `file_path` is used.
 
