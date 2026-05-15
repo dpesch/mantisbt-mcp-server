@@ -99,7 +99,7 @@ describe('upload_file', () => {
     expect(calledUrl).toContain('issues/42/files');
   });
 
-  it('sends a POST request with FormData', async () => {
+  it('sends a POST request with a JSON body', async () => {
     vi.mocked(readFile).mockResolvedValue(Buffer.from('content') as never);
     vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 5 })));
 
@@ -107,10 +107,12 @@ describe('upload_file', () => {
 
     const options = vi.mocked(fetch).mock.calls[0]![1] as RequestInit;
     expect(options.method).toBe('POST');
-    expect(options.body).toBeInstanceOf(FormData);
+    const body = JSON.parse(options.body as string) as { files: Array<{ name: string; type: string; content: string }> };
+    expect(Array.isArray(body.files)).toBe(true);
+    expect(body.files[0]!.name).toBe('test.txt');
   });
 
-  it('does not set Content-Type header (set automatically by fetch)', async () => {
+  it('sets Content-Type header to application/json', async () => {
     vi.mocked(readFile).mockResolvedValue(Buffer.from('content') as never);
     vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 5 })));
 
@@ -118,18 +120,18 @@ describe('upload_file', () => {
 
     const options = vi.mocked(fetch).mock.calls[0]![1] as RequestInit;
     const headers = options.headers as Record<string, string>;
-    expect(headers['Content-Type']).toBeUndefined();
+    expect(headers['Content-Type']).toBe('application/json');
   });
 
-  it('appends description when provided', async () => {
+  it('includes description in JSON body when provided', async () => {
     vi.mocked(readFile).mockResolvedValue(Buffer.from('content') as never);
     vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 5 })));
 
     await mockServer.callTool('upload_file', { issue_id: 42, file_path: '/tmp/test.txt', description: 'My attachment' });
 
     const options = vi.mocked(fetch).mock.calls[0]![1] as RequestInit;
-    const formData = options.body as FormData;
-    expect(formData.get('description')).toBe('My attachment');
+    const body = JSON.parse(options.body as string) as { description: string };
+    expect(body.description).toBe('My attachment');
   });
 
   it('returns the API response', async () => {
@@ -170,9 +172,8 @@ describe('upload_file', () => {
     await mockServer.callTool('upload_file', { issue_id: 42, file_path: '/tmp/report.pdf', filename: 'custom-name.pdf' });
 
     const options = vi.mocked(fetch).mock.calls[0]![1] as RequestInit;
-    const formData = options.body as FormData;
-    const fileEntry = formData.get('file') as File;
-    expect(fileEntry.name).toBe('custom-name.pdf');
+    const body = JSON.parse(options.body as string) as { files: Array<{ name: string }> };
+    expect(body.files[0]!.name).toBe('custom-name.pdf');
   });
 });
 
@@ -208,9 +209,8 @@ describe('upload_file (Base64)', () => {
     });
 
     const options = vi.mocked(fetch).mock.calls[0]![1] as RequestInit;
-    const formData = options.body as FormData;
-    const fileEntry = formData.get('file') as File;
-    expect(fileEntry.name).toBe('export.csv');
+    const body = JSON.parse(options.body as string) as { files: Array<{ name: string }> };
+    expect(body.files[0]!.name).toBe('export.csv');
   });
 
   it('sets the content_type when provided', async () => {
@@ -224,9 +224,8 @@ describe('upload_file (Base64)', () => {
     });
 
     const options = vi.mocked(fetch).mock.calls[0]![1] as RequestInit;
-    const formData = options.body as FormData;
-    const fileEntry = formData.get('file') as File;
-    expect(fileEntry.type).toBe('image/png');
+    const body = JSON.parse(options.body as string) as { files: Array<{ type: string }> };
+    expect(body.files[0]!.type).toBe('image/png');
   });
 
   it('returns isError when neither file_path nor content is provided', async () => {
