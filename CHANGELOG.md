@@ -11,15 +11,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.10.6] – 2026-06-29
+
+### Changed
+
+- Restored automatic npm publishing via Gitea CI pipeline (triggered on version tags). The manual `--provenance` approach was reverted as Sigstore local signing is not supported outside CI environments with OIDC providers.
+
+---
+
 ## [1.10.5] – 2026-06-29
 
 ### Security
 
 - Fixed `.npmignore` to explicitly exclude sensitive files (`.env*`, `.mcpregistry_*`) and dev artifacts (`src/`, `tests/`, `scripts/`, `.claude/`, `.gitea/`, `.github/`, `.idea/`). Previously, when `.npmignore` exists, npm ignores `.gitignore` entirely — requiring all exclusions to be duplicated. v1.10.4 was unpublished due to accidental inclusion of local credential files; this patch corrects the root cause.
-
-### Changed
-
-- Removed `npm publish` step from Gitea CI workflow. npm publishing is now done manually with `--provenance` (Sigstore signing) to support cryptographic attestation, which requires an interactive browser flow that CI cannot provide.
 
 ---
 
