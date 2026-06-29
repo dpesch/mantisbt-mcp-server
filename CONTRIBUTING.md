@@ -48,32 +48,14 @@ Please describe **why** you made the change, not just what you changed.
 
 ## Release process
 
-Every release is published with **npm provenance** — a cryptographic attestation that links the package on npm to the exact source commit it was built from.
+Releases are published automatically by the Gitea CI pipeline when a version tag is pushed. The pipeline runs tests, builds the project, publishes to npm, and creates releases on Codeberg and GitHub.
 
-### Publishing with provenance
-
-Run in a separate terminal (not inside Claude's Bash tool — the interactive prompts don't work there):
+To trigger a release, bump the version in `package.json` and `server.json`, update `CHANGELOG.md`, commit, and push a tag:
 
 ```bash
-npm publish --access public --provenance
+git tag v1.2.3
+git push origin main --tags
 ```
-
-Two browser interactions are expected:
-
-1. **npm 2FA** — npm opens a URL for one-time password authentication
-2. **Sigstore signing** — Sigstore opens a second URL for identity confirmation (sign in with GitHub, Google, or Microsoft)
-
-Both steps are required. After confirming both, the package is published with an attached provenance attestation.
-
-### Verifying provenance
-
-Anyone can verify the published package:
-
-```bash
-npm audit signatures @dpesch/mantisbt-mcp-server
-```
-
-The **Provenance** tab on the [npm package page](https://www.npmjs.com/package/@dpesch/mantisbt-mcp-server) shows the attested commit and signing identity.
 
 ---
 
