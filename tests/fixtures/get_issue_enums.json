@@ -1,0 +1,67 @@
+{
+  "configs": [
+    {
+      "option": "severity_enum_string",
+      "value": [
+        { "id": 10, "name": "Feature-Wunsch", "label": "Feature-Wunsch" },
+        { "id": 20, "name": "Trivial", "label": "Trivial" },
+        { "id": 30, "name": "Fehler im Text", "label": "Fehler im Text" },
+        { "id": 40, "name": "Unschönheit", "label": "Unschönheit" },
+        { "id": 50, "name": "kleinerer Fehler", "label": "kleinerer Fehler" },
+        { "id": 60, "name": "schwerer Fehler", "label": "schwerer Fehler" },
+        { "id": 70, "name": "Absturz", "label": "Absturz" },
+        { "id": 80, "name": "Blocker", "label": "Blocker" },
+        { "id": 200, "name": "Technische Schuld", "label": "Technische Schuld" },
+        { "id": 210, "name": "Wartung", "label": "Wartung" }
+      ]
+    },
+    {
+      "option": "status_enum_string",
+      "value": [
+        { "id": 10, "name": "new", "label": "neu" },
+        { "id": 20, "name": "feedback", "label": "Rückmeldung" },
+        { "id": 30, "name": "acknowledged", "label": "anerkannt" },
+        { "id": 40, "name": "confirmed", "label": "bestätigt" },
+        { "id": 50, "name": "assigned", "label": "zugewiesen" },
+        { "id": 80, "name": "resolved", "label": "erledigt" },
+        { "id": 90, "name": "closed", "label": "geschlossen" }
+      ]
+    },
+    {
+      "option": "priority_enum_string",
+      "value": [
+        { "id": 10, "name": "none", "label": "keine" },
+        { "id": 20, "name": "low", "label": "niedrig" },
+        { "id": 30, "name": "normal", "label": "normal" },
+        { "id": 40, "name": "high", "label": "hoch" },
+        { "id": 50, "name": "urgent", "label": "dringend" },
+        { "id": 60, "name": "immediate", "label": "sofort" }
+      ]
+    },
+    {
+      "option": "resolution_enum_string",
+      "value": [
+        { "id": 10, "name": "open", "label": "offen" },
+        { "id": 20, "name": "fixed", "label": "erledigt" },
+        { "id": 30, "name": "reopened", "label": "wiedereröffnet" },
+        { "id": 40, "name": "unable to duplicate", "label": "nicht reproduzierbar" },
+        { "id": 50, "name": "not fixable", "label": "unlösbar" },
+        { "id": 60, "name": "duplicate", "label": "doppelt" },
+        { "id": 70, "name": "not a bug", "label": "keine Änderung notwendig" },
+        { "id": 80, "name": "suspended", "label": "aufgeschoben" },
+        { "id": 90, "name": "wont fix", "label": "wird nicht behoben" }
+      ]
+    },
+    {
+      "option": "reproducibility_enum_string",
+      "value": [
+        { "id": 10, "name": "always", "label": "immer" },
+        { "id": 30, "name": "sometimes", "label": "manchmal" },
+        { "id": 50, "name": "random", "label": "zufällig" },
+        { "id": 70, "name": "have not tried", "label": "nicht getestet" },
+        { "id": 90, "name": "unable to duplicate", "label": "nicht reproduzierbar" },
+        { "id": 100, "name": "N/A", "label": "N/A" }
+      ]
+    }
+  ]
+}
