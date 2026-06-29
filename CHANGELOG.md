@@ -11,6 +11,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.10.4] – 2026-06-29
+
+### Changed
+
+- npm releases are now published with `--provenance`, creating a Sigstore attestation that cryptographically links each package to its source commit. Verifiable with `npm audit signatures @dpesch/mantisbt-mcp-server`.
+
+---
+
 ## [1.10.3] – 2026-05-15
 
 ### Fixed
