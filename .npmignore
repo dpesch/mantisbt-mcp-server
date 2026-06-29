@@ -1,9 +1,32 @@
+# Source & build tooling
 src/
+tsconfig*.json
+vitest.config.ts
+
+# Tests & test artifacts
+tests/
+.playwright-mcp/
+
+# Scripts (developer tooling only)
+scripts/
+
+# IDE & editor
 .claude/
 .idea/
-tsconfig.json
-*.tgz
+
+# Version control
 .git/
 .gitignore
+.gitea/
+.github/
+
+# Documentation (contributing / dev)
 CONTRIBUTING.md
 CLAUDE.md
+
+# Sensitive & local config — keep in sync with .gitignore
+.env
+.env.*
+.mcpregistry_*
+mcp-publisher.exe
+*.tgz
