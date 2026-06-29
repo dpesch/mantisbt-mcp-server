@@ -46,6 +46,37 @@ Please describe **why** you made the change, not just what you changed.
 > are not merged directly through Codeberg. Your contribution will be credited
 > in the commit message and CHANGELOG.
 
+## Release process
+
+Every release is published with **npm provenance** — a cryptographic attestation that links the package on npm to the exact source commit it was built from.
+
+### Publishing with provenance
+
+Run in a separate terminal (not inside Claude's Bash tool — the interactive prompts don't work there):
+
+```bash
+npm publish --access public --provenance
+```
+
+Two browser interactions are expected:
+
+1. **npm 2FA** — npm opens a URL for one-time password authentication
+2. **Sigstore signing** — Sigstore opens a second URL for identity confirmation (sign in with GitHub, Google, or Microsoft)
+
+Both steps are required. After confirming both, the package is published with an attached provenance attestation.
+
+### Verifying provenance
+
+Anyone can verify the published package:
+
+```bash
+npm audit signatures @dpesch/mantisbt-mcp-server
+```
+
+The **Provenance** tab on the [npm package page](https://www.npmjs.com/package/@dpesch/mantisbt-mcp-server) shows the attested commit and signing identity.
+
+---
+
 ## Reporting Issues
 
 Open an issue on [Codeberg](https://codeberg.org/dpesch/mantisbt-mcp-server/issues) with:
