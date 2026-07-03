@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { getConfig, getStartupConfig } from './config.js';
+import { getConfig, getStartupConfig, assertHttpAuthConfigured } from './config.js';
 import { MantisClient } from './client.js';
 import { VersionHintService, setGlobalVersionHint } from './version-hint.js';
 import { MetadataCache } from './cache.js';
@@ -42,7 +42,7 @@ const version = packageJson.version;
 // Bootstrap
 // ---------------------------------------------------------------------------
 
-async function createMcpServer(): Promise<McpServer> {
+async function createMcpServer(transport: 'stdio' | 'http'): Promise<McpServer> {
   // Use startup config (no credentials required) so the server can connect
   // and respond to tools/list even without MANTIS_BASE_URL / MANTIS_API_KEY.
   // Credentials are resolved lazily on the first actual tool invocation.
@@ -66,7 +66,7 @@ async function createMcpServer(): Promise<McpServer> {
 
   registerIssueTools(server, client, cache);
   registerNoteTools(server, client);
-  registerFileTools(server, client, startupConfig.uploadDir);
+  registerFileTools(server, client, startupConfig.uploadDir, transport);
   registerRelationshipTools(server, client);
   registerMonitorTools(server, client);
   registerProjectTools(server, client, cache);
@@ -93,7 +93,7 @@ async function createMcpServer(): Promise<McpServer> {
 // ---------------------------------------------------------------------------
 
 async function runStdio(): Promise<void> {
-  const server = await createMcpServer();
+  const server = await createMcpServer('stdio');
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error(`MantisBT MCP Server v${version} running (stdio)`);
@@ -106,7 +106,8 @@ async function runStdio(): Promise<void> {
 
 async function runHttp(): Promise<void> {
   const startupConfig = await getStartupConfig();
-  const server = await createMcpServer();
+  assertHttpAuthConfigured(startupConfig.httpToken);
+  const server = await createMcpServer('http');
   const port = startupConfig.httpPort;
 
   // Serialize stateless requests: each request waits for the previous transport
@@ -118,13 +119,12 @@ async function runHttp(): Promise<void> {
 
   const httpServer = createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/mcp') {
-      if (startupConfig.httpToken) {
-        const auth = req.headers['authorization'];
-        if (auth !== `Bearer ${startupConfig.httpToken}`) {
-          res.writeHead(401, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Unauthorized' }));
-          return;
-        }
+      // Token is guaranteed present by assertHttpAuthConfigured() at startup.
+      const auth = req.headers['authorization'];
+      if (auth !== `Bearer ${startupConfig.httpToken}`) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unauthorized' }));
+        return;
       }
       const chunks: Buffer[] = [];
       req.on('data', (chunk: Buffer) => chunks.push(chunk));

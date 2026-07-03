@@ -341,3 +341,70 @@ describe('upload_file (uploadDir restriction)', () => {
     expect(readFile).toHaveBeenCalledWith('/etc/passwd');
   });
 });
+
+// ---------------------------------------------------------------------------
+// upload_file – HTTP transport (file_path refers to the SERVER filesystem)
+// ---------------------------------------------------------------------------
+
+describe('upload_file (HTTP transport)', () => {
+  it('blocks file_path in http mode when no uploadDir is configured', async () => {
+    const httpServer = new MockMcpServer();
+    registerFileTools(httpServer as never, client, undefined, 'http');
+
+    const result = await httpServer.callTool('upload_file', {
+      issue_id: 42,
+      file_path: '/etc/passwd',
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('HTTP transport');
+    expect(result.content[0]!.text).toContain('content');
+    expect(readFile).not.toHaveBeenCalled();
+  });
+
+  it('still accepts Base64 content in http mode', async () => {
+    const httpServer = new MockMcpServer();
+    registerFileTools(httpServer as never, client, undefined, 'http');
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 7 })));
+
+    const result = await httpServer.callTool('upload_file', {
+      issue_id: 42,
+      content: Buffer.from('data').toString('base64'),
+      filename: 'export.csv',
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(readFile).not.toHaveBeenCalled();
+  });
+
+  it('allows file_path inside a configured uploadDir in http mode', async () => {
+    const uploadDir = path.resolve('/srv/uploads');
+    const httpServer = new MockMcpServer();
+    registerFileTools(httpServer as never, client, uploadDir, 'http');
+    vi.mocked(readFile).mockResolvedValue(Buffer.from('content') as never);
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ id: 5 })));
+
+    const result = await httpServer.callTool('upload_file', {
+      issue_id: 42,
+      file_path: path.join(uploadDir, 'report.pdf'),
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(readFile).toHaveBeenCalled();
+  });
+
+  it('blocks file_path outside a configured uploadDir in http mode', async () => {
+    const uploadDir = path.resolve('/srv/uploads');
+    const httpServer = new MockMcpServer();
+    registerFileTools(httpServer as never, client, uploadDir, 'http');
+
+    const result = await httpServer.callTool('upload_file', {
+      issue_id: 42,
+      file_path: '/etc/passwd',
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('not allowed');
+    expect(readFile).not.toHaveBeenCalled();
+  });
+});

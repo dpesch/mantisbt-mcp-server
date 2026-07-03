@@ -261,3 +261,25 @@ describe('getConfig() – singleton', () => {
     expect(first).toBe(second);
   });
 });
+
+// ---------------------------------------------------------------------------
+// HTTP transport auth guard
+// ---------------------------------------------------------------------------
+
+describe('assertHttpAuthConfigured()', () => {
+  it('throws when the token is undefined', async () => {
+    const mod = await import('../src/config.js');
+    expect(() => mod.assertHttpAuthConfigured(undefined)).toThrow(/MCP_HTTP_TOKEN/);
+  });
+
+  it('throws when the token is empty or whitespace', async () => {
+    const mod = await import('../src/config.js');
+    expect(() => mod.assertHttpAuthConfigured('')).toThrow(/MCP_HTTP_TOKEN/);
+    expect(() => mod.assertHttpAuthConfigured('   ')).toThrow(/MCP_HTTP_TOKEN/);
+  });
+
+  it('accepts a non-empty token', async () => {
+    const mod = await import('../src/config.js');
+    expect(() => mod.assertHttpAuthConfigured('s3cret')).not.toThrow();
+  });
+});

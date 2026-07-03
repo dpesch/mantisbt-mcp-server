@@ -105,6 +105,22 @@ export async function getStartupConfig(): Promise<StartupConfig> {
   return readNonCredentialConfig();
 }
 
+/**
+ * Enforces authentication for the HTTP transport. Without a token, every tool
+ * (including writes like create_issue, delete_issue and upload_file) would be
+ * reachable unauthenticated by any process that can reach the port. Aborts
+ * startup when the token is missing or blank so HTTP mode is never exposed open.
+ */
+export function assertHttpAuthConfigured(httpToken: string | undefined): void {
+  if (httpToken === undefined || httpToken.trim() === '') {
+    throw new Error(
+      'HTTP transport requires authentication: set MCP_HTTP_TOKEN to a secret value.\n' +
+      'Without it, all tools would be exposed unauthenticated. ' +
+      'Use the stdio transport (the default) if you do not need HTTP.'
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Full config (credentials required)
 // ---------------------------------------------------------------------------

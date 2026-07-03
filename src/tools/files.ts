@@ -13,8 +13,19 @@ function errorText(msg: string): string {
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
 
-export function registerFileTools(server: McpServer, client: MantisClient, uploadDir?: string): void {
+export function registerFileTools(
+  server: McpServer,
+  client: MantisClient,
+  uploadDir?: string,
+  transport: 'stdio' | 'http' = 'stdio',
+): void {
   const normalizedUploadDir = uploadDir ? resolve(uploadDir) + sep : undefined;
+  // file_path reads from the server's own filesystem. Over stdio the caller is
+  // the trusted local agent (same machine, same user), so any path is fine. Over
+  // HTTP a remote client neither controls nor should reach server-local paths —
+  // it must send Base64 via `content`. Only allow file_path in HTTP mode when an
+  // explicit MANTIS_UPLOAD_DIR sandboxes it.
+  const filePathAllowed = transport === 'stdio' || normalizedUploadDir !== undefined;
 
   // ---------------------------------------------------------------------------
   // list_issue_files
@@ -61,7 +72,7 @@ Use this tool when you need to inspect or enumerate files attached to an issue. 
       description: `Upload a file as an attachment to a MantisBT issue. Adds the file to the issue without modifying any issue fields or status. Returns the created attachment metadata on success.
 
 Provide exactly one of the two input modes:
-- file_path (preferred): absolute path to a local file — use this whenever the file exists on disk; the server reads and encodes it automatically; filename is derived from the path
+- file_path (preferred): absolute path to a local file — use this whenever the file exists on disk; the server reads and encodes it automatically; filename is derived from the path. Note: file_path reads from the server's filesystem and is disabled over the HTTP transport unless MANTIS_UPLOAD_DIR is configured — HTTP clients should use content instead.
 - content: Base64-encoded file content — only use this when the file is not accessible via a path (e.g. in-memory data); filename must be supplied explicitly via the filename parameter
 
 The optional content_type sets the MIME type (e.g. "image/png"); defaults to "application/octet-stream". Use the optional description to annotate the attachment.
@@ -94,6 +105,9 @@ Use this tool to attach files such as logs, screenshots, or patches to an existi
         let fileName: string;
 
         if (file_path) {
+          if (!filePathAllowed) {
+            return { content: [{ type: 'text', text: errorText('file_path is disabled over the HTTP transport. Send the file via the "content" parameter (Base64), or set MANTIS_UPLOAD_DIR to permit server-local paths within that directory.') }], isError: true };
+          }
           if (normalizedUploadDir) {
             const normalizedPath = resolve(file_path);
             if (!normalizedPath.startsWith(normalizedUploadDir)) {
