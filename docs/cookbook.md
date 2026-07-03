@@ -18,6 +18,8 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
   - [Apply a saved filter](#apply-a-saved-filter)
   - [Create an issue](#create-an-issue)
   - [Close an issue (status + resolution)](#close-an-issue-status--resolution)
+  - [Resolve an issue with a reason note (single call)](#resolve-an-issue-with-a-reason-note-single-call)
+  - [Set custom fields](#set-custom-fields)
   - [Reassign an issue](#reassign-an-issue)
   - [Set fix version](#set-fix-version)
 - [Notes](#notes)

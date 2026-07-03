@@ -16,6 +16,8 @@ Practical examples of how to interact with MantisBT through Claude once the MCP 
 
 > "What's the status of issue #1042?"
 
+> "Show me only the summary, status, and handler of issue #1042 — skip the full description and notes."
+
 > "Show me all issues reported by jsmith this month."
 
 > "Which issues in the Webshop project are blocking the 2.4.0 release?"
@@ -30,6 +32,8 @@ Practical examples of how to interact with MantisBT through Claude once the MCP 
 
 > "Create a feature request in the Frontend project for a dark mode in the user settings. Low priority, no due date."
 
+> "Create a bug in the Backend project, category API, summary 'Token refresh returns 500 on expired token', and set the custom field 'Customer' to 'ACME Corp'."
+
 ---
 
 ### Updating issues
@@ -39,6 +43,10 @@ Practical examples of how to interact with MantisBT through Claude once the MCP 
 > "Reassign issue #887 to jdoe."
 
 > "Change the severity of #1099 to 'major' and add a note: reproduced on production."
+
+> "Resolve issue #1042 as fixed and add a note in the same step: deployed to production in release 2.4.1."
+
+> "Set the custom field 'Ticket Reference' on issue #887 to 'EXT-4421'."
 
 > "Set the fix version of issues #901 and #902 to 2.4.1."
 

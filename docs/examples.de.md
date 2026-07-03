@@ -16,6 +16,8 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 
 > »Was ist der Status von Issue #1042?«
 
+> »Zeige mir von Issue #1042 nur Titel, Status und Bearbeiter — ohne die vollständige Beschreibung und Notizen.«
+
 > »Zeige mir alle Issues, die jsmith diesen Monat gemeldet hat.«
 
 > »Welche Issues im Webshop-Projekt blockieren das Release 2.4.0?«
@@ -30,6 +32,8 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 
 > »Erstelle einen Feature-Request im Frontend-Projekt für einen Dunkelmodus in den Benutzereinstellungen. Niedrige Priorität, kein Fälligkeitsdatum.«
 
+> »Erstelle einen Bug im Backend-Projekt, Kategorie API, Titel 'Token-Refresh gibt 500 zurück bei abgelaufenem Token', und setze das Custom Field 'Kunde' auf 'ACME Corp'.«
+
 ---
 
 ### Issues aktualisieren
@@ -39,6 +43,10 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 > »Weise Issue #887 an jdoe neu zu.«
 
 > »Ändere den Schweregrad von #1099 auf 'schwerwiegend' und füge eine Notiz hinzu: auf Produktion reproduziert.«
+
+> »Löse Issue #1042 als behoben auf und füge im selben Schritt eine Notiz hinzu: in Release 2.4.1 auf Produktion ausgerollt.«
+
+> »Setze das Custom Field 'Ticket-Referenz' an Issue #887 auf 'EXT-4421'.«
 
 > »Setze die Fix-Version von Issues #901 und #902 auf 2.4.1.«
 

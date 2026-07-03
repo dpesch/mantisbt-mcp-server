@@ -18,6 +18,8 @@ Tool-orientierte Rezepte für den MantisBT MCP Server — jedes Rezept zeigt gen
   - [Gespeicherten Filter anwenden](#gespeicherten-filter-anwenden)
   - [Issue erstellen](#issue-erstellen)
   - [Issue schließen (Status + Auflösung)](#issue-schließen-status--auflösung)
+  - [Issue auflösen mit Begründungs-Notiz (ein Aufruf)](#issue-auflösen-mit-begründungs-notiz-ein-aufruf)
+  - [Benutzerdefinierte Felder setzen](#benutzerdefinierte-felder-setzen)
   - [Issue neu zuweisen](#issue-neu-zuweisen)
   - [Fix-Version setzen](#fix-version-setzen)
 - [Notizen](#notizen)
