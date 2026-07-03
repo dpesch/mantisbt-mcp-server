@@ -11,6 +11,25 @@ function errorText(msg: string): string {
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
 
+// Shared with update_issue (note parameter) — posts a note and returns it enriched with view_url.
+export async function postNote(
+  client: MantisClient,
+  issueId: number,
+  text: string,
+  viewState: 'public' | 'private',
+): Promise<MantisNote> {
+  const body = {
+    text,
+    view_state: { name: viewState },
+  };
+  const [result, baseUrl] = await Promise.all([
+    client.post<{ note: MantisNote }>(`issues/${issueId}/notes`, body),
+    client.getBaseUrl(),
+  ]);
+  const note = result.note ?? (result as unknown as MantisNote);
+  return { ...note, view_url: buildNoteViewUrl(baseUrl, issueId, note.id) };
+}
+
 export function registerNoteTools(server: McpServer, client: MantisClient): void {
 
   // ---------------------------------------------------------------------------
@@ -79,20 +98,9 @@ Prerequisites: obtain issue_id from list_issues, get_issue, or search_issues.`,
     },
     async ({ issue_id, text, view_state }) => {
       try {
-        const body = {
-          text,
-          view_state: { name: view_state },
-        };
-        const [result, baseUrl] = await Promise.all([
-          client.post<{ note: MantisNote }>(`issues/${issue_id}/notes`, body),
-          client.getBaseUrl(),
-        ]);
-        const note = result.note ?? (result as unknown as MantisNote);
+        const note = await postNote(client, issue_id, text, view_state);
         return {
-          content: [{ type: 'text', text: JSON.stringify(
-            { ...note, view_url: buildNoteViewUrl(baseUrl, issue_id, note.id) },
-            null, 2,
-          ) }],
+          content: [{ type: 'text', text: JSON.stringify(note, null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);

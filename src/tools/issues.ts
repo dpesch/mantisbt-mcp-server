@@ -7,6 +7,7 @@ import { getVersionHint } from '../version-hint.js';
 import { MANTIS_CANONICAL_ENUM_NAMES, MANTIS_RESOLVED_STATUS_ID, resolveEnumId } from '../constants.js';
 import { dateFilterSchema, matchesDateFilter, hasDateFilter, type DateFilter } from '../date-filter.js';
 import { fetchIssueEnumsWithCache } from './config.js';
+import { postNote } from './notes.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -15,16 +16,29 @@ function errorText(msg: string): string {
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
 
-function enrichIssue(issue: MantisIssue, baseUrl: string): MantisIssue {
+// issueId: fallback when a select projection excluded the id field from the response
+function enrichIssue(issue: MantisIssue, baseUrl: string, issueId?: number): MantisIssue {
+  const id = issue.id ?? issueId;
+  if (id === undefined) return issue;
   return {
     ...issue,
-    view_url: buildIssueViewUrl(baseUrl, issue.id),
+    view_url: buildIssueViewUrl(baseUrl, id),
     notes: issue.notes?.map(note => ({
       ...note,
-      view_url: buildNoteViewUrl(baseUrl, issue.id, note.id),
+      view_url: buildNoteViewUrl(baseUrl, id, note.id),
     })),
   };
 }
+
+// MantisBT reference shape: at least one of id or name must be provided
+const ref = z.object({ id: z.number().optional(), name: z.string().optional() })
+  .refine(o => o.id !== undefined || o.name !== undefined, { message: "At least one of 'id' or 'name' must be provided" });
+
+// Custom field entry in MantisBT REST format: { field: {id|name}, value: "<string>" }
+const customFieldEntry = z.object({
+  field: ref.describe('Custom field reference: { id } or { name }'),
+  value: z.coerce.string().describe('Field value as string'),
+});
 
 const GET_ISSUES_CONCURRENCY = 5;
 
@@ -85,9 +99,10 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
     'get_issue',
     {
       title: 'Get Issue',
-      description: 'Retrieve a single MantisBT issue by its numeric ID. Returns all issue fields including notes, attachments, and relationships. Notes are always included — no separate list_notes call needed.',
+      description: 'Retrieve a single MantisBT issue by its numeric ID. Returns all issue fields including notes, attachments, and relationships (unless "select" is given). Notes are always included — no separate list_notes call needed.',
       inputSchema: z.object({
         id: z.coerce.number().int().positive().describe('Numeric issue ID'),
+        select: z.string().optional().describe('Comma-separated list of fields to include in the response (server-side projection, same as list_issues). Significantly reduces response size. Example: "id,summary,status,notes"'),
       }),
       annotations: {
         readOnlyHint: true,
@@ -95,13 +110,13 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         idempotentHint: true,
       },
     },
-    async ({ id }) => {
+    async ({ id, select }) => {
       try {
-        const result = await client.get<{ issues: MantisIssue[] }>(`issues/${id}`);
+        const result = await client.get<{ issues: MantisIssue[] }>(`issues/${id}`, { select });
         const issue = result.issues?.[0] ?? result;
         const baseUrl = await client.getBaseUrl();
         return {
-          content: [{ type: 'text', text: JSON.stringify(enrichIssue(issue, baseUrl), null, 2) }],
+          content: [{ type: 'text', text: JSON.stringify(enrichIssue(issue, baseUrl, id), null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -329,6 +344,7 @@ For the handler, prefer the username field (resolved server-side) over handler_i
         additional_information: z.string().optional().describe('Additional context or notes about the issue. Plain text or Markdown.'),
         reproducibility: z.string().optional().describe('How reliably the issue reproduces. Canonical English names: always, sometimes, random, have not tried, unable to reproduce, N/A. Use get_issue_enums to see localized labels.'),
         view_state: z.enum(['public', 'private']).optional().describe('Visibility of the issue: "public" (visible to all, default) or "private" (restricted to higher-access users).'),
+        custom_fields: z.array(customFieldEntry).optional().describe('Custom field values: [{field: {id|name}, value: "<string>"}]. Use get_issue_fields or get_metadata to discover available custom fields per project.'),
       }),
       annotations: {
         readOnlyHint: false,
@@ -336,7 +352,7 @@ For the handler, prefer the username field (resolved server-side) over handler_i
         idempotentHint: false,
       },
     },
-    async ({ summary, description, project_id, category, priority, severity, handler_id, handler, version, target_version, fixed_in_version, steps_to_reproduce, additional_information, reproducibility, view_state }) => {
+    async ({ summary, description, project_id, category, priority, severity, handler_id, handler, version, target_version, fixed_in_version, steps_to_reproduce, additional_information, reproducibility, view_state, custom_fields }) => {
       // Resolve handler username to handler_id when only a name is given
       let resolvedHandlerId = handler_id;
       if (resolvedHandlerId === undefined && handler !== undefined) {
@@ -386,6 +402,7 @@ For the handler, prefer the username field (resolved server-side) over handler_i
           body.reproducibility = reproducibilityResolved;
         }
         if (view_state !== undefined) body.view_state = { name: view_state };
+        if (custom_fields !== undefined) body.custom_fields = custom_fields;
 
         const raw = await client.post<Record<string, unknown>>('issues', body);
         const partial = ('issue' in raw && typeof raw['issue'] === 'object' && raw['issue'] !== null)
@@ -420,10 +437,6 @@ For the handler, prefer the username field (resolved server-side) over handler_i
   const coerceBool = (val: unknown) =>
     val === 'true' ? true : val === 'false' ? false : val;
 
-  // MantisBT reference shape: at least one of id or name must be provided
-  const ref = z.object({ id: z.number().optional(), name: z.string().optional() })
-    .refine(o => o.id !== undefined || o.name !== undefined, { message: "At least one of 'id' or 'name' must be provided" });
-
   server.registerTool(
     'update_issue',
     {
@@ -446,11 +459,16 @@ The "fields" object accepts any combination of:
 - target_version: { name: "<version_name>" }
 - fixed_in_version: { name: "<version_name>" }
 - view_state: { name: "public"|"private" }
+- custom_fields: [{field: {id|name}, value: "<string>"}]  (only the listed custom fields are changed, others stay untouched; use get_issue_fields to discover fields)
 
-Important: when resolving an issue, always set BOTH status and resolution to avoid leaving resolution as "open".`,
+Important: when resolving an issue, always set BOTH status and resolution to avoid leaving resolution as "open".
+
+Use the optional "note" parameter to append a note in the same call (e.g. the reason for a status change) — no separate add_note call needed. For a note without field changes use add_note.`,
       inputSchema: z.object({
         id: z.coerce.number().int().positive().describe('Numeric issue ID to update'),
         dry_run: z.preprocess(coerceBool, z.boolean().optional()).describe('If true, return the patch payload that would be sent without actually updating the issue. Useful for previewing changes before committing them.'),
+        note: z.string().min(1).optional().describe('Optional note text appended after a successful update (e.g. reason for a status change). Replaces a separate add_note call.'),
+        note_view_state: z.enum(['public', 'private']).default('public').describe('Visibility of the appended note: "public" (default) or "private". Only used when "note" is set.'),
         fields: z.preprocess(
           (v) => {
             if (typeof v !== 'string') return v;
@@ -472,6 +490,7 @@ Important: when resolving an issue, always set BOTH status and resolution to avo
             target_version: ref.optional(),
             fixed_in_version: ref.optional(),
             view_state: ref.optional(),
+            custom_fields: z.array(customFieldEntry).optional(),
           }).strict().describe('Fields to update (partial update — only provided fields are changed; unknown keys are rejected)')
         ),
       }),
@@ -481,10 +500,10 @@ Important: when resolving an issue, always set BOTH status and resolution to avo
         idempotentHint: false,
       },
     },
-    async ({ id, fields, dry_run }) => {
+    async ({ id, fields, dry_run, note, note_view_state }) => {
       if (dry_run) {
         return {
-          content: [{ type: 'text', text: JSON.stringify({ dry_run: true, id, would_patch: fields }, null, 2) }],
+          content: [{ type: 'text', text: JSON.stringify({ dry_run: true, id, would_patch: fields, would_add_note: note ?? null }, null, 2) }],
         };
       }
       try {
@@ -501,8 +520,21 @@ Important: when resolving an issue, always set BOTH status and resolution to avo
           client.getBaseUrl(),
         ]);
         const issue = result.issue ?? (result as unknown as MantisIssue);
+        const response: Record<string, unknown> = { ...enrichIssue(issue, baseUrl, id) };
+
+        if (note !== undefined) {
+          // The PATCH already succeeded — a note failure must not look like a failed
+          // update, or the caller would retry the whole update. Report it inline instead.
+          try {
+            response['note'] = await postNote(client, id, note, note_view_state);
+          } catch (noteError) {
+            const noteMsg = noteError instanceof Error ? noteError.message : String(noteError);
+            response['note_error'] = `Issue #${id} was updated successfully, but adding the note failed: ${noteMsg}. Retry with add_note.`;
+          }
+        }
+
         return {
-          content: [{ type: 'text', text: JSON.stringify(enrichIssue(issue, baseUrl), null, 2) }],
+          content: [{ type: 'text', text: JSON.stringify(response, null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);

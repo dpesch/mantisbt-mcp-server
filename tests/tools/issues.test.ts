@@ -1161,6 +1161,254 @@ describe('list_issues – created_after filter', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// get_issue – select
+// ---------------------------------------------------------------------------
+
+describe('get_issue – select', () => {
+  it('passes select as query parameter', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(getIssueFixture)));
+
+    await mockServer.callTool('get_issue', { id: 42, select: 'id,summary,status' });
+
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
+    const url = new URL(calledUrl);
+    expect(url.searchParams.get('select')).toBe('id,summary,status');
+  });
+
+  it('sends no select parameter when omitted (regression)', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(getIssueFixture)));
+
+    await mockServer.callTool('get_issue', { id: 42 });
+
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
+    const url = new URL(calledUrl);
+    expect(url.searchParams.has('select')).toBe(false);
+  });
+
+  it('builds view_url from the input id when select excludes the id field', async () => {
+    // Simulate a projection without "id": the response issue has no id field
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: [{ summary: 'Projected issue' }] })),
+    );
+
+    const result = await mockServer.callTool('get_issue', { id: 42, select: 'summary,status' });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { view_url: string };
+    expect(parsed.view_url).toContain('42');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// create_issue – custom_fields
+// ---------------------------------------------------------------------------
+
+describe('create_issue – custom_fields', () => {
+  it('sends custom_fields in the POST body', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(201, JSON.stringify({ issue: { id: 400, summary: 'CF issue' } })),
+    );
+
+    await mockServer.callTool('create_issue', {
+      summary: 'CF issue',
+      description: 'Description.',
+      project_id: 1,
+      category: 'General',
+      custom_fields: [{ field: { name: 'Kundennummer' }, value: 'K-1234' }],
+    }, { validate: true });
+
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<string, unknown>;
+    expect(body.custom_fields).toEqual([{ field: { name: 'Kundennummer' }, value: 'K-1234' }]);
+  });
+
+  it('omits custom_fields key when not provided (regression)', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(201, JSON.stringify({ issue: { id: 401, summary: 'No CF' } })),
+    );
+
+    await mockServer.callTool('create_issue', {
+      summary: 'No CF',
+      description: 'Description.',
+      project_id: 1,
+      category: 'General',
+    }, { validate: true });
+
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<string, unknown>;
+    expect(body.custom_fields).toBeUndefined();
+  });
+
+  it('rejects a custom field entry without id and name', async () => {
+    const result = await mockServer.callTool('create_issue', {
+      summary: 'Bad CF',
+      description: 'Description.',
+      project_id: 1,
+      category: 'General',
+      custom_fields: [{ field: {}, value: 'x' }],
+    }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('coerces numeric custom field values to strings', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(201, JSON.stringify({ issue: { id: 402, summary: 'Numeric CF' } })),
+    );
+
+    await mockServer.callTool('create_issue', {
+      summary: 'Numeric CF',
+      description: 'Description.',
+      project_id: 1,
+      category: 'General',
+      custom_fields: [{ field: { id: 3 }, value: 4711 }],
+    }, { validate: true });
+
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as { custom_fields: Array<{ value: unknown }> };
+    expect(body.custom_fields[0]!.value).toBe('4711');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// update_issue – custom_fields
+// ---------------------------------------------------------------------------
+
+describe('update_issue – custom_fields', () => {
+  it('sends custom_fields in the PATCH body', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issue: { id: 1 } })));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 1, fields: { custom_fields: [{ field: { id: 3 }, value: 'neu' }] } },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<string, unknown>;
+    expect(body.custom_fields).toEqual([{ field: { id: 3 }, value: 'neu' }]);
+  });
+
+  it('still rejects unknown fields (strict schema regression)', async () => {
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 1, fields: { custom_field: [{ field: { id: 3 }, value: 'x' }] } },
+      { validate: true },
+    );
+
+    expect(result.isError).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// update_issue – note
+// ---------------------------------------------------------------------------
+
+describe('update_issue – note', () => {
+  it('sends PATCH then POST notes and returns the note with view_url', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 42, summary: 'Updated' } })))
+      .mockResolvedValueOnce(makeResponse(201, JSON.stringify({ note: { id: 7, text: 'Grund' } })));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { status: { name: 'resolved' }, resolution: { id: 20 } }, note: 'Grund' },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+
+    const patchUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
+    expect(patchUrl).toContain('issues/42');
+    const noteUrl = vi.mocked(fetch).mock.calls[1]![0] as string;
+    expect(noteUrl).toContain('issues/42/notes');
+    const noteBody = JSON.parse(vi.mocked(fetch).mock.calls[1]![1]!.body as string) as Record<string, unknown>;
+    expect(noteBody.text).toBe('Grund');
+    expect(noteBody.view_state).toEqual({ name: 'public' });
+
+    const parsed = JSON.parse(result.content[0]!.text) as { note: { id: number; view_url: string } };
+    expect(parsed.note.id).toBe(7);
+    expect(parsed.note.view_url).toContain('42');
+  });
+
+  it('passes note_view_state "private" through to the note body', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 42 } })))
+      .mockResolvedValueOnce(makeResponse(201, JSON.stringify({ note: { id: 8, text: 'intern' } })));
+
+    await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { summary: 'x' }, note: 'intern', note_view_state: 'private' },
+      { validate: true },
+    );
+
+    const noteBody = JSON.parse(vi.mocked(fetch).mock.calls[1]![1]!.body as string) as Record<string, unknown>;
+    expect(noteBody.view_state).toEqual({ name: 'private' });
+  });
+
+  it('reports note_error without isError when the note fails after a successful PATCH', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 42, summary: 'Updated' } })))
+      .mockResolvedValueOnce(makeResponse(403, JSON.stringify({ message: 'Access denied' })));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { summary: 'Updated' }, note: 'Grund' },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { note_error?: string; note?: unknown };
+    expect(parsed.note).toBeUndefined();
+    expect(parsed.note_error).toContain('add_note');
+  });
+
+  it('does not post a note when the PATCH fails', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(404, JSON.stringify({ message: 'Issue not found' })),
+    );
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 9999, fields: { summary: 'x' }, note: 'Grund' },
+      { validate: true },
+    );
+
+    expect(result.isError).toBe(true);
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it('dry_run makes no API calls and previews the note', async () => {
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { summary: 'Preview' }, note: 'Grund', dry_run: true },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+    const parsed = JSON.parse(result.content[0]!.text) as { would_add_note: string | null };
+    expect(parsed.would_add_note).toBe('Grund');
+  });
+
+  it('behaves unchanged without a note (single PATCH call, regression)', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issue: { id: 42, summary: 'Updated' } })));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { summary: 'Updated' } },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    const parsed = JSON.parse(result.content[0]!.text) as { note?: unknown; note_error?: unknown };
+    expect(parsed.note).toBeUndefined();
+    expect(parsed.note_error).toBeUndefined();
+  });
+});
+
 describe('list_issues – combined date window', () => {
   it('returns only issues within the updated_after + updated_before window', async () => {
     vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(makeIssuePage([
