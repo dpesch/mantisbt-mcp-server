@@ -87,11 +87,11 @@ npm run build
 
 | Tool | Beschreibung |
 |---|---|
-| `get_issue` | Ein Issue anhand seiner ID abrufen |
+| `get_issue` | Ein Issue anhand seiner ID abrufen; optionales `select` zur Feldauswahl reduziert die Antwortgröße |
 | `get_issues` | Mehrere Issues per ID in einem Aufruf abrufen (1–50 IDs); nicht zugängliche IDs liefern `null` an ihrer Position, statt den gesamten Aufruf abzubrechen |
 | `list_issues` | Issues nach Projekt, Status, Autor u.v.m. filtern; optionales `select` für Feldprojektion und `status` für clientseitige Statusfilterung — kanonische englische Statusnamen (z.B. `"new"`, `"resolved"`) werden per ID abgeglichen und funktionieren damit sprachunabhängig auf lokalisierten Installationen |
-| `create_issue` | Neues Issue anlegen; `severity` und `priority` müssen kanonische englische Namen sein (z.B. `minor`, `major`, `normal`, `high`) — `get_issue_enums` aufrufen, um alle gültigen Werte und deren lokalisierte Bezeichnungen zu sehen; optionaler `handler`-Parameter akzeptiert einen Benutzernamen als Alternative zu `handler_id` (wird gegen die Projektmitglieder aufgelöst) |
-| `update_issue` | Bestehendes Issue bearbeiten; Enum-Felder (`status`, `priority`, `severity`, `resolution`, `reproducibility`) akzeptieren kanonische englische Namen, lokalisierte Namen oder numerische IDs — der Server löst Namen automatisch zu IDs auf |
+| `create_issue` | Neues Issue anlegen; `severity` und `priority` müssen kanonische englische Namen sein (z.B. `minor`, `major`, `normal`, `high`) — `get_issue_enums` aufrufen, um alle gültigen Werte und deren lokalisierte Bezeichnungen zu sehen; optionaler `handler`-Parameter akzeptiert einen Benutzernamen als Alternative zu `handler_id` (wird gegen die Projektmitglieder aufgelöst); optionales `custom_fields` zum Setzen benutzerdefinierter Felder |
+| `update_issue` | Bestehendes Issue bearbeiten; Enum-Felder (`status`, `priority`, `severity`, `resolution`, `reproducibility`) akzeptieren kanonische englische Namen, lokalisierte Namen oder numerische IDs — der Server löst Namen automatisch zu IDs auf; unterstützt `custom_fields` sowie einen optionalen `note`-Parameter, der im selben Aufruf eine Notiz anhängt (z.B. die Begründung eines Status-Wechsels) |
 | `delete_issue` | Issue löschen |
 
 ### Notizen

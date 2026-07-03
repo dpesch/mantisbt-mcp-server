@@ -87,11 +87,11 @@ npm run build
 
 | Tool | Description |
 |---|---|
-| `get_issue` | Retrieve an issue by its numeric ID |
+| `get_issue` | Retrieve an issue by its numeric ID; optional `select` for field projection to reduce response size |
 | `get_issues` | Retrieve multiple issues by ID in one call (1–50 IDs); missing or inaccessible IDs return `null` at their position instead of failing the call |
 | `list_issues` | Filter issues by project, status, author, and more; optional `select` for field projection and `status` for client-side status filtering — canonical English status names (e.g. `"new"`, `"resolved"`) are matched by ID, making the filter language-independent on localized installations |
-| `create_issue` | Create a new issue; `severity` and `priority` must be canonical English names (e.g. `minor`, `major`, `normal`, `high`) — call `get_issue_enums` to see all valid values and their localized labels; optional `handler` parameter accepts a username as alternative to `handler_id` (resolved against project members) |
-| `update_issue` | Update an existing issue; enum fields (`status`, `priority`, `severity`, `resolution`, `reproducibility`) accept canonical English names, localized names, or numeric IDs — the server resolves names to IDs automatically |
+| `create_issue` | Create a new issue; `severity` and `priority` must be canonical English names (e.g. `minor`, `major`, `normal`, `high`) — call `get_issue_enums` to see all valid values and their localized labels; optional `handler` parameter accepts a username as alternative to `handler_id` (resolved against project members); optional `custom_fields` to set custom field values |
+| `update_issue` | Update an existing issue; enum fields (`status`, `priority`, `severity`, `resolution`, `reproducibility`) accept canonical English names, localized names, or numeric IDs — the server resolves names to IDs automatically; supports `custom_fields` and an optional `note` parameter that appends a note in the same call (e.g. the reason for a status change) |
 | `delete_issue` | Delete an issue |
 
 ### Notes

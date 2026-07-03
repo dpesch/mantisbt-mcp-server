@@ -194,12 +194,22 @@ Retrieves a single issue by its numeric ID including notes, attachments, tags, a
 
 **Parameters:**
 - `id` — numeric issue ID
+- `select` — _(optional)_ comma-separated field list (server-side projection); significantly reduces response size for large issues, e.g. `"id,summary,status,notes"`
 
 **Request:**
 
 ```json
 {
   "id": 1042
+}
+```
+
+Compact variant (only the fields you need):
+
+```json
+{
+  "id": 1042,
+  "select": "id,summary,status,handler"
 }
 ```
 
@@ -603,6 +613,61 @@ Resolves and closes an issue. Always set **both** `status` and `resolution` — 
 ```
 
 > **Note:** Resolution ID 20 is "fixed" in a default MantisBT installation. Use `get_issue_enums()` to confirm the correct ID for your instance.
+
+---
+
+### Resolve an issue with a reason note (single call)
+
+Changes the status and appends a note explaining the change — in one `update_issue` call, no separate `add_note` needed.
+
+**Tool:** `update_issue`
+
+**Parameters:**
+- `id` — numeric issue ID
+- `fields` — fields to change
+- `note` — note text appended after a successful update
+- `note_view_state` — _(optional)_ `"public"` (default) or `"private"`
+
+**Request:**
+
+```json
+{
+  "id": 1042,
+  "fields": {
+    "status": { "name": "resolved" },
+    "resolution": { "id": 20 }
+  },
+  "note": "Fixed in commit abc123 — the touch event handler was missing on iOS."
+}
+```
+
+**Response:** the updated issue plus a `note` object with its `view_url`.
+
+> **Note:** If the update succeeds but the note fails, the response contains `note_error` instead of failing the whole call — retry with `add_note`. For a note without field changes use `add_note` directly.
+
+---
+
+### Set custom fields
+
+Writes custom field values on create or update. The same `custom_fields` format works for both `create_issue` and `update_issue` (inside `fields`).
+
+**Tool:** `update_issue`
+
+**Request:**
+
+```json
+{
+  "id": 1042,
+  "fields": {
+    "custom_fields": [
+      { "field": { "name": "Customer" }, "value": "ACME Corp" },
+      { "field": { "id": 3 }, "value": "2026-07-01" }
+    ]
+  }
+}
+```
+
+> **Note:** Only the listed custom fields are changed — others stay untouched. Use `get_issue_fields()` or `get_metadata()` to discover available custom fields per project. Values are always strings.
 
 ---
 

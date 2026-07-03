@@ -194,12 +194,22 @@ Ruft ein einzelnes Issue anhand seiner numerischen ID ab, inklusive Notizen, Anh
 
 **Parameter:**
 - `id` — numerische Issue-ID
+- `select` — _(optional)_ kommagetrennte Feldliste (server-seitige Projektion); reduziert die Antwortgröße bei großen Issues deutlich, z.B. `"id,summary,status,notes"`
 
 **Request:**
 
 ```json
 {
   "id": 1042
+}
+```
+
+Kompakte Variante (nur die benötigten Felder):
+
+```json
+{
+  "id": 1042,
+  "select": "id,summary,status,handler"
 }
 ```
 
@@ -603,6 +613,61 @@ Löst ein Issue auf und schließt es. **Immer beide Felder** `status` und `resol
 ```
 
 > **Hinweis:** Auflösungs-ID 20 entspricht in einer Standard-MantisBT-Installation »behoben«. Mit `get_issue_enums()` die korrekte ID für die eigene Instanz prüfen.
+
+---
+
+### Issue auflösen mit Begründungs-Notiz (ein Aufruf)
+
+Ändert den Status und hängt eine Notiz mit der Begründung an — in einem einzigen `update_issue`-Aufruf, kein separates `add_note` nötig.
+
+**Tool:** `update_issue`
+
+**Parameter:**
+- `id` — numerische Issue-ID
+- `fields` — zu ändernde Felder
+- `note` — Notiztext, der nach erfolgreichem Update angehängt wird
+- `note_view_state` — _(optional)_ `"public"` (Standard) oder `"private"`
+
+**Request:**
+
+```json
+{
+  "id": 1042,
+  "fields": {
+    "status": { "name": "resolved" },
+    "resolution": { "id": 20 }
+  },
+  "note": "Behoben in Commit abc123 — der Touch-Event-Handler fehlte unter iOS."
+}
+```
+
+**Response:** das aktualisierte Issue plus ein `note`-Objekt mit `view_url`.
+
+> **Hinweis:** Schlägt die Notiz nach erfolgreichem Update fehl, enthält die Antwort `note_error` statt eines Fehlers für den Gesamtaufruf — dann mit `add_note` nachholen. Für eine Notiz ohne Feldänderungen direkt `add_note` verwenden.
+
+---
+
+### Benutzerdefinierte Felder setzen
+
+Schreibt Custom-Field-Werte beim Anlegen oder Aktualisieren. Dasselbe `custom_fields`-Format funktioniert bei `create_issue` und `update_issue` (dort innerhalb von `fields`).
+
+**Tool:** `update_issue`
+
+**Request:**
+
+```json
+{
+  "id": 1042,
+  "fields": {
+    "custom_fields": [
+      { "field": { "name": "Kunde" }, "value": "ACME Corp" },
+      { "field": { "id": 3 }, "value": "2026-07-01" }
+    ]
+  }
+}
+```
+
+> **Hinweis:** Nur die aufgeführten Custom Fields werden geändert — alle anderen bleiben unangetastet. Verfügbare Felder pro Projekt mit `get_issue_fields()` oder `get_metadata()` ermitteln. Werte sind immer Strings.
 
 ---
 
