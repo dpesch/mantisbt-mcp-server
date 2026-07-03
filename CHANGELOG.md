@@ -11,6 +11,18 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.11.0] – 2026-07-03
+
+### Added
+
+- `create_issue` and `update_issue` now accept `custom_fields` (`[{field: {id|name}, value}]`) to write custom field values — reading was already supported via `select`.
+- `update_issue` gained an optional `note` parameter (plus `note_view_state`) that appends a note after a successful update — e.g. the reason for a status change in a single call. If the note fails after a successful PATCH, the response contains `note_error` instead of failing the whole call. `dry_run` previews the note as `would_add_note`.
+- `get_issue` now supports the `select` parameter for server-side field projection (same as `list_issues`), significantly reducing response size for large issues.
+
+Feature ideas inspired by [kfnzero/mantis-mcp-server#8](https://github.com/kfnzero/mantis-mcp-server/pull/8).
+
+---
+
 ## [1.10.6] – 2026-06-29
 
 ### Changed
