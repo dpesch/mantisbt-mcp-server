@@ -73,13 +73,13 @@ npm run build
 | `TRANSPORT` | – | `stdio` | Transport mode: `stdio` or `http` |
 | `PORT` | – | `3000` | Port for HTTP mode |
 | `MCP_HTTP_HOST` | – | `127.0.0.1` | Bind address for HTTP mode. **Changed from `0.0.0.0` to `127.0.0.1`** — the server now listens on localhost only by default. Set to `0.0.0.0` for Docker or remote access. |
-| `MCP_HTTP_TOKEN` | – | – | When set, the `/mcp` endpoint requires `Authorization: Bearer <token>`. The `/health` endpoint is always public. |
+| `MCP_HTTP_TOKEN` | ✅ (HTTP mode) | – | Bearer token for the `/mcp` endpoint (`Authorization: Bearer <token>`). **Required when `TRANSPORT=http`** — the server refuses to start in HTTP mode without it, so tools are never exposed unauthenticated. Ignored in stdio mode. The `/health` endpoint is always public. |
 | `MANTIS_SEARCH_ENABLED` | – | `false` | Set to `true` to enable semantic search |
 | `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vector store backend: `vectra` (pure JS) or `sqlite-vec` (requires manual install) |
 | `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/search` | Directory for the search index |
 | `MANTIS_SEARCH_MODEL` | – | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | Embedding model name (downloaded once on first use, ~80 MB) |
 | `MANTIS_SEARCH_THREADS` | – | `1` | Number of ONNX intra-op threads for the embedding model. Default is 1 to prevent CPU saturation on multi-core machines and WSL. Increase only if index rebuild speed matters and the host is dedicated to this workload. |
-| `MANTIS_UPLOAD_DIR` | – | – | Restrict `upload_file` to files within this directory. When set, any `file_path` outside the directory is rejected (path traversal attempts via `../` are blocked). Without this variable there is no restriction. |
+| `MANTIS_UPLOAD_DIR` | – | – | Restrict `upload_file`'s `file_path` to files within this directory (path traversal via `../` is blocked). In **stdio mode** `file_path` is unrestricted unless this is set. In **HTTP mode** `file_path` reads from the server's filesystem, so it is **disabled unless this variable is set** — HTTP clients should upload via the `content` (Base64) parameter instead. |
 
 ## Available tools
 
@@ -215,15 +215,18 @@ MCP prompt templates are conversation starters that instruct the LLM to collect 
 
 ## HTTP mode
 
-For use as a standalone server (e.g. in remote setups):
+For use as a standalone server (e.g. in remote setups). `MCP_HTTP_TOKEN` is **required** in HTTP mode — the server refuses to start without it:
 
 ```bash
-MANTIS_BASE_URL=... MANTIS_API_KEY=... TRANSPORT=http PORT=3456 node dist/index.js
+MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
+  TRANSPORT=http PORT=3456 node dist/index.js
 
-# With token authentication and explicit bind address (required for Docker/remote):
+# With explicit bind address (required for Docker/remote):
 # MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
 #   TRANSPORT=http PORT=3456 MCP_HTTP_HOST=0.0.0.0 node dist/index.js
 ```
+
+Every `/mcp` request must send `Authorization: Bearer <token>`. Over HTTP, `upload_file`'s `file_path` is disabled unless `MANTIS_UPLOAD_DIR` is set — use the `content` (Base64) parameter instead.
 
 Health check: `GET http://localhost:3456/health` (always public, no token required)
 

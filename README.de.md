@@ -73,13 +73,13 @@ npm run build
 | `TRANSPORT` | – | `stdio` | Transport-Modus: `stdio` oder `http` |
 | `PORT` | – | `3000` | Port für HTTP-Modus |
 | `MCP_HTTP_HOST` | – | `127.0.0.1` | Bind-Adresse für HTTP-Modus. **Geändert von `0.0.0.0` auf `127.0.0.1`** — der Server horcht standardmäßig nur auf localhost. Für Docker oder Remote-Zugriff `0.0.0.0` setzen. |
-| `MCP_HTTP_TOKEN` | – | – | Wenn gesetzt, muss jede `/mcp`-Anfrage den Header `Authorization: Bearer <token>` enthalten. `/health` ist immer öffentlich. |
+| `MCP_HTTP_TOKEN` | ✅ (HTTP-Modus) | – | Bearer-Token für den `/mcp`-Endpunkt (`Authorization: Bearer <token>`). **Pflicht bei `TRANSPORT=http`** — der Server startet im HTTP-Modus ohne diesen Wert nicht, damit Tools nie unauthentifiziert erreichbar sind. Im stdio-Modus ohne Bedeutung. `/health` ist immer öffentlich. |
 | `MANTIS_SEARCH_ENABLED` | – | `false` | Auf `true` setzen, um die semantische Suche zu aktivieren |
 | `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vektorspeicher: `vectra` (reines JS) oder `sqlite-vec` (manuelle Installation erforderlich) |
 | `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/search` | Verzeichnis für den Suchindex |
 | `MANTIS_SEARCH_MODEL` | – | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | Embedding-Modell (wird beim ersten Start einmalig heruntergeladen, ~80 MB) |
 | `MANTIS_SEARCH_THREADS` | – | `1` | Anzahl der ONNX-Intra-Op-Threads für das Embedding-Modell. Standard ist 1, um CPU-Sättigung auf Mehrkernsystemen und in WSL zu verhindern. Nur erhöhen, wenn die Indexierungsgeschwindigkeit kritisch ist und der Host ausschließlich für diese Last vorgesehen ist. |
-| `MANTIS_UPLOAD_DIR` | – | – | Schränkt `upload_file` auf Dateien in diesem Verzeichnis ein. Wenn gesetzt, wird jeder `file_path` außerhalb des Verzeichnisses abgelehnt (Pfad-Traversal-Versuche via `../` werden blockiert). Ohne diese Variable gilt keine Einschränkung. |
+| `MANTIS_UPLOAD_DIR` | – | – | Schränkt den `file_path` von `upload_file` auf dieses Verzeichnis ein (Pfad-Traversal via `../` wird blockiert). Im **stdio-Modus** ist `file_path` ohne diese Variable unbeschränkt. Im **HTTP-Modus** liest `file_path` aus dem Dateisystem des Servers und ist deshalb **deaktiviert, sofern diese Variable nicht gesetzt ist** — HTTP-Clients sollten stattdessen den Parameter `content` (Base64) verwenden. |
 
 ## Verfügbare Tools
 
@@ -215,15 +215,18 @@ MCP-Prompt-Templates sind Gesprächseinstiege, die den LLM anweisen, strukturier
 
 ## HTTP-Modus
 
-Für den Einsatz als eigenständiger Server (z.B. in Remote-Setups):
+Für den Einsatz als eigenständiger Server (z.B. in Remote-Setups). `MCP_HTTP_TOKEN` ist im HTTP-Modus **Pflicht** — der Server startet ohne diesen Wert nicht:
 
 ```bash
-MANTIS_BASE_URL=... MANTIS_API_KEY=... TRANSPORT=http PORT=3456 node dist/index.js
+MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
+  TRANSPORT=http PORT=3456 node dist/index.js
 
-# Mit Token-Authentifizierung und expliziter Bind-Adresse (erforderlich für Docker/Remote):
+# Mit expliziter Bind-Adresse (erforderlich für Docker/Remote):
 # MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
 #   TRANSPORT=http PORT=3456 MCP_HTTP_HOST=0.0.0.0 node dist/index.js
 ```
+
+Jede `/mcp`-Anfrage muss `Authorization: Bearer <token>` senden. Im HTTP-Modus ist der `file_path` von `upload_file` deaktiviert, sofern `MANTIS_UPLOAD_DIR` nicht gesetzt ist — stattdessen den Parameter `content` (Base64) verwenden.
 
 Healthcheck: `GET http://localhost:3456/health` (immer öffentlich, kein Token erforderlich)
 

@@ -21,6 +21,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 Feature ideas inspired by [kfnzero/mantis-mcp-server#8](https://github.com/kfnzero/mantis-mcp-server/pull/8).
 
+### Security
+
+- **HTTP transport now requires `MCP_HTTP_TOKEN`.** Starting with `TRANSPORT=http` and no token set previously exposed all tools (including writes like `create_issue`, `delete_issue`, `upload_file`) unauthenticated to any process that could reach the port. The server now refuses to start in HTTP mode without a token. **Behaviour change for HTTP users:** set `MCP_HTTP_TOKEN` to a secret value. The stdio transport (the default) is unaffected.
+- **`upload_file`'s `file_path` is now disabled over the HTTP transport** unless `MANTIS_UPLOAD_DIR` is configured. Over HTTP, `file_path` reads from the *server's* filesystem — a remote client could otherwise exfiltrate arbitrary server-readable files (e.g. SSH keys) as issue attachments. HTTP clients should upload via the `content` (Base64) parameter. The stdio transport keeps unrestricted `file_path` access (the caller is the trusted local agent); set `MANTIS_UPLOAD_DIR` there too if you want to sandbox it.
+
 ---
 
 ## [1.10.6] – 2026-06-29
