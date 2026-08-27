@@ -111,6 +111,27 @@ describe('getConfig() – ENV variables', () => {
 
     expect(config.cacheDir).toBe('/custom/cache/dir');
   });
+
+  it('enables index.php routing when MANTIS_USE_INDEX_PHP is true', async () => {
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com');
+    vi.stubEnv('MANTIS_API_KEY', 'key');
+    vi.stubEnv('MANTIS_USE_INDEX_PHP', 'true');
+
+    const getConfig = await freshGetConfig();
+    const config = await getConfig();
+
+    expect(config.useIndexPhp).toBe(true);
+  });
+
+  it('disables index.php routing by default', async () => {
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com');
+    vi.stubEnv('MANTIS_API_KEY', 'key');
+
+    const getConfig = await freshGetConfig();
+    const config = await getConfig();
+
+    expect(config.useIndexPhp).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------

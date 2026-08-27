@@ -39,7 +39,7 @@ IMPORTANT: These changes always require a **major** version bump:
 - Tool renamed or removed
 - Required parameter added to an existing tool
 - Parameter default changed
-- Env var renamed or removed (`MANTIS_BASE_URL`, `MANTIS_API_KEY`, `MANTIS_CACHE_DIR`, `MANTIS_CACHE_TTL`, `TRANSPORT`, `PORT`, `MCP_HTTP_HOST`, `MCP_HTTP_TOKEN`, `MANTIS_UPLOAD_DIR`, `MANTIS_SEARCH_ENABLED`, `MANTIS_SEARCH_THREADS`, `MANTIS_SEARCH_DIR`, `MANTIS_SEARCH_MODEL`, `MANTIS_SEARCH_BACKEND`)
+- Env var renamed or removed (`MANTIS_BASE_URL`, `MANTIS_API_KEY`, `MANTIS_USE_INDEX_PHP`, `MANTIS_CACHE_DIR`, `MANTIS_CACHE_TTL`, `TRANSPORT`, `PORT`, `MCP_HTTP_HOST`, `MCP_HTTP_TOKEN`, `MANTIS_UPLOAD_DIR`, `MANTIS_SEARCH_ENABLED`, `MANTIS_SEARCH_THREADS`, `MANTIS_SEARCH_DIR`, `MANTIS_SEARCH_MODEL`, `MANTIS_SEARCH_BACKEND`)
 - Config file key renamed or removed (`base_url`, `api_key`)
 
 Minor = new optional parameter or new tool. Patch = bug fix without behavior change.

@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Added `MANTIS_USE_INDEX_PHP=true` for MantisBT installations without URL rewriting. REST requests use `/api/rest/index.php/` instead of `/api/rest/` when enabled.
+
 ---
 
 ## [1.11.0] – 2026-07-03

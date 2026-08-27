@@ -3,13 +3,13 @@
 // ---------------------------------------------------------------------------
 
 /**
- * Normalise a MANTIS_BASE_URL so that it never ends with "/api/rest" or a
- * trailing slash.  The client always appends "/api/rest/<path>" itself, so
- * users who follow README examples that include "/api/rest" in the URL must
- * not end up with a doubled prefix.
+ * Normalise a MANTIS_BASE_URL so that it never ends with "/api/rest",
+ * "/api/rest/index.php", or a trailing slash. The client appends the REST API
+ * prefix itself, so URLs that already include it must not produce a doubled
+ * prefix.
  */
 export function normalizeBaseUrl(url: string): string {
-  return url.replace(/\/api\/rest\/?$/, '').replace(/\/$/, '');
+  return url.replace(/\/api\/rest(?:\/index\.php)?\/?$/, '').replace(/\/$/, '');
 }
 
 export function buildIssueViewUrl(baseUrl: string, issueId: number): string {
@@ -39,23 +39,34 @@ export class MantisApiError extends Error {
 // ---------------------------------------------------------------------------
 
 type ResponseObserver = (response: Response) => void;
-type CredentialFactory = () => Promise<{ baseUrl: string; apiKey: string }>;
+type Credentials = { baseUrl: string; apiKey: string; useIndexPhp?: boolean };
+type ResolvedCredentials = { baseUrl: string; apiKey: string; useIndexPhp: boolean };
+type CredentialFactory = () => Promise<Credentials>;
 
 export class MantisClient {
   private readonly credentialFactory?: CredentialFactory;
   private readonly responseObserver?: ResponseObserver;
-  private resolvedCredentials?: { baseUrl: string; apiKey: string };
+  private resolvedCredentials?: ResolvedCredentials;
 
   constructor(baseUrl: string, apiKey: string, responseObserver?: ResponseObserver);
+  constructor(baseUrl: string, apiKey: string, useIndexPhp: boolean, responseObserver?: ResponseObserver);
   constructor(credentialFactory: CredentialFactory, responseObserver?: ResponseObserver);
   constructor(
     baseUrlOrFactory: string | CredentialFactory,
     apiKeyOrObserver?: string | ResponseObserver,
+    useIndexPhpOrObserver?: boolean | ResponseObserver,
     responseObserver?: ResponseObserver,
   ) {
     if (typeof baseUrlOrFactory === 'string') {
-      this.resolvedCredentials = { baseUrl: normalizeBaseUrl(baseUrlOrFactory), apiKey: apiKeyOrObserver as string };
-      this.responseObserver = responseObserver;
+      const useIndexPhp = typeof useIndexPhpOrObserver === 'boolean' ? useIndexPhpOrObserver : false;
+      this.resolvedCredentials = {
+        baseUrl: normalizeBaseUrl(baseUrlOrFactory),
+        apiKey: apiKeyOrObserver as string,
+        useIndexPhp,
+      };
+      this.responseObserver = typeof useIndexPhpOrObserver === 'function'
+        ? useIndexPhpOrObserver
+        : responseObserver;
     } else {
       this.credentialFactory = baseUrlOrFactory;
       this.responseObserver = apiKeyOrObserver as ResponseObserver | undefined;
@@ -66,10 +77,10 @@ export class MantisClient {
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  private async getCredentials(): Promise<{ baseUrl: string; apiKey: string }> {
+  private async getCredentials(): Promise<ResolvedCredentials> {
     if (!this.resolvedCredentials) {
-      const { baseUrl, apiKey } = await this.credentialFactory!();
-      this.resolvedCredentials = { baseUrl: normalizeBaseUrl(baseUrl), apiKey };
+      const { baseUrl, apiKey, useIndexPhp = false } = await this.credentialFactory!();
+      this.resolvedCredentials = { baseUrl: normalizeBaseUrl(baseUrl), apiKey, useIndexPhp };
     }
     return this.resolvedCredentials;
   }
@@ -79,8 +90,9 @@ export class MantisClient {
   }
 
   private async buildUrl(path: string, params?: Record<string, string | number | boolean | undefined>): Promise<string> {
-    const { baseUrl } = await this.getCredentials();
-    const url = new URL(`${baseUrl}/api/rest/${path}`);
+    const { baseUrl, useIndexPhp } = await this.getCredentials();
+    const restPrefix = useIndexPhp ? '/api/rest/index.php/' : '/api/rest/';
+    const url = new URL(`${baseUrl}${restPrefix}${path}`);
     if (params) {
       for (const [key, value] of Object.entries(params)) {
         if (value !== undefined) {

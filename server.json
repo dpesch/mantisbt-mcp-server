@@ -30,6 +30,14 @@
           "format": "string"
         },
         {
+          "name": "MANTIS_USE_INDEX_PHP",
+          "description": "Use /api/rest/index.php/ for MantisBT installations without URL rewriting",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "boolean",
+          "default": "false"
+        },
+        {
           "name": "MANTIS_CACHE_DIR",
           "description": "Directory for the metadata cache. Defaults to ~/.cache/mantisbt-mcp",
           "isRequired": false,

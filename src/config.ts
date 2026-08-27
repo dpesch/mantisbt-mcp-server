@@ -19,6 +19,7 @@ export interface SearchConfig {
 export interface MantisConfig {
   baseUrl: string;
   apiKey: string;
+  useIndexPhp: boolean;
   cacheDir: string;
   cacheTtl: number;
   uploadDir?: string;
@@ -77,6 +78,7 @@ function readNonCredentialConfig(): StartupConfig {
   const searchNumThreads = Math.max(1, parseInt(process.env.MANTIS_SEARCH_THREADS ?? '', 10) || 1);
 
   return {
+    useIndexPhp: process.env.MANTIS_USE_INDEX_PHP === 'true',
     cacheDir,
     cacheTtl,
     uploadDir: process.env.MANTIS_UPLOAD_DIR,
