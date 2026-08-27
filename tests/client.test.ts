@@ -78,6 +78,32 @@ describe('MantisClient – URL building', () => {
     });
   });
 
+  it('uses /api/rest/index.php/<path> when index.php routing is enabled', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(makeResponse(200, '{}'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new MantisClient('https://mantis.example.com', 'token123', true);
+    await client.get('issues/42');
+
+    const calledUrl: string = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toBe('https://mantis.example.com/api/rest/index.php/issues/42');
+  });
+
+  it('normalizes an /api/rest/index.php suffix when index.php routing is enabled', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(makeResponse(200, '{}'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new MantisClient(
+      'https://mantis.example.com/api/rest/index.php/',
+      'token123',
+      true,
+    );
+    await client.get('issues');
+
+    const calledUrl: string = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toBe('https://mantis.example.com/api/rest/index.php/issues');
+  });
+
   it('appends defined query parameters', () => {
     const fetchMock = vi.fn().mockResolvedValue(makeResponse(200, '{}'));
     vi.stubGlobal('fetch', fetchMock);
@@ -264,6 +290,21 @@ describe('MantisClient – credential factory', () => {
     expect(calledUrl).toBe('https://lazy.example.com/api/rest/issues');
     const options = fetchMock.mock.calls[0][1] as RequestInit;
     expect((options.headers as Record<string, string>)['Authorization']).toBe('lazy-key');
+  });
+
+  it('uses index.php routing returned by the credential factory', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(makeResponse(200, '{}'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new MantisClient(async () => ({
+      baseUrl: 'https://lazy.example.com',
+      apiKey: 'lazy-key',
+      useIndexPhp: true,
+    }));
+    await client.get('issues');
+
+    const calledUrl: string = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toBe('https://lazy.example.com/api/rest/index.php/issues');
   });
 
   it('caches credentials after the first call and does not call the factory again', async () => {

@@ -57,7 +57,7 @@ function saveFixture(filename: string, data: unknown): void {
 // Client instanziieren
 // ---------------------------------------------------------------------------
 
-const client = new MantisClient(baseUrl, apiKey);
+const client = new MantisClient(baseUrl, apiKey, process.env['MANTIS_USE_INDEX_PHP'] === 'true');
 
 // ---------------------------------------------------------------------------
 // Fixtures aufzeichnen

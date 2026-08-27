@@ -53,7 +53,11 @@ async function createMcpServer(transport: 'stdio' | 'http'): Promise<McpServer> 
   const client = new MantisClient(
     async () => {
       const config = await getConfig();
-      return { baseUrl: config.baseUrl, apiKey: config.apiKey };
+      return {
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
+        useIndexPhp: config.useIndexPhp,
+      };
     },
     (response) => versionHint.onSuccessfulResponse(response),
   );
