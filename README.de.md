@@ -6,6 +6,8 @@
 [![MCP Badge](https://lobehub.com/badge/mcp/dpesch-mantisbt-mcp-server)](https://lobehub.com/mcp/dpesch-mantisbt-mcp-server)
 [![MantisBT MCP Server](https://glama.ai/mcp/servers/dpesch/mantisbt-mcp-server/badges/card.svg)](https://glama.ai/mcp/servers/dpesch/mantisbt-mcp-server)
 
+[English](README.md) · **Deutsch**
+
 Ein [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) Server, der die [MantisBT REST API](https://documenter.getpostman.com/view/29959/mantis-bug-tracker-rest-api) in Claude Code und andere MCP-fähige Clients integriert. Issues lesen, erstellen und bearbeiten – direkt aus dem Editor heraus.
 
 ## Voraussetzungen
