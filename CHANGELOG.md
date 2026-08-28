@@ -9,11 +9,21 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [1.12.0] – 2026-08-28
+
 ### Added
 
 - Added `MANTIS_USE_INDEX_PHP=true` for MantisBT installations without URL rewriting. REST requests use `/api/rest/index.php/` instead of `/api/rest/` when enabled. Thanks to [@iantrudell](https://github.com/iantrudell) for the contribution.
-- `MANTIS_USE_INDEX_PHP` is detected automatically when `MANTIS_BASE_URL` ends with `/api/rest/index.php`. An explicitly set value always wins; a base URL contradicting an explicit `false` is reported on stderr.
+- `MANTIS_USE_INDEX_PHP` is detected automatically when `MANTIS_BASE_URL` ends with `/api/rest/index.php`, so pasting the full REST URL of an installation without URL rewriting is enough. An explicitly set value always wins; a base URL contradicting an explicit `false` is reported on stderr instead of failing silently.
+- New cookbook section "Connect to an installation without URL rewriting" in `docs/cookbook.md` and `docs/cookbook.de.md`.
+
+### Changed
+
 - `MANTIS_BASE_URL` suffix normalization is now case-insensitive, so `/API/REST` is stripped like `/api/rest`.
+- `.env.local` is now read once per process instead of once per config path, removing a duplicate file read on every startup.
+- `README.md` and `README.de.md` now link to each other, making the German translation discoverable.
 
 ---
 
