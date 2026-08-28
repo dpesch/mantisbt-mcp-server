@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { normalizeBaseUrl } from './client.js';
+import { normalizeBaseUrl, usesIndexPhpEntryPoint } from './client.js';
 
 // ---------------------------------------------------------------------------
 // Config shape
@@ -55,7 +55,7 @@ async function loadDotEnvLocal(): Promise<void> {
 // Non-credential config (safe to read at startup without credentials)
 // ---------------------------------------------------------------------------
 
-export type StartupConfig = Omit<MantisConfig, 'baseUrl' | 'apiKey'>;
+export type StartupConfig = Omit<MantisConfig, 'baseUrl' | 'apiKey' | 'useIndexPhp'>;
 
 function readNonCredentialConfig(): StartupConfig {
   const defaultCacheDir = join(homedir(), '.cache', 'mantisbt-mcp');
@@ -78,7 +78,6 @@ function readNonCredentialConfig(): StartupConfig {
   const searchNumThreads = Math.max(1, parseInt(process.env.MANTIS_SEARCH_THREADS ?? '', 10) || 1);
 
   return {
-    useIndexPhp: process.env.MANTIS_USE_INDEX_PHP === 'true',
     cacheDir,
     cacheTtl,
     uploadDir: process.env.MANTIS_UPLOAD_DIR,
@@ -94,6 +93,30 @@ function readNonCredentialConfig(): StartupConfig {
     },
     testEnvironment: process.env.MCP_TEST_ENVIRONMENT === 'true',
   };
+}
+
+/**
+ * Resolves index.php routing from MANTIS_USE_INDEX_PHP and the shape of
+ * MANTIS_BASE_URL. An explicitly set env var always wins; the URL suffix is
+ * only consulted when the user said nothing, so copying the full REST URL
+ * from a MantisBT installation without URL rewriting just works. A base URL
+ * that contradicts an explicit "false" is reported on stderr — silently
+ * ignoring it would look like a broken server, not a misconfiguration.
+ */
+function resolveUseIndexPhp(rawBaseUrl: string): boolean {
+  const explicit = process.env.MANTIS_USE_INDEX_PHP;
+  const urlImpliesIndexPhp = usesIndexPhpEntryPoint(rawBaseUrl);
+
+  if (explicit === undefined) return urlImpliesIndexPhp;
+
+  const enabled = explicit === 'true';
+  if (urlImpliesIndexPhp && !enabled) {
+    process.stderr.write(
+      `[mantisbt-config] MANTIS_BASE_URL ends with /api/rest/index.php, but MANTIS_USE_INDEX_PHP="${explicit}" — ` +
+      `using plain /api/rest/ routing as configured. Unset MANTIS_USE_INDEX_PHP to route through index.php.\n`
+    );
+  }
+  return enabled;
 }
 
 /**
@@ -151,6 +174,7 @@ export async function getConfig(): Promise<MantisConfig> {
   cachedConfig = {
     baseUrl: normalizeBaseUrl(baseUrl),
     apiKey,
+    useIndexPhp: resolveUseIndexPhp(baseUrl),
     ...readNonCredentialConfig(),
   };
 

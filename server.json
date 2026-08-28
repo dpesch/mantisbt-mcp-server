@@ -31,7 +31,7 @@
         },
         {
           "name": "MANTIS_USE_INDEX_PHP",
-          "description": "Use /api/rest/index.php/ for MantisBT installations without URL rewriting",
+          "description": "Use /api/rest/index.php/ for MantisBT installations without URL rewriting. Detected automatically when MANTIS_BASE_URL ends with /api/rest/index.php",
           "isRequired": false,
           "isSecret": false,
           "format": "boolean",

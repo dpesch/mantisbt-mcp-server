@@ -104,6 +104,30 @@ describe('MantisClient – URL building', () => {
     expect(calledUrl).toBe('https://mantis.example.com/api/rest/index.php/issues');
   });
 
+  it('normalizes an /API/REST suffix regardless of case', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(makeResponse(200, '{}'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new MantisClient('https://mantis.example.com/API/REST', 'token123');
+    await client.get('issues');
+
+    const calledUrl: string = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toBe('https://mantis.example.com/api/rest/issues');
+  });
+
+  it('accepts a responseObserver alongside the index.php flag', async () => {
+    const observer = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue(makeResponse(200, '{}'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new MantisClient('https://mantis.example.com', 'token123', true, observer);
+    await client.get('issues');
+
+    const calledUrl: string = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toBe('https://mantis.example.com/api/rest/index.php/issues');
+    expect(observer).toHaveBeenCalledOnce();
+  });
+
   it('appends defined query parameters', () => {
     const fetchMock = vi.fn().mockResolvedValue(makeResponse(200, '{}'));
     vi.stubGlobal('fetch', fetchMock);

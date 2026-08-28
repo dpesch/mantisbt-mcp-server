@@ -11,7 +11,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Added `MANTIS_USE_INDEX_PHP=true` for MantisBT installations without URL rewriting. REST requests use `/api/rest/index.php/` instead of `/api/rest/` when enabled.
+- Added `MANTIS_USE_INDEX_PHP=true` for MantisBT installations without URL rewriting. REST requests use `/api/rest/index.php/` instead of `/api/rest/` when enabled. Thanks to [@iantrudell](https://github.com/iantrudell) for the contribution.
+- `MANTIS_USE_INDEX_PHP` is detected automatically when `MANTIS_BASE_URL` ends with `/api/rest/index.php`. An explicitly set value always wins; a base URL contradicting an explicit `false` is reported on stderr.
+- `MANTIS_BASE_URL` suffix normalization is now case-insensitive, so `/API/REST` is stripped like `/api/rest`.
 
 ---
 

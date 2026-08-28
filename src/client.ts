@@ -3,13 +3,37 @@
 // ---------------------------------------------------------------------------
 
 /**
+ * Recognises a MANTIS_BASE_URL that already points at the REST API, with or
+ * without the index.php front controller. Single source of truth for both
+ * stripping the suffix and detecting the entry point, so the two can never
+ * disagree. Case-insensitive: MantisBT is commonly hosted on case-insensitive
+ * servers, which is exactly the IIS/Apache-without-rewrite crowd this matters
+ * for.
+ */
+const REST_API_SUFFIX = /\/api\/rest(\/index\.php)?\/?$/i;
+
+/**
  * Normalise a MANTIS_BASE_URL so that it never ends with "/api/rest",
  * "/api/rest/index.php", or a trailing slash. The client appends the REST API
  * prefix itself, so URLs that already include it must not produce a doubled
  * prefix.
+ *
+ * The "/index.php" part is stripped regardless of the useIndexPhp flag — this
+ * function only produces the bare host prefix. Whether requests then route
+ * through index.php is answered by usesIndexPhpEntryPoint() on the
+ * *unnormalised* URL.
  */
 export function normalizeBaseUrl(url: string): string {
-  return url.replace(/\/api\/rest(?:\/index\.php)?\/?$/, '').replace(/\/$/, '');
+  return url.replace(REST_API_SUFFIX, '').replace(/\/$/, '');
+}
+
+/**
+ * True when an unnormalised base URL already routes through the index.php
+ * front controller. Used by the config layer to default MANTIS_USE_INDEX_PHP
+ * for users who paste their full REST URL.
+ */
+export function usesIndexPhpEntryPoint(url: string): boolean {
+  return REST_API_SUFFIX.exec(url)?.[1] !== undefined;
 }
 
 export function buildIssueViewUrl(baseUrl: string, issueId: number): string {

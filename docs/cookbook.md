@@ -4,6 +4,8 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
 
 ---
 
+- [Connection setup](#connection-setup)
+  - [Connect to an installation without URL rewriting](#connect-to-an-installation-without-url-rewriting)
 - [Discovering your instance](#discovering-your-instance)
   - [Get all projects](#get-all-projects)
   - [Discover valid enum values (severity, status, priority)](#discover-valid-enum-values-severity-status-priority)
@@ -69,6 +71,41 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
   - [Project status report](#project-status-report)
 - [Destructive Operations](#destructive-operations)
   - [Delete an issue](#delete-an-issue)
+
+---
+
+## Connection setup
+
+### Connect to an installation without URL rewriting
+
+Some MantisBT installations serve the REST API only through its front controller — typically Apache without `mod_rewrite`, or IIS without a rewrite module. There, `/api/rest/issues` returns 404 while `/api/rest/index.php/issues` works.
+
+**Option A — set the flag explicitly:**
+
+```json
+{
+  "env": {
+    "MANTIS_BASE_URL": "https://mantis.example.com",
+    "MANTIS_API_KEY": "your-api-token",
+    "MANTIS_USE_INDEX_PHP": "true"
+  }
+}
+```
+
+**Option B — paste the full REST URL and let the server detect it:**
+
+```json
+{
+  "env": {
+    "MANTIS_BASE_URL": "https://mantis.example.com/api/rest/index.php",
+    "MANTIS_API_KEY": "your-api-token"
+  }
+}
+```
+
+When `MANTIS_BASE_URL` ends with `/api/rest/index.php`, index.php routing is enabled automatically. An explicitly set `MANTIS_USE_INDEX_PHP` always wins over the detection — setting it to `false` alongside such a URL forces plain `/api/rest/` routing and logs a warning on stderr.
+
+**Verify:** call `get_mantis_version`. A successful response means the routing is correct.
 
 ---
 

@@ -68,7 +68,7 @@ npm run build
 |---|---|---|---|
 | `MANTIS_BASE_URL` | ✅ | – | Basis-URL der MantisBT-Installation. Beide Formate werden akzeptiert: `https://deine-mantis-instanz.example.com` und `https://deine-mantis-instanz.example.com/api/rest` — das `/api/rest`-Suffix wird automatisch normalisiert. |
 | `MANTIS_API_KEY` | ✅ | – | API-Token für die Authentifizierung |
-| `MANTIS_USE_INDEX_PHP` | – | `false` | Auf `true` setzen, wenn URL-Rewriting nicht verfügbar ist. REST-Anfragen verwenden dann `/api/rest/index.php/` statt `/api/rest/`. |
+| `MANTIS_USE_INDEX_PHP` | – | auto | Auf `true` setzen, wenn URL-Rewriting nicht verfügbar ist — REST-Anfragen verwenden dann `/api/rest/index.php/` statt `/api/rest/`. Wird automatisch erkannt, wenn `MANTIS_BASE_URL` auf `/api/rest/index.php` endet; ein explizit gesetzter Wert hat immer Vorrang. Siehe [Cookbook](docs/cookbook.de.md#installation-ohne-url-rewriting-anbinden). |
 | `MANTIS_CACHE_DIR` | – | `~/.cache/mantisbt-mcp` | Verzeichnis für den Metadaten-Cache |
 | `MANTIS_CACHE_TTL` | – | `3600` | Cache-Lebensdauer in Sekunden |
 | `TRANSPORT` | – | `stdio` | Transport-Modus: `stdio` oder `http` |
