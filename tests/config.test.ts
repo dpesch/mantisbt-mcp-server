@@ -208,6 +208,25 @@ describe('getConfig() – ENV variables', () => {
 });
 
 // ---------------------------------------------------------------------------
+// .env.local loading
+// ---------------------------------------------------------------------------
+
+describe('.env.local loading', () => {
+  it('reads .env.local only once across getStartupConfig and getConfig', async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com');
+    vi.stubEnv('MANTIS_API_KEY', 'key');
+
+    vi.resetModules();
+    const mod = await import('../src/config.js');
+    await mod.getStartupConfig();
+    await mod.getConfig();
+
+    expect(vi.mocked(readFile)).toHaveBeenCalledOnce();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Error cases
 // ---------------------------------------------------------------------------
 

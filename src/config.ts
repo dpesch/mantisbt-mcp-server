@@ -16,10 +16,22 @@ export interface SearchConfig {
   numThreads: number;
 }
 
-export interface MantisConfig {
+/**
+ * Values that only exist once MantisBT credentials are configured. useIndexPhp
+ * belongs here because it is partly derived from MANTIS_BASE_URL — it cannot be
+ * answered before the base URL is known.
+ */
+export interface ConnectionConfig {
   baseUrl: string;
   apiKey: string;
   useIndexPhp: boolean;
+}
+
+/**
+ * Values readable at server startup without any credentials, so the MCP
+ * transport can connect and answer tools/list on an unconfigured install.
+ */
+export interface StartupConfig {
   cacheDir: string;
   cacheTtl: number;
   uploadDir?: string;
@@ -30,11 +42,26 @@ export interface MantisConfig {
   testEnvironment: boolean;
 }
 
+export type MantisConfig = ConnectionConfig & StartupConfig;
+
 // ---------------------------------------------------------------------------
 // .env.local loader
 // ---------------------------------------------------------------------------
 
-async function loadDotEnvLocal(): Promise<void> {
+let cachedDotEnvLocal: Promise<void> | null = null;
+
+/**
+ * Loads .env.local at most once per process. Both getStartupConfig() and
+ * getConfig() need it, and the HTTP transport calls them on separate paths —
+ * without memoising, the file is read twice on every startup. Caching the
+ * promise (not a boolean) also makes concurrent callers share one read.
+ */
+function loadDotEnvLocal(): Promise<void> {
+  if (!cachedDotEnvLocal) cachedDotEnvLocal = readDotEnvLocal();
+  return cachedDotEnvLocal;
+}
+
+async function readDotEnvLocal(): Promise<void> {
   try {
     const envPath = join(dirname(fileURLToPath(import.meta.url)), '..', '.env.local');
     const content = await readFile(envPath, 'utf-8');
@@ -54,8 +81,6 @@ async function loadDotEnvLocal(): Promise<void> {
 // ---------------------------------------------------------------------------
 // Non-credential config (safe to read at startup without credentials)
 // ---------------------------------------------------------------------------
-
-export type StartupConfig = Omit<MantisConfig, 'baseUrl' | 'apiKey' | 'useIndexPhp'>;
 
 function readNonCredentialConfig(): StartupConfig {
   const defaultCacheDir = join(homedir(), '.cache', 'mantisbt-mcp');
