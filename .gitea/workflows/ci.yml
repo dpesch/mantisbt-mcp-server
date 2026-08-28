@@ -68,13 +68,17 @@ jobs:
           VERSION="${{ github.ref_name }}"
           VERSION_NUM="${VERSION#v}"
           awk "/^## \[${VERSION_NUM}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md \
-            | sed '/^[[:space:]]*$/d' > /tmp/release_notes.md
+            | sed '/^[[:space:]]*$/d' | sed '${/^---$/d}' > /tmp/release_notes.md
           echo "Release notes:"
           cat /tmp/release_notes.md
+          test -s /tmp/release_notes.md || { echo "::error::No changelog section found for ${VERSION_NUM}"; exit 1; }
 
+      # --fail-with-body is essential: without it curl exits 0 on 401/404, so a
+      # rejected request looks exactly like a successful one and the release
+      # silently never appears (happened with the GitHub step in v1.12.0).
       - name: Create Codeberg release
         run: |
-          curl -s -X POST "https://codeberg.org/api/v1/repos/dpesch/mantisbt-mcp-server/releases" \
+          curl --fail-with-body -sS -X POST "https://codeberg.org/api/v1/repos/dpesch/mantisbt-mcp-server/releases" \
             -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
@@ -85,7 +89,7 @@ jobs:
 
       - name: Create GitHub release
         run: |
-          curl -s -X POST "https://api.github.com/repos/dpesch/mantisbt-mcp-server/releases" \
+          curl --fail-with-body -sS -X POST "https://api.github.com/repos/dpesch/mantisbt-mcp-server/releases" \
             -H "Authorization: Bearer ${{ secrets.GH_RELEASE_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
