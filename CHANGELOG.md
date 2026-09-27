@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Dependencies: minimum versions raised to the current releases within each major (`@modelcontextprotocol/sdk` ^1.30.1, `zod` ^3.25.76, `@huggingface/transformers` ^3.8.1).
 - CI: the publish job now checks `NPM_TOKEN` and `GH_RELEASE_TOKEN` before `npm publish`, so an empty or invalid token stops the release before anything is published. Each publish step (npm, Codeberg release, GitHub release) is skipped when its target already exists, so re-running a failed job only catches up on what is missing.
 
 ---
