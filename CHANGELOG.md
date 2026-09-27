@@ -9,16 +9,24 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [1.13.0] – 2026-09-27
+
 ### Added
 
 - `create_version` — create a new version in a MantisBT project; returns the created version object (id, name, description, released, obsolete, timestamp)
 - `update_version` — update an existing version; only passed fields change (at least one required); renaming rewrites version/target_version/fixed_in_version on all referencing issues; requires `manage_project_threshold` (default: manager)
 - `release_version` — mark a version as released (sets its date, default now) and optionally create a follow-up version in the same step via `next_version`; requires `manage_project_threshold` (default: manager)
 - `delete_version` — permanently delete a version; irreversible — MantisBT clears version/target_version/fixed_in_version on all referencing issues; requires `manage_project_threshold` (default: manager)
+- Version writes are mirrored into the local metadata cache without resetting its timestamp, so `get_metadata` and the project resources stay current without extending the cache TTL.
+- New cookbook recipes (EN/DE) for creating, updating, releasing and deleting versions, plus matching prompt examples in `docs/examples.md` and `docs/examples.de.md`.
 
 ### Changed
 
 - `get_project_versions` description now documents the `timestamp` field returned per version and cross-references the new version write tools (`create_version`, `update_version`, `release_version`, `delete_version`)
+- German documentation (`README.de.md`, `docs/cookbook.de.md`, `docs/examples.de.md`) now uses the en dash (–) as Gedankenstrich instead of the em dash.
+- CI: the release job checks the npm token before publishing, and failing Codeberg/GitHub release API calls now fail the job instead of passing silently.
 
 ---
 
