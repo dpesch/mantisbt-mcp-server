@@ -52,6 +52,10 @@ Tool-orientierte Rezepte für den MantisBT MCP Server — jedes Rezept zeigt gen
 - [Projekte & Kategorien](#projekte--kategorien)
   - [Projektkategorien auflisten](#projektkategorien-auflisten)
   - [Projektmitglied suchen](#projektmitglied-suchen)
+  - [Projektversion erstellen](#projektversion-erstellen)
+  - [Projektversion aktualisieren](#projektversion-aktualisieren)
+  - [Version freigeben und nächsten Bugfix-Platzhalter erstellen](#version-freigeben-und-nächsten-bugfix-platzhalter-erstellen)
+  - [Projektversion löschen](#projektversion-löschen)
 - [Metadaten](#metadaten)
   - [Metadaten-Zusammenfassung abrufen](#metadaten-zusammenfassung-abrufen)
   - [Vollständigen Metadaten-Cache abrufen](#vollständigen-metadaten-cache-abrufen)
@@ -1598,6 +1602,167 @@ Sucht Projektmitglieder nach Name, Realname oder E-Mail. Die Suche ist Groß-/Kl
 ```
 
 > **Tipp:** `query` weglassen, um alle Mitglieder des Projekts aufzulisten (bis zu `limit`).
+
+---
+
+### Projektversion erstellen
+
+Erstellt eine neue Version in einem MantisBT-Projekt. Ohne `timestamp` verwendet MantisBT das aktuelle Datum. Versionsnamen müssen innerhalb des Projekts eindeutig sein.
+
+> **Berechtigung erforderlich:** `manage_project_threshold` (MantisBT-Standard: Manager).
+
+**Tool:** `create_version`
+
+**Parameter:**
+- `project_id` — numerische Projekt-ID
+- `name` — Versionsname, z. B. `"2.0.0"`
+- `description` — _(optional)_ Versionsbeschreibung
+- `released` — _(optional)_ Version als veröffentlicht markieren; Standard `false`
+- `obsolete` — _(optional)_ Version als veraltet markieren; Standard `false`
+- `timestamp` — _(optional)_ Versionsdatum als ISO-8601-String, z. B. `"2026-09-27"`
+
+**Request:**
+
+```json
+{
+  "project_id": 3,
+  "name": "2.0.0",
+  "description": "Major rewrite"
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 50,
+  "name": "2.0.0",
+  "description": "Major rewrite",
+  "released": false,
+  "obsolete": false,
+  "timestamp": "2026-09-27T00:00:00+00:00"
+}
+```
+
+---
+
+### Projektversion aktualisieren
+
+Aktualisiert eine bestehende Version eines MantisBT-Projekts. Es werden nur die übergebenen Felder geändert; mindestens ein Feld ist erforderlich. Das Umbenennen einer Version schreibt auch die Felder `version`, `target_version` und `fixed_in_version` aller referenzierenden Issues neu (einschließlich Unterprojekte mit geerbten Versionen).
+
+> **Berechtigung erforderlich:** `manage_project_threshold` (MantisBT-Standard: Manager). Vom Elternprojekt geerbte Versionen können nur über die `project_id` des Elternprojekts geändert werden.
+
+**Tool:** `update_version`
+
+**Parameter:**
+- `project_id` — numerische Projekt-ID
+- `version_id` — numerische Versions-ID (mit `get_project_versions` ermittelbar)
+- `name` — _(optional)_ neuer Versionsname (muss im Projekt eindeutig sein)
+- `description` — _(optional)_ neue Versionsbeschreibung
+- `released` — _(optional)_ Veröffentlichungs-Flag
+- `obsolete` — _(optional)_ Veraltet-Flag
+- `timestamp` — _(optional)_ Versionsdatum als ISO-8601-String
+
+**Request:** _(Version als veraltet markieren)_
+
+```json
+{
+  "project_id": 3,
+  "version_id": 21,
+  "obsolete": true
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 21,
+  "name": "1.9.0",
+  "released": true,
+  "obsolete": true,
+  "timestamp": "2025-06-01T00:00:00+00:00"
+}
+```
+
+---
+
+### Version freigeben und nächsten Bugfix-Platzhalter erstellen
+
+Markiert eine Version als veröffentlicht (mit Datumsangabe) und erstellt im selben Aufruf optional eine Folgeversion als Platzhalter. Der Name der Folgeversion wird unverändert übernommen — keine automatische Nummerierung. Schlägt das Erstellen der Folgeversion fehl, bleibt die Freigabe wirksam und der Fehler wird in `next_version_error` gemeldet.
+
+> **Berechtigung erforderlich:** `manage_project_threshold` (MantisBT-Standard: Manager). Vom Elternprojekt geerbte Versionen können nur über die `project_id` des Elternprojekts geändert werden.
+
+**Tool:** `release_version`
+
+**Parameter:**
+- `project_id` — numerische Projekt-ID
+- `version_id` — numerische Versions-ID der freizugebenden Version
+- `timestamp` — _(optional)_ Freigabedatum als ISO-8601-String; Standard: jetzt
+- `next_version` — _(optional)_ Name der Folgeversion, die als unveröffentlichter Platzhalter angelegt wird
+
+**Request:**
+
+```json
+{
+  "project_id": 3,
+  "version_id": 42,
+  "timestamp": "2026-09-27",
+  "next_version": "1.2.1"
+}
+```
+
+**Response:**
+
+```json
+{
+  "released": {
+    "id": 42,
+    "name": "1.2.0",
+    "released": true,
+    "obsolete": false,
+    "timestamp": "2026-09-27T00:00:00+00:00"
+  },
+  "next_version": {
+    "id": 43,
+    "name": "1.2.1",
+    "released": false,
+    "obsolete": false,
+    "timestamp": "2026-09-27T00:00:00+00:00"
+  }
+}
+```
+
+> **Hinweis:** Das Setzen von `released=true` via `update_version` ändert das Versionsdatum nicht — `release_version` verwenden, wenn beides in einem Schritt erledigt werden soll.
+
+---
+
+### Projektversion löschen
+
+Löscht eine Version dauerhaft aus einem MantisBT-Projekt. Diese Aktion ist nicht umkehrbar. MantisBT leert die Felder `version`, `target_version` und `fixed_in_version` aller Issues, die auf die gelöschte Version verweisen. Um eine Version aus dem Umlauf zu nehmen, ohne Issues zu verändern, stattdessen `update_version` mit `obsolete=true` verwenden.
+
+> **Berechtigung erforderlich:** `manage_project_threshold` (MantisBT-Standard: Manager). Vom Elternprojekt geerbte Versionen können nur über die `project_id` des Elternprojekts gelöscht werden.
+
+**Tool:** `delete_version`
+
+**Parameter:**
+- `project_id` — numerische Projekt-ID
+- `version_id` — numerische Versions-ID
+
+**Request:**
+
+```json
+{
+  "project_id": 3,
+  "version_id": 7
+}
+```
+
+**Response:**
+
+```
+Version 7 deleted successfully.
+```
 
 ---
 

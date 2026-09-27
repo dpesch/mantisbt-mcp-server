@@ -139,7 +139,11 @@ npm run build
 | Tool | Beschreibung |
 |---|---|
 | `list_projects` | Alle zugänglichen Projekte auflisten; gibt normalisierte Projektdaten zurück (konsistent mit dem `sync_metadata`-Cache) |
-| `get_project_versions` | Versionen eines Projekts abrufen; optionale Booleans `obsolete` und `inherit` für veraltete bzw. vom Elternprojekt geerbte Versionen |
+| `get_project_versions` | Versionen eines Projekts abrufen; optionale Booleans `obsolete` und `inherit` für veraltete bzw. vom Elternprojekt geerbte Versionen; jede Version enthält ein `timestamp`-Feld (Versionsdatum); zum Ändern siehe `create_version`, `update_version`, `release_version`, `delete_version` |
+| `create_version` | Neue Version in einem Projekt erstellen; gibt das erstellte Versionsobjekt zurück (id, name, description, released, obsolete, timestamp); erfordert `manage_project_threshold` (Standard: Manager) |
+| `update_version` | Bestehende Version aktualisieren; nur übergebene Felder werden geändert (mindestens eines erforderlich); Umbenennen schreibt version/target_version/fixed_in_version aller referenzierenden Issues neu; erfordert `manage_project_threshold` (Standard: Manager) |
+| `release_version` | Version als veröffentlicht markieren und Datum setzen (Standard: jetzt); optional eine Folgeversion im gleichen Schritt anlegen via `next_version`; erfordert `manage_project_threshold` (Standard: Manager) |
+| `delete_version` | Version dauerhaft löschen — nicht umkehrbar, MantisBT leert version/target_version/fixed_in_version aller referenzierenden Issues; `update_version` mit `obsolete=true` als nicht-destruktive Alternative bevorzugen; erfordert `manage_project_threshold` (Standard: Manager) |
 | `get_project_categories` | Kategorien eines Projekts abrufen |
 | `get_project_users` | Benutzer eines Projekts abrufen |
 | `find_project_member` | Projektmitglieder nach Name, Realname oder E-Mail suchen (Teilstring-Suche, Groß-/Kleinschreibung ignoriert); optionale Parameter `query` und `limit` (Standard 10, max. 100); Cache-first |

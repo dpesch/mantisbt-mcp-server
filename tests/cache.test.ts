@@ -263,3 +263,64 @@ describe('MetadataCache – saveIssueFields()', () => {
     expect(parsed.timestamp).toBeLessThanOrEqual(after);
   });
 });
+
+// ---------------------------------------------------------------------------
+// patchVersions()
+// ---------------------------------------------------------------------------
+
+describe('MetadataCache – patchVersions()', () => {
+  const ORIGINAL_TIMESTAMP = 1_700_000_000_000;
+
+  function seedFile(): void {
+    const data: CachedMetadata = {
+      timestamp: ORIGINAL_TIMESTAMP,
+      projects: [{ id: 1, name: 'Parent' }, { id: 2, name: 'Child' }],
+      byProject: {
+        1: { users: [], versions: [{ id: 10, name: '1.0.0' }], categories: [] },
+        2: { users: [], versions: [{ id: 10, name: '1.0.0' }, { id: 20, name: '2.0.0' }], categories: [] },
+      },
+      tags: [],
+    };
+    vi.mocked(readFile).mockResolvedValue(JSON.stringify({ timestamp: ORIGINAL_TIMESTAMP, data }) as any);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+  }
+
+  it('applies the mutator to the version list of every project', async () => {
+    seedFile();
+    await makeCache().patchVersions((_projectId, versions) =>
+      versions.map((v) => (v.id === 10 ? { ...v, released: true } : v)),
+    );
+
+    const written = JSON.parse(vi.mocked(writeFile).mock.calls[0][1] as string) as { data: CachedMetadata };
+    expect(written.data.byProject[1]!.versions).toEqual([{ id: 10, name: '1.0.0', released: true }]);
+    expect(written.data.byProject[2]!.versions).toEqual([
+      { id: 10, name: '1.0.0', released: true },
+      { id: 20, name: '2.0.0' },
+    ]);
+  });
+
+  it('passes the project id to the mutator', async () => {
+    seedFile();
+    const seen: number[] = [];
+    await makeCache().patchVersions((projectId, versions) => {
+      seen.push(projectId);
+      return versions;
+    });
+    expect(seen.sort()).toEqual([1, 2]);
+  });
+
+  it('keeps the original timestamp so the TTL is not extended', async () => {
+    seedFile();
+    await makeCache().patchVersions((_projectId, versions) => versions);
+
+    const written = JSON.parse(vi.mocked(writeFile).mock.calls[0][1] as string) as { timestamp: number; data: CachedMetadata };
+    expect(written.timestamp).toBe(ORIGINAL_TIMESTAMP);
+    expect(written.data.timestamp).toBe(ORIGINAL_TIMESTAMP);
+  });
+
+  it('does nothing when no cache file exists', async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+    await expect(makeCache().patchVersions((_projectId, versions) => versions)).resolves.toBeUndefined();
+    expect(writeFile).not.toHaveBeenCalled();
+  });
+});

@@ -83,6 +83,24 @@ export class MetadataCache {
     await writeFile(this.filePath, JSON.stringify(file, null, 2), 'utf-8');
   }
 
+  /**
+   * Applies `mutate` to the cached version list of every project and writes the
+   * result back with the original timestamp — a partial update must not extend
+   * the TTL of the remaining metadata. No-op when no cache file exists.
+   */
+  async patchVersions(mutate: (projectId: number, versions: MantisVersion[]) => MantisVersion[]): Promise<void> {
+    let file: CacheFile;
+    try {
+      file = JSON.parse(await readFile(this.filePath, 'utf-8')) as CacheFile;
+    } catch {
+      return;
+    }
+    for (const [projectId, meta] of Object.entries(file.data.byProject)) {
+      meta.versions = mutate(Number(projectId), meta.versions);
+    }
+    await writeFile(this.filePath, JSON.stringify(file, null, 2), 'utf-8');
+  }
+
   async invalidate(): Promise<void> {
     try {
       await unlink(this.filePath);

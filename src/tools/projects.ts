@@ -97,7 +97,7 @@ Prerequisites: obtain project_id from list_projects.`,
     'get_project_versions',
     {
       title: 'Get Project Versions',
-      description: `List all versions defined for a MantisBT project. Returns an array of version objects, each containing id, name, released (boolean), obsolete (boolean), and optionally a date field.
+      description: `List all versions defined for a MantisBT project. Returns an array of version objects, each containing id, name, released (boolean), obsolete (boolean), and timestamp (version date). To create, change, release or delete versions use create_version, update_version, release_version and delete_version.
 
 Use the returned version names directly when creating or updating issues via create_issue and update_issue (version, target_version, fixed_in_version fields).
 

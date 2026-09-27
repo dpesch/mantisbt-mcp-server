@@ -139,7 +139,11 @@ npm run build
 | Tool | Description |
 |---|---|
 | `list_projects` | List all accessible projects; returns normalized project data (consistent with `sync_metadata` cache) |
-| `get_project_versions` | Get versions of a project; optional `obsolete` and `inherit` booleans to include obsolete or parent-inherited versions |
+| `get_project_versions` | Get versions of a project; optional `obsolete` and `inherit` booleans to include obsolete or parent-inherited versions; each version includes a `timestamp` field (version date); see `create_version`, `update_version`, `release_version`, `delete_version` to modify versions |
+| `create_version` | Create a new version in a project; returns the created version object (id, name, description, released, obsolete, timestamp); requires `manage_project_threshold` (default: manager) |
+| `update_version` | Update an existing version; only the fields you pass are changed (at least one required); renaming rewrites version/target_version/fixed_in_version on all referencing issues; requires `manage_project_threshold` (default: manager) |
+| `release_version` | Mark a version as released and set its date (default: now); optionally create a follow-up version in the same step via `next_version`; requires `manage_project_threshold` (default: manager) |
+| `delete_version` | Permanently delete a version — irreversible, MantisBT clears version/target_version/fixed_in_version on all referencing issues; prefer `update_version` with `obsolete=true` as the non-destructive alternative; requires `manage_project_threshold` (default: manager) |
 | `get_project_categories` | Get categories of a project |
 | `get_project_users` | Get users of a project |
 | `find_project_member` | Search project members by name, real name, or email (case-insensitive substring match); optional `query` and `limit` (default 10, max 100); cache-first |

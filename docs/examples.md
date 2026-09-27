@@ -107,6 +107,18 @@ Practical examples of how to interact with MantisBT through Claude once the MCP 
 
 ---
 
+### Managing project versions
+
+> "Create version 2.0.0 in project 3."
+
+> "Mark version 1.4.0 of project 5 as released and create 1.4.1 as the next version."
+
+> "Mark version 1.0 as obsolete in the Backend project."
+
+> "Delete version 0.9-test from project 3."
+
+---
+
 ### Triage and reporting
 
 > "Give me an overview of all critical and urgent open issues across all projects."

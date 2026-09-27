@@ -107,6 +107,18 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 
 ---
 
+### Projektversionen verwalten
+
+> »Erstelle Version 2.0.0 in Projekt 3.«
+
+> »Markiere Version 1.4.0 von Projekt 5 als veröffentlicht und lege 1.4.1 als nächste Version an.«
+
+> »Markiere Version 1.0 im Backend-Projekt als veraltet.«
+
+> »Lösche Version 0.9-test aus Projekt 3.«
+
+---
+
 ### Triage und Auswertung
 
 > »Gib mir einen Überblick über alle kritischen und dringenden offenen Issues in allen Projekten.«

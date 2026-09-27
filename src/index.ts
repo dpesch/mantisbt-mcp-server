@@ -18,6 +18,7 @@ import { registerFileTools } from './tools/files.js';
 import { registerRelationshipTools } from './tools/relationships.js';
 import { registerMonitorTools } from './tools/monitors.js';
 import { registerProjectTools } from './tools/projects.js';
+import { registerProjectVersionTools } from './tools/project-versions.js';
 import { registerUserTools } from './tools/users.js';
 import { registerFilterTools } from './tools/filters.js';
 import { registerConfigTools } from './tools/config.js';
@@ -74,6 +75,7 @@ async function createMcpServer(transport: 'stdio' | 'http'): Promise<McpServer> 
   registerRelationshipTools(server, client);
   registerMonitorTools(server, client);
   registerProjectTools(server, client, cache);
+  registerProjectVersionTools(server, client, cache);
   registerUserTools(server, client);
   registerFilterTools(server, client);
   registerConfigTools(server, client, cache);

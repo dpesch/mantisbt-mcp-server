@@ -9,6 +9,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `create_version` — create a new version in a MantisBT project; returns the created version object (id, name, description, released, obsolete, timestamp)
+- `update_version` — update an existing version; only passed fields change (at least one required); renaming rewrites version/target_version/fixed_in_version on all referencing issues; requires `manage_project_threshold` (default: manager)
+- `release_version` — mark a version as released (sets its date, default now) and optionally create a follow-up version in the same step via `next_version`; requires `manage_project_threshold` (default: manager)
+- `delete_version` — permanently delete a version; irreversible — MantisBT clears version/target_version/fixed_in_version on all referencing issues; requires `manage_project_threshold` (default: manager)
+
+### Changed
+
+- `get_project_versions` description now documents the `timestamp` field returned per version and cross-references the new version write tools (`create_version`, `update_version`, `release_version`, `delete_version`)
+
 ---
 
 ## [1.12.0] – 2026-08-28

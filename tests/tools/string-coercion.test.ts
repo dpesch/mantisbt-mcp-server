@@ -19,6 +19,7 @@ import { registerMonitorTools } from '../../src/tools/monitors.js';
 import { registerRelationshipTools } from '../../src/tools/relationships.js';
 import { registerTagTools } from '../../src/tools/tags.js';
 import { registerProjectTools } from '../../src/tools/projects.js';
+import { registerProjectVersionTools } from '../../src/tools/project-versions.js';
 import { registerVersionTools } from '../../src/tools/version.js';
 import { VersionHintService } from '../../src/version-hint.js';
 import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
@@ -41,6 +42,7 @@ beforeEach(() => {
   registerRelationshipTools(mockServer as never, client);
   registerTagTools(mockServer as never, client);
   registerProjectTools(mockServer as never, client);
+  registerProjectVersionTools(mockServer as never, client);
   registerVersionTools(mockServer as never, client, new VersionHintService(), '0.0.0-test');
   vi.stubGlobal('fetch', vi.fn());
 });
@@ -313,5 +315,39 @@ describe('string-coercion – get_mantis_version check_latest as string', () => 
       { validate: true },
     );
     expect(result.isError).toBeUndefined();
+  });
+});
+
+describe('string-coercion – project version write tools', () => {
+  const versionBody = JSON.stringify({ version: { id: 42, name: '1.2.0', released: true, obsolete: false } });
+
+  it('update_version accepts project_id/version_id as string and released "false"', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, versionBody));
+    const result = await mockServer.callTool(
+      'update_version',
+      { project_id: '3', version_id: '42', released: 'false' },
+      { validate: true },
+    );
+    expect(result.isError).toBeUndefined();
+    const body = JSON.parse((vi.mocked(fetch).mock.calls[0]![1] as RequestInit).body as string);
+    expect(body).toEqual({ released: false });
+  });
+
+  it('create_version accepts obsolete "true"', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(201, versionBody));
+    const result = await mockServer.callTool(
+      'create_version',
+      { project_id: '3', name: '1.2.0', obsolete: 'true' },
+      { validate: true },
+    );
+    expect(result.isError).toBeUndefined();
+  });
+
+  it('release_version and delete_version accept IDs as strings', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(makeResponse(200, versionBody)).mockResolvedValueOnce(makeResponse(204, ''));
+    const released = await mockServer.callTool('release_version', { project_id: '3', version_id: '42' }, { validate: true });
+    const deleted = await mockServer.callTool('delete_version', { project_id: '3', version_id: '42' }, { validate: true });
+    expect(released.isError).toBeUndefined();
+    expect(deleted.isError).toBeUndefined();
   });
 });
