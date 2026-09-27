@@ -9,17 +9,21 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [1.14.0] – 2026-09-27
+
 ### Fixed
 
 - `create_issue` / `update_issue`: a `custom_fields` entry without `value` is now rejected with a validation error. Previously it was accepted and the literal string `"undefined"` was written to the custom field.
 
 ### Changed
 
-- Dependencies: `@huggingface/transformers` 4 for the optional semantic search. Embeddings are numerically identical to version 3 (verified with the default model), so existing search indexes stay valid — no rebuild needed. This also resolves the `sharp` security advisories reported by `npm audit`.
-- Dependencies: `zod` 4 (the MCP SDK supports `^3.25 || ^4`). Tool parameters, types and defaults are unchanged. The published JSON schemas differ slightly: nested `$ref`s are inlined, integer IDs carry an explicit `maximum`, and objects no longer declare `additionalProperties: false` (unknown keys were and still are ignored).
 - **Minimum Node.js version is now 22** (`engines: >=22`). Node.js 18 and 20 are end-of-life and no longer receive security updates; the test toolchain (vitest 5) no longer runs on them, so they could not be tested anymore. CI now runs on Node.js 22. Users on Node.js 20 or older should upgrade — npm only warns about the `engines` mismatch, but these versions are no longer tested.
+- Dependencies: `zod` 4 (the MCP SDK supports `^3.25 || ^4`). Tool parameters, types and defaults are unchanged. The published JSON schemas differ slightly: nested `$ref`s are inlined, integer IDs carry an explicit `maximum`, and objects no longer declare `additionalProperties: false` (unknown keys were and still are ignored).
+- Dependencies: `@huggingface/transformers` 4 for the optional semantic search. Embeddings are numerically identical to version 3 (verified with the default model), so existing search indexes stay valid — no rebuild needed. This also resolves the `sharp` security advisories reported by `npm audit`.
+- Dependencies: `@modelcontextprotocol/sdk` minimum raised to ^1.30.1; transitive dependencies updated to resolve all `npm audit` advisories (including a critical one in `tar`).
 - Dev dependencies: vitest and `@vitest/coverage-v8` 5, `@types/node` 22 (matching the minimum Node.js version).
-- Dependencies: minimum versions raised to the current releases within each major (`@modelcontextprotocol/sdk` ^1.30.1, `zod` ^3.25.76, `@huggingface/transformers` ^3.8.1).
 - CI: the publish job now checks `NPM_TOKEN` and `GH_RELEASE_TOKEN` before `npm publish`, so an empty or invalid token stops the release before anything is published. Each publish step (npm, Codeberg release, GitHub release) is skipped when its target already exists, so re-running a failed job only catches up on what is missing.
 
 ---
