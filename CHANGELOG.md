@@ -9,8 +9,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `create_issue` / `update_issue`: a `custom_fields` entry without `value` is now rejected with a validation error. Previously it was accepted and the literal string `"undefined"` was written to the custom field.
+
 ### Changed
 
+- Dependencies: `zod` 4 (the MCP SDK supports `^3.25 || ^4`). Tool parameters, types and defaults are unchanged. The published JSON schemas differ slightly: nested `$ref`s are inlined, integer IDs carry an explicit `maximum`, and objects no longer declare `additionalProperties: false` (unknown keys were and still are ignored).
 - **Minimum Node.js version is now 22** (`engines: >=22`). Node.js 18 and 20 are end-of-life and no longer receive security updates; the test toolchain (vitest 5) no longer runs on them, so they could not be tested anymore. CI now runs on Node.js 22. Users on Node.js 20 or older should upgrade — npm only warns about the `engines` mismatch, but these versions are no longer tested.
 - Dev dependencies: vitest and `@vitest/coverage-v8` 5, `@types/node` 22 (matching the minimum Node.js version).
 - Dependencies: minimum versions raised to the current releases within each major (`@modelcontextprotocol/sdk` ^1.30.1, `zod` ^3.25.76, `@huggingface/transformers` ^3.8.1).

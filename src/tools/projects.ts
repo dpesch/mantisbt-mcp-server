@@ -106,8 +106,8 @@ By default, obsolete and inherited parent-project versions are excluded. Set obs
 Prerequisites: obtain project_id from list_projects.`,
       inputSchema: z.object({
         project_id: z.coerce.number().int().positive().describe('Numeric project ID — use list_projects to discover project IDs'),
-        obsolete: z.preprocess(coerceBool, z.boolean()).default(false).describe('Include obsolete (deprecated) versions in the response. Default: false. Set to true to see all versions including those no longer actively used.'),
-        inherit: z.preprocess(coerceBool, z.boolean()).default(false).describe('Include versions inherited from parent projects. Default: false. Set to true for sub-projects that share versions with a parent project.'),
+        obsolete: z.preprocess(coerceBool, z.boolean().default(false)).describe('Include obsolete (deprecated) versions in the response. Default: false. Set to true to see all versions including those no longer actively used.'),
+        inherit: z.preprocess(coerceBool, z.boolean().default(false)).describe('Include versions inherited from parent projects. Default: false. Set to true for sub-projects that share versions with a parent project.'),
       }),
       annotations: {
         readOnlyHint: true,

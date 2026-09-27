@@ -71,8 +71,7 @@ export function registerSearchTools(
           'The relevance score is always included. Without this parameter only id and score are returned.'
         ),
         highlight: z
-          .preprocess(coerceBool, z.boolean())
-          .default(false)
+          .preprocess(coerceBool, z.boolean().default(false))
           .describe(
             'If true, adds a "highlights" field per result with query terms bolded (**term**) ' +
             'in the issue summary and a short description snippet. ' +

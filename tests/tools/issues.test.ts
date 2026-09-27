@@ -1222,6 +1222,19 @@ describe('create_issue – custom_fields', () => {
     expect(body.custom_fields).toEqual([{ field: { name: 'Kundennummer' }, value: 'K-1234' }]);
   });
 
+  it('rejects a custom field entry without value instead of sending "undefined" (regression)', async () => {
+    const result = await mockServer.callTool('create_issue', {
+      summary: 'CF issue',
+      description: 'Description.',
+      project_id: 1,
+      category: 'General',
+      custom_fields: [{ field: { name: 'Kundennummer' } }],
+    }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('omits custom_fields key when not provided (regression)', async () => {
     vi.mocked(fetch).mockResolvedValue(
       makeResponse(201, JSON.stringify({ issue: { id: 401, summary: 'No CF' } })),
