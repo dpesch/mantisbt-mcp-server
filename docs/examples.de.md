@@ -1,6 +1,6 @@
 # Anwendungsbeispiele
 
-Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der MCP-Server verbunden ist. Einfach in natürlicher Sprache fragen — keine Tool-Namen oder Parameter erforderlich. Für exakte Tool-Aufrufe und Parameter siehe das [Cookbook](cookbook.de.md).
+Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der MCP-Server verbunden ist. Einfach in natürlicher Sprache fragen – keine Tool-Namen oder Parameter erforderlich. Für exakte Tool-Aufrufe und Parameter siehe das [Cookbook](cookbook.de.md).
 
 ---
 
@@ -16,7 +16,7 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 
 > »Was ist der Status von Issue #1042?«
 
-> »Zeige mir von Issue #1042 nur Titel, Status und Bearbeiter — ohne die vollständige Beschreibung und Notizen.«
+> »Zeige mir von Issue #1042 nur Titel, Status und Bearbeiter – ohne die vollständige Beschreibung und Notizen.«
 
 > »Zeige mir alle Issues, die jsmith diesen Monat gemeldet hat.«
 
@@ -28,7 +28,7 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 
 > »Erstelle einen Bug-Report: Auf der Checkout-Seite wird die Bestellung doppelt abgeschickt, wenn man zweimal auf 'Bestellen' klickt. Kategorie: Shop, Schweregrad: schwerwiegend.«
 
-> »Öffne ein neues Issue im API-Projekt — der Token-Refresh-Endpoint gibt 500 zurück, wenn das Refresh-Token abgelaufen ist. Dem Backend-Team zuweisen.«
+> »Öffne ein neues Issue im API-Projekt – der Token-Refresh-Endpoint gibt 500 zurück, wenn das Refresh-Token abgelaufen ist. Dem Backend-Team zuweisen.«
 
 > »Erstelle einen Feature-Request im Frontend-Projekt für einen Dunkelmodus in den Benutzereinstellungen. Niedrige Priorität, kein Fälligkeitsdatum.«
 
@@ -76,7 +76,7 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 
 > »Verknüpfe #901 und #902 als verwandte Issues.«
 
-> »Issue #1100 blockiert #1101 — bitte diese Beziehung anlegen.« 
+> »Issue #1100 blockiert #1101 – bitte diese Beziehung anlegen.« 
 > *(Richtung ist entscheidend: #1100 ist das blockierende Issue)*
 
 ---
@@ -135,7 +135,7 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 
 ## Geführte Prompt-Workflows
 
-Der Server enthält Prompt-Templates, die Claude durch strukturierte Arbeitsabläufe führen — Tool-Namen oder Parameter müssen nicht manuell angegeben werden. Die Prompts werden aus einem MCP-fähigen Client beim Namen aufgerufen.
+Der Server enthält Prompt-Templates, die Claude durch strukturierte Arbeitsabläufe führen – Tool-Namen oder Parameter müssen nicht manuell angegeben werden. Die Prompts werden aus einem MCP-fähigen Client beim Namen aufgerufen.
 
 ### Issues über Prompt-Templates anlegen
 
@@ -153,7 +153,7 @@ Der Server enthält Prompt-Templates, die Claude durch strukturierte Arbeitsabl�
 
 ## Semantische Suche
 
-Die semantische Suche versteht die *Bedeutung* deiner Frage — nicht nur einzelne Schlüsselwörter. Sie findet konzeptionell verwandte Issues, auch wenn die genaue Formulierung abweicht. Aktivierung mit `MANTIS_SEARCH_ENABLED=true`.
+Die semantische Suche versteht die *Bedeutung* deiner Frage – nicht nur einzelne Schlüsselwörter. Sie findet konzeptionell verwandte Issues, auch wenn die genaue Formulierung abweicht. Aktivierung mit `MANTIS_SEARCH_ENABLED=true`.
 
 ### Duplikaterkennung vor dem Anlegen
 
@@ -167,7 +167,7 @@ Die semantische Suche versteht die *Bedeutung* deiner Frage — nicht nur einzel
 
 ### Thematische Übersichten
 
-> »Zeig mir relevante Issues rund um die Zahlungsabwicklung — projektübergreifend.«
+> »Zeig mir relevante Issues rund um die Zahlungsabwicklung – projektübergreifend.«
 
 > »Zeig mir Beispiele für gemeldete E-Mail-Zustellungsfehler.«
 
@@ -183,15 +183,15 @@ Die semantische Suche versteht die *Bedeutung* deiner Frage — nicht nur einzel
 
 > »Suche nach 'Rechnungsexport' und markiere die relevanten Ausschnitte in Titel und Beschreibung.«
 
-Exakte Parameter und Response-Shape: [Cookbook — Suche mit Keyword-Highlights](cookbook.de.md#suche-mit-keyword-highlights).
+Exakte Parameter und Response-Shape: [Cookbook – Suche mit Keyword-Highlights](cookbook.de.md#suche-mit-keyword-highlights).
 
 ---
 
 ### Unscharfe / terminologieunabhängige Suche
 
-> »Finde Issues zu 'doppelten Einträgen' — sie könnten auch als 'zweimal angezeigt', 'doppelte Datensätze' oder 'Phantom-Zeilen' beschrieben sein.«
+> »Finde Issues zu 'doppelten Einträgen' – sie könnten auch als 'zweimal angezeigt', 'doppelte Datensätze' oder 'Phantom-Zeilen' beschrieben sein.«
 
-> »Suche nach authentifizierungsbezogenen Issues — die Berichte verwenden möglicherweise 'Login', 'Anmeldung', 'Token', 'Session' oder 'Auth'.«
+> »Suche nach authentifizierungsbezogenen Issues – die Berichte verwenden möglicherweise 'Login', 'Anmeldung', 'Token', 'Session' oder 'Auth'.«
 
 ---
 
@@ -215,7 +215,7 @@ Exakte Parameter und Response-Shape: [Cookbook — Suche mit Keyword-Highlights]
 
 ## Ressourcen
 
-MCP-Ressourcen sind URI-adressierbare, schreibgeschützte Daten, die Clients direkt per URI abrufen können — kein Tool-Aufruf nötig. Die Ressourcen-Unterstützung variiert je nach Client; wenn der verwendete Client keine Ressourcen unterstützt, das entsprechende Tool als Alternative verwenden.
+MCP-Ressourcen sind URI-adressierbare, schreibgeschützte Daten, die Clients direkt per URI abrufen können – kein Tool-Aufruf nötig. Die Ressourcen-Unterstützung variiert je nach Client; wenn der verwendete Client keine Ressourcen unterstützt, das entsprechende Tool als Alternative verwenden.
 
 ### Server-Zustand über Ressourcen abrufen
 

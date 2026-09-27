@@ -68,21 +68,21 @@ npm run build
 
 | Variable | Pflicht | Standard | Beschreibung |
 |---|---|---|---|
-| `MANTIS_BASE_URL` | ✅ | – | Basis-URL der MantisBT-Installation. Beide Formate werden akzeptiert: `https://deine-mantis-instanz.example.com` und `https://deine-mantis-instanz.example.com/api/rest` — das `/api/rest`-Suffix wird automatisch normalisiert. |
+| `MANTIS_BASE_URL` | ✅ | – | Basis-URL der MantisBT-Installation. Beide Formate werden akzeptiert: `https://deine-mantis-instanz.example.com` und `https://deine-mantis-instanz.example.com/api/rest` – das `/api/rest`-Suffix wird automatisch normalisiert. |
 | `MANTIS_API_KEY` | ✅ | – | API-Token für die Authentifizierung |
-| `MANTIS_USE_INDEX_PHP` | – | auto | Auf `true` setzen, wenn URL-Rewriting nicht verfügbar ist — REST-Anfragen verwenden dann `/api/rest/index.php/` statt `/api/rest/`. Wird automatisch erkannt, wenn `MANTIS_BASE_URL` auf `/api/rest/index.php` endet; ein explizit gesetzter Wert hat immer Vorrang. Siehe [Cookbook](docs/cookbook.de.md#installation-ohne-url-rewriting-anbinden). |
+| `MANTIS_USE_INDEX_PHP` | – | auto | Auf `true` setzen, wenn URL-Rewriting nicht verfügbar ist – REST-Anfragen verwenden dann `/api/rest/index.php/` statt `/api/rest/`. Wird automatisch erkannt, wenn `MANTIS_BASE_URL` auf `/api/rest/index.php` endet; ein explizit gesetzter Wert hat immer Vorrang. Siehe [Cookbook](docs/cookbook.de.md#installation-ohne-url-rewriting-anbinden). |
 | `MANTIS_CACHE_DIR` | – | `~/.cache/mantisbt-mcp` | Verzeichnis für den Metadaten-Cache |
 | `MANTIS_CACHE_TTL` | – | `3600` | Cache-Lebensdauer in Sekunden |
 | `TRANSPORT` | – | `stdio` | Transport-Modus: `stdio` oder `http` |
 | `PORT` | – | `3000` | Port für HTTP-Modus |
-| `MCP_HTTP_HOST` | – | `127.0.0.1` | Bind-Adresse für HTTP-Modus. **Geändert von `0.0.0.0` auf `127.0.0.1`** — der Server horcht standardmäßig nur auf localhost. Für Docker oder Remote-Zugriff `0.0.0.0` setzen. |
-| `MCP_HTTP_TOKEN` | ✅ (HTTP-Modus) | – | Bearer-Token für den `/mcp`-Endpunkt (`Authorization: Bearer <token>`). **Pflicht bei `TRANSPORT=http`** — der Server startet im HTTP-Modus ohne diesen Wert nicht, damit Tools nie unauthentifiziert erreichbar sind. Im stdio-Modus ohne Bedeutung. `/health` ist immer öffentlich. |
+| `MCP_HTTP_HOST` | – | `127.0.0.1` | Bind-Adresse für HTTP-Modus. **Geändert von `0.0.0.0` auf `127.0.0.1`** – der Server horcht standardmäßig nur auf localhost. Für Docker oder Remote-Zugriff `0.0.0.0` setzen. |
+| `MCP_HTTP_TOKEN` | ✅ (HTTP-Modus) | – | Bearer-Token für den `/mcp`-Endpunkt (`Authorization: Bearer <token>`). **Pflicht bei `TRANSPORT=http`** – der Server startet im HTTP-Modus ohne diesen Wert nicht, damit Tools nie unauthentifiziert erreichbar sind. Im stdio-Modus ohne Bedeutung. `/health` ist immer öffentlich. |
 | `MANTIS_SEARCH_ENABLED` | – | `false` | Auf `true` setzen, um die semantische Suche zu aktivieren |
 | `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vektorspeicher: `vectra` (reines JS) oder `sqlite-vec` (manuelle Installation erforderlich) |
 | `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/search` | Verzeichnis für den Suchindex |
 | `MANTIS_SEARCH_MODEL` | – | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | Embedding-Modell (wird beim ersten Start einmalig heruntergeladen, ~80 MB) |
 | `MANTIS_SEARCH_THREADS` | – | `1` | Anzahl der ONNX-Intra-Op-Threads für das Embedding-Modell. Standard ist 1, um CPU-Sättigung auf Mehrkernsystemen und in WSL zu verhindern. Nur erhöhen, wenn die Indexierungsgeschwindigkeit kritisch ist und der Host ausschließlich für diese Last vorgesehen ist. |
-| `MANTIS_UPLOAD_DIR` | – | – | Schränkt den `file_path` von `upload_file` auf dieses Verzeichnis ein (Pfad-Traversal via `../` wird blockiert). Im **stdio-Modus** ist `file_path` ohne diese Variable unbeschränkt. Im **HTTP-Modus** liest `file_path` aus dem Dateisystem des Servers und ist deshalb **deaktiviert, sofern diese Variable nicht gesetzt ist** — HTTP-Clients sollten stattdessen den Parameter `content` (Base64) verwenden. |
+| `MANTIS_UPLOAD_DIR` | – | – | Schränkt den `file_path` von `upload_file` auf dieses Verzeichnis ein (Pfad-Traversal via `../` wird blockiert). Im **stdio-Modus** ist `file_path` ohne diese Variable unbeschränkt. Im **HTTP-Modus** liest `file_path` aus dem Dateisystem des Servers und ist deshalb **deaktiviert, sofern diese Variable nicht gesetzt ist** – HTTP-Clients sollten stattdessen den Parameter `content` (Base64) verwenden. |
 
 ## Verfügbare Tools
 
@@ -92,9 +92,9 @@ npm run build
 |---|---|
 | `get_issue` | Ein Issue anhand seiner ID abrufen; optionales `select` zur Feldauswahl reduziert die Antwortgröße |
 | `get_issues` | Mehrere Issues per ID in einem Aufruf abrufen (1–50 IDs); nicht zugängliche IDs liefern `null` an ihrer Position, statt den gesamten Aufruf abzubrechen |
-| `list_issues` | Issues nach Projekt, Status, Autor u.v.m. filtern; optionales `select` für Feldprojektion und `status` für clientseitige Statusfilterung — kanonische englische Statusnamen (z.B. `"new"`, `"resolved"`) werden per ID abgeglichen und funktionieren damit sprachunabhängig auf lokalisierten Installationen |
-| `create_issue` | Neues Issue anlegen; `severity` und `priority` müssen kanonische englische Namen sein (z.B. `minor`, `major`, `normal`, `high`) — `get_issue_enums` aufrufen, um alle gültigen Werte und deren lokalisierte Bezeichnungen zu sehen; optionaler `handler`-Parameter akzeptiert einen Benutzernamen als Alternative zu `handler_id` (wird gegen die Projektmitglieder aufgelöst); optionales `custom_fields` zum Setzen benutzerdefinierter Felder |
-| `update_issue` | Bestehendes Issue bearbeiten; Enum-Felder (`status`, `priority`, `severity`, `resolution`, `reproducibility`) akzeptieren kanonische englische Namen, lokalisierte Namen oder numerische IDs — der Server löst Namen automatisch zu IDs auf; unterstützt `custom_fields` sowie einen optionalen `note`-Parameter, der im selben Aufruf eine Notiz anhängt (z.B. die Begründung eines Status-Wechsels) |
+| `list_issues` | Issues nach Projekt, Status, Autor u.v.m. filtern; optionales `select` für Feldprojektion und `status` für clientseitige Statusfilterung – kanonische englische Statusnamen (z.B. `"new"`, `"resolved"`) werden per ID abgeglichen und funktionieren damit sprachunabhängig auf lokalisierten Installationen |
+| `create_issue` | Neues Issue anlegen; `severity` und `priority` müssen kanonische englische Namen sein (z.B. `minor`, `major`, `normal`, `high`) – `get_issue_enums` aufrufen, um alle gültigen Werte und deren lokalisierte Bezeichnungen zu sehen; optionaler `handler`-Parameter akzeptiert einen Benutzernamen als Alternative zu `handler_id` (wird gegen die Projektmitglieder aufgelöst); optionales `custom_fields` zum Setzen benutzerdefinierter Felder |
+| `update_issue` | Bestehendes Issue bearbeiten; Enum-Felder (`status`, `priority`, `severity`, `resolution`, `reproducibility`) akzeptieren kanonische englische Namen, lokalisierte Namen oder numerische IDs – der Server löst Namen automatisch zu IDs auf; unterstützt `custom_fields` sowie einen optionalen `note`-Parameter, der im selben Aufruf eine Notiz anhängt (z.B. die Begründung eines Status-Wechsels) |
 | `delete_issue` | Issue löschen |
 
 ### Notizen
@@ -143,20 +143,20 @@ npm run build
 | `create_version` | Neue Version in einem Projekt erstellen; gibt das erstellte Versionsobjekt zurück (id, name, description, released, obsolete, timestamp); erfordert `manage_project_threshold` (Standard: Manager) |
 | `update_version` | Bestehende Version aktualisieren; nur übergebene Felder werden geändert (mindestens eines erforderlich); Umbenennen schreibt version/target_version/fixed_in_version aller referenzierenden Issues neu; erfordert `manage_project_threshold` (Standard: Manager) |
 | `release_version` | Version als veröffentlicht markieren und Datum setzen (Standard: jetzt); optional eine Folgeversion im gleichen Schritt anlegen via `next_version`; erfordert `manage_project_threshold` (Standard: Manager) |
-| `delete_version` | Version dauerhaft löschen — nicht umkehrbar, MantisBT leert version/target_version/fixed_in_version aller referenzierenden Issues; `update_version` mit `obsolete=true` als nicht-destruktive Alternative bevorzugen; erfordert `manage_project_threshold` (Standard: Manager) |
+| `delete_version` | Version dauerhaft löschen – nicht umkehrbar, MantisBT leert version/target_version/fixed_in_version aller referenzierenden Issues; `update_version` mit `obsolete=true` als nicht-destruktive Alternative bevorzugen; erfordert `manage_project_threshold` (Standard: Manager) |
 | `get_project_categories` | Kategorien eines Projekts abrufen |
 | `get_project_users` | Benutzer eines Projekts abrufen |
 | `find_project_member` | Projektmitglieder nach Name, Realname oder E-Mail suchen (Teilstring-Suche, Groß-/Kleinschreibung ignoriert); optionale Parameter `query` und `limit` (Standard 10, max. 100); Cache-first |
 
 ### Semantische Suche *(optional)*
 
-Statt einfachem Keyword-Matching versteht die semantische Suche die *Bedeutung* einer Anfrage. Formuliere in natürlicher Sprache — die Suche findet konzeptuell verwandte Issues, auch wenn die genauen Begriffe nicht übereinstimmen:
+Statt einfachem Keyword-Matching versteht die semantische Suche die *Bedeutung* einer Anfrage. Formuliere in natürlicher Sprache – die Suche findet konzeptuell verwandte Issues, auch wenn die genauen Begriffe nicht übereinstimmen:
 
-- *„Login funktioniert nach Passwort-Reset nicht"* — findet Issues rund um Authentifizierungsgrenzfälle
-- *„Performance-Probleme auf der Checkout-Seite"* — liefert verwandte Meldungen unabhängig von der verwendeten Terminologie
-- *„doppelte Einträge in der Rechnungsliste"* — erkennt auch Issues, die als „zweifach angezeigt", „dupliziert" o.ä. beschrieben sind
+- *„Login funktioniert nach Passwort-Reset nicht"* – findet Issues rund um Authentifizierungsgrenzfälle
+- *„Performance-Probleme auf der Checkout-Seite"* – liefert verwandte Meldungen unabhängig von der verwendeten Terminologie
+- *„doppelte Einträge in der Rechnungsliste"* – erkennt auch Issues, die als „zweifach angezeigt", „dupliziert" o.ä. beschrieben sind
 
-Das Embedding-Modell (~80 MB) läuft vollständig **offline** — kein OpenAI-Key, keine externe API. Es wird beim ersten Start einmalig heruntergeladen und lokal gecacht. Issues werden bei jedem Serverstart inkrementell indexiert (nur neue und geänderte Issues werden neu verarbeitet).
+Das Embedding-Modell (~80 MB) läuft vollständig **offline** – kein OpenAI-Key, keine externe API. Es wird beim ersten Start einmalig heruntergeladen und lokal gecacht. Issues werden bei jedem Serverstart inkrementell indexiert (nur neue und geänderte Issues werden neu verarbeitet).
 
 Aktivierung mit `MANTIS_SEARCH_ENABLED=true`.
 
@@ -194,13 +194,13 @@ npm install sqlite-vec better-sqlite3
 | `get_current_user` | Eigenes Benutzerprofil abrufen |
 | `list_languages` | Verfügbare Sprachen auflisten |
 | `get_config` | Server-Konfiguration (Basis-URL, Cache-TTL) anzeigen |
-| `get_issue_enums` | Gültige ID/Name-Paare für alle Enum-Felder zurückgeben (Severity, Status, Priority, Resolution, Reproducibility) — vor `create_issue` / `update_issue` verwenden, um korrekte Werte nachzuschlagen; auf lokalisierten Installationen kann jeder Eintrag ein `canonical_name`-Feld mit dem englischen Standard-API-Namen enthalten |
+| `get_issue_enums` | Gültige ID/Name-Paare für alle Enum-Felder zurückgeben (Severity, Status, Priority, Resolution, Reproducibility) – vor `create_issue` / `update_issue` verwenden, um korrekte Werte nachzuschlagen; auf lokalisierten Installationen kann jeder Eintrag ein `canonical_name`-Feld mit dem englischen Standard-API-Namen enthalten |
 | `get_mantis_version` | MantisBT-Version abrufen und auf Updates prüfen |
 | `get_mcp_version` | Version dieser mantisbt-mcp-server-Instanz zurückgeben |
 
 ## Verfügbare Ressourcen
 
-MCP-Ressourcen sind URI-adressierbare, schreibgeschützte Daten, die Clients direkt abrufen können, ohne ein Tool aufzurufen. Sie sind das dritte MCP-Primitiv neben Tools und Prompts. Hinweis: Ressourcen werden von MCP-Clients weniger breit unterstützt als Tools — bitte die Dokumentation des jeweiligen Clients prüfen.
+MCP-Ressourcen sind URI-adressierbare, schreibgeschützte Daten, die Clients direkt abrufen können, ohne ein Tool aufzurufen. Sie sind das dritte MCP-Primitiv neben Tools und Prompts. Hinweis: Ressourcen werden von MCP-Clients weniger breit unterstützt als Tools – bitte die Dokumentation des jeweiligen Clients prüfen.
 
 | Ressource-URI | Beschreibung |
 |---|---|
@@ -211,7 +211,7 @@ MCP-Ressourcen sind URI-adressierbare, schreibgeschützte Daten, die Clients dir
 
 ## Verfügbare Prompts
 
-MCP-Prompt-Templates sind Gesprächseinstiege, die den LLM anweisen, strukturierte Eingaben zu sammeln und dann das passende Tool aufzurufen. Es handelt sich nicht um Tools — sie starten einen geführten Arbeitsablauf.
+MCP-Prompt-Templates sind Gesprächseinstiege, die den LLM anweisen, strukturierte Eingaben zu sammeln und dann das passende Tool aufzurufen. Es handelt sich nicht um Tools – sie starten einen geführten Arbeitsablauf.
 
 | Prompt | Pflichtargumente | Optionale Argumente | Beschreibung |
 |---|---|---|---|
@@ -222,7 +222,7 @@ MCP-Prompt-Templates sind Gesprächseinstiege, die den LLM anweisen, strukturier
 
 ## HTTP-Modus
 
-Für den Einsatz als eigenständiger Server (z.B. in Remote-Setups). `MCP_HTTP_TOKEN` ist im HTTP-Modus **Pflicht** — der Server startet ohne diesen Wert nicht:
+Für den Einsatz als eigenständiger Server (z.B. in Remote-Setups). `MCP_HTTP_TOKEN` ist im HTTP-Modus **Pflicht** – der Server startet ohne diesen Wert nicht:
 
 ```bash
 MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
@@ -233,14 +233,14 @@ MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
 #   TRANSPORT=http PORT=3456 MCP_HTTP_HOST=0.0.0.0 node dist/index.js
 ```
 
-Jede `/mcp`-Anfrage muss `Authorization: Bearer <token>` senden. Im HTTP-Modus ist der `file_path` von `upload_file` deaktiviert, sofern `MANTIS_UPLOAD_DIR` nicht gesetzt ist — stattdessen den Parameter `content` (Base64) verwenden.
+Jede `/mcp`-Anfrage muss `Authorization: Bearer <token>` senden. Im HTTP-Modus ist der `file_path` von `upload_file` deaktiviert, sofern `MANTIS_UPLOAD_DIR` nicht gesetzt ist – stattdessen den Parameter `content` (Base64) verwenden.
 
 Healthcheck: `GET http://localhost:3456/health` (immer öffentlich, kein Token erforderlich)
 
 ## Dokumentation
 
-- [**Cookbook**](docs/cookbook.de.md) — Tool-orientierte Rezepte mit direkt verwendbaren Parameter-Beispielen für alle registrierten Tools
-- [**Anwendungsbeispiele**](docs/examples.de.md) — Beispiele in natürlicher Sprache für alltägliche Anwendungsfälle (keine Tool-Namen erforderlich)
+- [**Cookbook**](docs/cookbook.de.md) – Tool-orientierte Rezepte mit direkt verwendbaren Parameter-Beispielen für alle registrierten Tools
+- [**Anwendungsbeispiele**](docs/examples.de.md) – Beispiele in natürlicher Sprache für alltägliche Anwendungsfälle (keine Tool-Namen erforderlich)
 
 ## Entwicklung
 

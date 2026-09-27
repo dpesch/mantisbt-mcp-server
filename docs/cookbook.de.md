@@ -1,6 +1,6 @@
 # Cookbook
 
-Tool-orientierte Rezepte für den MantisBT MCP Server — jedes Rezept zeigt genau, welches Tool mit welchen Parametern aufgerufen wird. Beispiele mit natürlicher Sprache sind in [examples.de.md](examples.de.md) zu finden.
+Tool-orientierte Rezepte für den MantisBT MCP Server – jedes Rezept zeigt genau, welches Tool mit welchen Parametern aufgerufen wird. Beispiele mit natürlicher Sprache sind in [examples.de.md](examples.de.md) zu finden.
 
 ---
 
@@ -82,9 +82,9 @@ Tool-orientierte Rezepte für den MantisBT MCP Server — jedes Rezept zeigt gen
 
 ### Installation ohne URL-Rewriting anbinden
 
-Manche MantisBT-Installationen liefern die REST-API ausschließlich über ihren Front-Controller aus — typischerweise Apache ohne `mod_rewrite` oder IIS ohne Rewrite-Modul. Dort liefert `/api/rest/issues` einen 404, während `/api/rest/index.php/issues` funktioniert.
+Manche MantisBT-Installationen liefern die REST-API ausschließlich über ihren Front-Controller aus – typischerweise Apache ohne `mod_rewrite` oder IIS ohne Rewrite-Modul. Dort liefert `/api/rest/issues` einen 404, während `/api/rest/index.php/issues` funktioniert.
 
-**Variante A — Flag explizit setzen:**
+**Variante A – Flag explizit setzen:**
 
 ```json
 {
@@ -96,7 +96,7 @@ Manche MantisBT-Installationen liefern die REST-API ausschließlich über ihren 
 }
 ```
 
-**Variante B — vollständige REST-URL eintragen und erkennen lassen:**
+**Variante B – vollständige REST-URL eintragen und erkennen lassen:**
 
 ```json
 {
@@ -107,7 +107,7 @@ Manche MantisBT-Installationen liefern die REST-API ausschließlich über ihren 
 }
 ```
 
-Endet `MANTIS_BASE_URL` auf `/api/rest/index.php`, wird das index.php-Routing automatisch aktiviert. Ein explizit gesetztes `MANTIS_USE_INDEX_PHP` hat immer Vorrang vor der Erkennung — steht es zusammen mit einer solchen URL auf `false`, wird das normale `/api/rest/`-Routing erzwungen und eine Warnung auf stderr ausgegeben.
+Endet `MANTIS_BASE_URL` auf `/api/rest/index.php`, wird das index.php-Routing automatisch aktiviert. Ein explizit gesetztes `MANTIS_USE_INDEX_PHP` hat immer Vorrang vor der Erkennung – steht es zusammen mit einer solchen URL auf `false`, wird das normale `/api/rest/`-Routing erzwungen und eine Warnung auf stderr ausgegeben.
 
 **Prüfen:** `get_mantis_version` aufrufen. Kommt eine Antwort zurück, stimmt das Routing.
 
@@ -189,7 +189,7 @@ Gibt die auf der eigenen MantisBT-Instanz konfigurierten Enum-Werte zurück. Vor
 }
 ```
 
-> **Hinweis:** Auf lokalisierten Instanzen liefert `get_issue_enums()` im Feld `name` den lokalisierten Begriff und optional im Feld `canonical_name` den englischen Originalnamen. `create_issue` akzeptiert **beides** — sowohl den kanonischen englischen Namen (z.B. `minor`) als auch den lokalisierten Namen (z.B. `Unschönheit`). Der Server löst den Wert automatisch auf.
+> **Hinweis:** Auf lokalisierten Instanzen liefert `get_issue_enums()` im Feld `name` den lokalisierten Begriff und optional im Feld `canonical_name` den englischen Originalnamen. `create_issue` akzeptiert **beides** – sowohl den kanonischen englischen Namen (z.B. `minor`) als auch den lokalisierten Namen (z.B. `Unschönheit`). Der Server löst den Wert automatisch auf.
 
 ---
 
@@ -200,7 +200,7 @@ Gibt alle Feldnamen zurück, die dem `select`-Parameter von `list_issues` überg
 **Tool:** `get_issue_fields`
 
 **Parameter:**
-- `project_id` — _(optional)_ auf Felder eines bestimmten Projekts beschränken
+- `project_id` – _(optional)_ auf Felder eines bestimmten Projekts beschränken
 
 **Request:**
 
@@ -236,8 +236,8 @@ Ruft ein einzelnes Issue anhand seiner numerischen ID ab, inklusive Notizen, Anh
 **Tool:** `get_issue`
 
 **Parameter:**
-- `id` — numerische Issue-ID
-- `select` — _(optional)_ kommagetrennte Feldliste (server-seitige Projektion); reduziert die Antwortgröße bei großen Issues deutlich, z.B. `"id,summary,status,notes"`
+- `id` – numerische Issue-ID
+- `select` – _(optional)_ kommagetrennte Feldliste (server-seitige Projektion); reduziert die Antwortgröße bei großen Issues deutlich, z.B. `"id,summary,status,notes"`
 
 **Request:**
 
@@ -285,12 +285,12 @@ Kompakte Variante (nur die benötigten Felder):
 
 ### Mehrere Issues in einem Aufruf abrufen
 
-Ruft bis zu 50 Issues in einem einzigen MCP-Aufruf ab. Die Anfragen laufen parallel (max. 5 gleichzeitig). Nicht zugängliche IDs liefern `null` an ihrer Position — der Aufruf schlägt nie wegen einzelner fehlender IDs fehl.
+Ruft bis zu 50 Issues in einem einzigen MCP-Aufruf ab. Die Anfragen laufen parallel (max. 5 gleichzeitig). Nicht zugängliche IDs liefern `null` an ihrer Position – der Aufruf schlägt nie wegen einzelner fehlender IDs fehl.
 
 **Tool:** `get_issues`
 
 **Parameter:**
-- `ids` — Array numerischer Issue-IDs (1–50)
+- `ids` – Array numerischer Issue-IDs (1–50)
 
 **Request:**
 
@@ -336,9 +336,9 @@ Gibt eine paginierte Liste von Issues zurück, optional auf ein Projekt beschrä
 **Tool:** `list_issues`
 
 **Parameter:**
-- `project_id` — _(optional)_ numerische Projekt-ID
-- `page` — _(optional)_ Seitennummer, Standard 1
-- `page_size` — _(optional)_ Issues pro Seite, Standard 50
+- `project_id` – _(optional)_ numerische Projekt-ID
+- `page` – _(optional)_ Seitennummer, Standard 1
+- `page_size` – _(optional)_ Issues pro Seite, Standard 50
 
 **Request:**
 
@@ -383,8 +383,8 @@ Eine kommagetrennte Liste von Feldnamen übergeben, um nur die benötigten Felde
 **Tool:** `list_issues`
 
 **Parameter:**
-- `project_id` — _(optional)_ numerische Projekt-ID
-- `select` — kommagetrennte Feldnamen
+- `project_id` – _(optional)_ numerische Projekt-ID
+- `select` – kommagetrennte Feldnamen
 
 **Request:**
 
@@ -414,19 +414,19 @@ Eine kommagetrennte Liste von Feldnamen übergeben, um nur die benötigten Felde
 
 > **Hinweis:** Mit `get_issue_fields()` lassen sich alle verfügbaren Feldnamen anzeigen.
 
-> **Hinweis:** `view_url` ist in allen Issue-Responses immer vorhanden — es wird vom MCP-Server injiziert und wird durch den `select`-Parameter nicht beeinflusst.
+> **Hinweis:** `view_url` ist in allen Issue-Responses immer vorhanden – es wird vom MCP-Server injiziert und wird durch den `select`-Parameter nicht beeinflusst.
 
 ---
 
 ### Nach Status filtern
 
-Gibt nur Issues mit einem bestimmten Status zurück. Der Filter wird clientseitig angewendet — das Tool durchsucht intern bis zu 500 Issues.
+Gibt nur Issues mit einem bestimmten Status zurück. Der Filter wird clientseitig angewendet – das Tool durchsucht intern bis zu 500 Issues.
 
 **Tool:** `list_issues`
 
 **Parameter:**
-- `project_id` — _(optional)_ numerische Projekt-ID
-- `status` — Status-Name als Zeichenkette (z. B. `"new"`, `"assigned"`, `"resolved"`)
+- `project_id` – _(optional)_ numerische Projekt-ID
+- `status` – Status-Name als Zeichenkette (z. B. `"new"`, `"assigned"`, `"resolved"`)
 
 **Request:**
 
@@ -453,9 +453,9 @@ Gibt nur Issues mit einem bestimmten Status zurück. Der Filter wird clientseiti
 }
 ```
 
-> **Hinweis:** Kanonische Statusnamen (z.B. `"new"`, `"resolved"`) werden zur numerischen ID aufgelöst und per `issue.status.id` gefiltert — funktioniert auch auf lokalisierten Installationen, bei denen die API übersetzte Statusnamen zurückgibt. Direkt übergebene lokalisierte Namen (z.B. `"Neu"`) werden als Fallback über den Namen abgeglichen. Das Kürzel `"open"` (alle Status mit id < 80) steht unabhängig von der Installationssprache immer zur Verfügung.
+> **Hinweis:** Kanonische Statusnamen (z.B. `"new"`, `"resolved"`) werden zur numerischen ID aufgelöst und per `issue.status.id` gefiltert – funktioniert auch auf lokalisierten Installationen, bei denen die API übersetzte Statusnamen zurückgibt. Direkt übergebene lokalisierte Namen (z.B. `"Neu"`) werden als Fallback über den Namen abgeglichen. Das Kürzel `"open"` (alle Status mit id < 80) steht unabhängig von der Installationssprache immer zur Verfügung.
 
-> **Hinweis:** Bei großen Projekten mit vielen Issues stattdessen einen vorgespeicherten MantisBT-Filter über `filter_id` verwenden — die clientseitige Filterung durchsucht nur die ersten 500 Issues (10 Seiten × 50).
+> **Hinweis:** Bei großen Projekten mit vielen Issues stattdessen einen vorgespeicherten MantisBT-Filter über `filter_id` verwenden – die clientseitige Filterung durchsucht nur die ersten 500 Issues (10 Seiten × 50).
 
 ---
 
@@ -466,9 +466,9 @@ Gibt Issues gefiltert nach dem zugewiesenen Benutzer oder dem Melder zurück. Be
 **Tool:** `list_issues`
 
 **Parameter:**
-- `project_id` — _(optional)_ numerische Projekt-ID
-- `assigned_to` — _(optional)_ numerische Benutzer-ID des Bearbeiters
-- `reporter_id` — _(optional)_ numerische Benutzer-ID des Melders
+- `project_id` – _(optional)_ numerische Projekt-ID
+- `assigned_to` – _(optional)_ numerische Benutzer-ID des Bearbeiters
+- `reporter_id` – _(optional)_ numerische Benutzer-ID des Melders
 
 **Request:**
 
@@ -501,7 +501,7 @@ Gibt Issues gefiltert nach dem zugewiesenen Benutzer oder dem Melder zurück. Be
 
 Einen in MantisBT vorgespeicherten Filter anhand seiner ID verwenden. Dies ist die empfohlene Vorgehensweise bei großen Datenmengen.
 
-**Schritt 1 — Verfügbare Filter auflisten:**
+**Schritt 1 – Verfügbare Filter auflisten:**
 
 **Tool:** `list_filters`
 
@@ -520,12 +520,12 @@ Einen in MantisBT vorgespeicherten Filter anhand seiner ID verwenden. Dies ist d
 ]
 ```
 
-**Schritt 2 — Issues mit der Filter-ID abrufen:**
+**Schritt 2 – Issues mit der Filter-ID abrufen:**
 
 **Tool:** `list_issues`
 
 **Parameter:**
-- `filter_id` — numerische Filter-ID aus Schritt 1
+- `filter_id` – numerische Filter-ID aus Schritt 1
 
 **Request:**
 
@@ -560,14 +560,14 @@ Legt ein neues Issue in MantisBT an.
 **Tool:** `create_issue`
 
 **Parameter:**
-- `summary` — Titel des Issues
-- `project_id` — numerische Projekt-ID
-- `category` — Kategoriename als Zeichenkette
-- `description` — _(optional)_ ausführliche Beschreibung
-- `priority` — _(optional)_ Priorität: kanonischer englischer Name (`none`, `low`, `normal`, `high`, `urgent`, `immediate`) oder lokalisierter Begriff. Standard: `"normal"`. Alle verfügbaren Werte über `get_issue_enums()` ermitteln.
-- `severity` — _(optional)_ Schweregrad: kanonischer englischer Name (`feature`, `trivial`, `text`, `tweak`, `minor`, `major`, `crash`, `block`) oder lokalisierter Begriff. Standard: `"minor"`. Alle verfügbaren Werte über `get_issue_enums()` ermitteln.
-- `handler` — _(optional)_ Benutzername des Bearbeiters (wird automatisch in eine ID aufgelöst)
-- `handler_id` — _(optional)_ numerische Benutzer-ID des Bearbeiters (Alternative zu `handler`)
+- `summary` – Titel des Issues
+- `project_id` – numerische Projekt-ID
+- `category` – Kategoriename als Zeichenkette
+- `description` – _(optional)_ ausführliche Beschreibung
+- `priority` – _(optional)_ Priorität: kanonischer englischer Name (`none`, `low`, `normal`, `high`, `urgent`, `immediate`) oder lokalisierter Begriff. Standard: `"normal"`. Alle verfügbaren Werte über `get_issue_enums()` ermitteln.
+- `severity` – _(optional)_ Schweregrad: kanonischer englischer Name (`feature`, `trivial`, `text`, `tweak`, `minor`, `major`, `crash`, `block`) oder lokalisierter Begriff. Standard: `"minor"`. Alle verfügbaren Werte über `get_issue_enums()` ermitteln.
+- `handler` – _(optional)_ Benutzername des Bearbeiters (wird automatisch in eine ID aufgelöst)
+- `handler_id` – _(optional)_ numerische Benutzer-ID des Bearbeiters (Alternative zu `handler`)
 
 **Request:**
 
@@ -613,22 +613,22 @@ Der Server prüft zuerst kanonische englische Namen und fällt dann auf einen Li
 
 > Error: Invalid severity "xyz". Valid canonical names: feature, trivial, text, tweak, minor, major, crash, block. Call get_issue_enums to see localized labels.
 
-Mit `get_issue_enums` lassen sich alle akzeptierten Werte ermitteln — sowohl kanonische als auch lokalisierte Namen funktionieren.
+Mit `get_issue_enums` lassen sich alle akzeptierten Werte ermitteln – sowohl kanonische als auch lokalisierte Namen funktionieren.
 
 ---
 
 ### Issue schließen (Status + Auflösung)
 
-Löst ein Issue auf und schließt es. **Immer beide Felder** `status` und `resolution` setzen — wird nur der Status gesetzt, bleibt die Auflösung auf »offen«.
+Löst ein Issue auf und schließt es. **Immer beide Felder** `status` und `resolution` setzen – wird nur der Status gesetzt, bleibt die Auflösung auf »offen«.
 
 **Tool:** `update_issue`
 
 **Parameter:**
-- `id` — numerische Issue-ID
-- `fields.status` — Status-Objekt mit Name
-- `fields.resolution` — Auflösungs-Objekt mit ID
+- `id` – numerische Issue-ID
+- `fields.status` – Status-Objekt mit Name
+- `fields.resolution` – Auflösungs-Objekt mit ID
 
-> **Hinweis:** Alle Enum-Felder (`status`, `priority`, `severity`, `resolution`, `reproducibility`) akzeptieren kanonische englische Namen, lokalisierte Namen oder numerische IDs. Der Server löst Namen automatisch zu IDs auf — dadurch ist die Übergabe sprachunabhängig.
+> **Hinweis:** Alle Enum-Felder (`status`, `priority`, `severity`, `resolution`, `reproducibility`) akzeptieren kanonische englische Namen, lokalisierte Namen oder numerische IDs. Der Server löst Namen automatisch zu IDs auf – dadurch ist die Übergabe sprachunabhängig.
 
 **Request:**
 
@@ -661,15 +661,15 @@ Löst ein Issue auf und schließt es. **Immer beide Felder** `status` und `resol
 
 ### Issue auflösen mit Begründungs-Notiz (ein Aufruf)
 
-Ändert den Status und hängt eine Notiz mit der Begründung an — in einem einzigen `update_issue`-Aufruf, kein separates `add_note` nötig.
+Ändert den Status und hängt eine Notiz mit der Begründung an – in einem einzigen `update_issue`-Aufruf, kein separates `add_note` nötig.
 
 **Tool:** `update_issue`
 
 **Parameter:**
-- `id` — numerische Issue-ID
-- `fields` — zu ändernde Felder
-- `note` — Notiztext, der nach erfolgreichem Update angehängt wird
-- `note_view_state` — _(optional)_ `"public"` (Standard) oder `"private"`
+- `id` – numerische Issue-ID
+- `fields` – zu ändernde Felder
+- `note` – Notiztext, der nach erfolgreichem Update angehängt wird
+- `note_view_state` – _(optional)_ `"public"` (Standard) oder `"private"`
 
 **Request:**
 
@@ -680,13 +680,13 @@ Löst ein Issue auf und schließt es. **Immer beide Felder** `status` und `resol
     "status": { "name": "resolved" },
     "resolution": { "id": 20 }
   },
-  "note": "Behoben in Commit abc123 — der Touch-Event-Handler fehlte unter iOS."
+  "note": "Behoben in Commit abc123 – der Touch-Event-Handler fehlte unter iOS."
 }
 ```
 
 **Response:** das aktualisierte Issue plus ein `note`-Objekt mit `view_url`.
 
-> **Hinweis:** Schlägt die Notiz nach erfolgreichem Update fehl, enthält die Antwort `note_error` statt eines Fehlers für den Gesamtaufruf — dann mit `add_note` nachholen. Für eine Notiz ohne Feldänderungen direkt `add_note` verwenden.
+> **Hinweis:** Schlägt die Notiz nach erfolgreichem Update fehl, enthält die Antwort `note_error` statt eines Fehlers für den Gesamtaufruf – dann mit `add_note` nachholen. Für eine Notiz ohne Feldänderungen direkt `add_note` verwenden.
 
 ---
 
@@ -710,7 +710,7 @@ Schreibt Custom-Field-Werte beim Anlegen oder Aktualisieren. Dasselbe `custom_fi
 }
 ```
 
-> **Hinweis:** Nur die aufgeführten Custom Fields werden geändert — alle anderen bleiben unangetastet. Verfügbare Felder pro Projekt mit `get_issue_fields()` oder `get_metadata()` ermitteln. Werte sind immer Strings.
+> **Hinweis:** Nur die aufgeführten Custom Fields werden geändert – alle anderen bleiben unangetastet. Verfügbare Felder pro Projekt mit `get_issue_fields()` oder `get_metadata()` ermitteln. Werte sind immer Strings.
 
 ---
 
@@ -721,8 +721,8 @@ Schreibt Custom-Field-Werte beim Anlegen oder Aktualisieren. Dasselbe `custom_fi
 **Tool:** `update_issue`
 
 **Parameter:**
-- `id` — numerische Issue-ID
-- `fields.handler` — Benutzername (wird automatisch in eine ID aufgelöst)
+- `id` – numerische Issue-ID
+- `fields.handler` – Benutzername (wird automatisch in eine ID aufgelöst)
 
 **Request:**
 
@@ -757,8 +757,8 @@ Setzt das Feld `fixed_in_version` eines Issues.
 **Tool:** `update_issue`
 
 **Parameter:**
-- `id` — numerische Issue-ID
-- `fields.fixed_in_version` — Versionsname als Zeichenkette
+- `id` – numerische Issue-ID
+- `fields.fixed_in_version` – Versionsname als Zeichenkette
 
 **Request:**
 
@@ -796,9 +796,9 @@ Fügt eine öffentlich sichtbare Notiz zu einem Issue hinzu.
 **Tool:** `add_note`
 
 **Parameter:**
-- `issue_id` — numerische Issue-ID
-- `text` — Inhalt der Notiz
-- `view_state` — _(optional)_ `"public"` (Standard) oder `"private"`
+- `issue_id` – numerische Issue-ID
+- `text` – Inhalt der Notiz
+- `view_state` – _(optional)_ `"public"` (Standard) oder `"private"`
 
 **Request:**
 
@@ -831,9 +831,9 @@ Fügt eine Notiz hinzu, die nur für Entwickler und Manager sichtbar ist.
 **Tool:** `add_note`
 
 **Parameter:**
-- `issue_id` — numerische Issue-ID
-- `text` — Inhalt der Notiz
-- `view_state` — `"private"`
+- `issue_id` – numerische Issue-ID
+- `text` – Inhalt der Notiz
+- `view_state` – `"private"`
 
 **Request:**
 
@@ -867,8 +867,8 @@ Entfernt eine Notiz dauerhaft von einem Issue.
 **Tool:** `delete_note`
 
 **Parameter:**
-- `issue_id` — numerische Issue-ID
-- `note_id` — numerische Notiz-ID (aus `list_notes` oder `get_issue`)
+- `issue_id` – numerische Issue-ID
+- `note_id` – numerische Notiz-ID (aus `list_notes` oder `get_issue`)
 
 **Request:**
 
@@ -898,8 +898,8 @@ Hängt eine Datei aus dem lokalen Dateisystem an ein Issue an.
 **Tool:** `upload_file`
 
 **Parameter:**
-- `issue_id` — numerische Issue-ID
-- `file_path` — absoluter Pfad zur Datei
+- `issue_id` – numerische Issue-ID
+- `file_path` – absoluter Pfad zur Datei
 
 **Request:**
 
@@ -934,11 +934,11 @@ Hängt eine Datei an, indem ihr base64-kodierter Inhalt direkt übergeben wird. 
 **Tool:** `upload_file`
 
 **Parameter:**
-- `issue_id` — numerische Issue-ID
-- `content` — base64-kodierter Dateiinhalt
-- `filename` — Dateiname inklusive Erweiterung (erforderlich bei Verwendung von `content`)
-- `content_type` — _(optional)_ MIME-Typ
-- `description` — _(optional)_ Beschreibung des Anhangs
+- `issue_id` – numerische Issue-ID
+- `content` – base64-kodierter Dateiinhalt
+- `filename` – Dateiname inklusive Erweiterung (erforderlich bei Verwendung von `content`)
+- `content_type` – _(optional)_ MIME-Typ
+- `description` – _(optional)_ Beschreibung des Anhangs
 
 **Request:**
 
@@ -974,7 +974,7 @@ Gibt alle Dateianhänge eines Issues zurück.
 **Tool:** `list_issue_files`
 
 **Parameter:**
-- `issue_id` — numerische Issue-ID
+- `issue_id` – numerische Issue-ID
 
 **Request:**
 
@@ -1010,9 +1010,9 @@ Verknüpft Issue A als Duplikat von Issue B.
 **Tool:** `add_relationship`
 
 **Parameter:**
-- `issue_id` — ID des Duplikat-Issues (A)
-- `target_id` — ID des ursprünglichen Issues (B)
-- `type_name` — `"duplicate_of"`
+- `issue_id` – ID des Duplikat-Issues (A)
+- `target_id` – ID des ursprünglichen Issues (B)
+- `type_name` – `"duplicate_of"`
 
 **Request:**
 
@@ -1043,9 +1043,9 @@ Erstellt eine nicht-direktionale »verwandt mit«-Verknüpfung zwischen zwei Iss
 **Tool:** `add_relationship`
 
 **Parameter:**
-- `issue_id` — numerische Issue-ID
-- `target_id` — numerische ID des verwandten Issues
-- `type_name` — `"related_to"`
+- `issue_id` – numerische Issue-ID
+- `target_id` – numerische ID des verwandten Issues
+- `type_name` – `"related_to"`
 
 **Request:**
 
@@ -1071,16 +1071,16 @@ Erstellt eine nicht-direktionale »verwandt mit«-Verknüpfung zwischen zwei Iss
 
 ### Blockier-Verknüpfung setzen
 
-Markiert Issue A als blockierend für Issue B (B kann nicht fortgeführt werden, bis A erledigt ist). Die Richtung ist entscheidend — sorgfältig lesen.
+Markiert Issue A als blockierend für Issue B (B kann nicht fortgeführt werden, bis A erledigt ist). Die Richtung ist entscheidend – sorgfältig lesen.
 
 **Tool:** `add_relationship`
 
 **Parameter:**
-- `issue_id` — ID des blockierenden Issues (A)
-- `target_id` — ID des blockierten Issues (B)
-- `type_name` — `"parent_of"` (A blockiert B) oder `"child_of"` (A wird von B blockiert)
+- `issue_id` – ID des blockierenden Issues (A)
+- `target_id` – ID des blockierten Issues (B)
+- `type_name` – `"parent_of"` (A blockiert B) oder `"child_of"` (A wird von B blockiert)
 
-**Beispiel — A blockiert B:**
+**Beispiel – A blockiert B:**
 
 **Request:**
 
@@ -1116,7 +1116,7 @@ Akzeptierte Werte für `type_name`:
 
 Entfernt eine Verknüpfung von einem Issue.
 
-**Schritt 1 — Verknüpfungs-ID ermitteln:**
+**Schritt 1 – Verknüpfungs-ID ermitteln:**
 
 **Tool:** `get_issue`
 
@@ -1142,13 +1142,13 @@ Entfernt eine Verknüpfung von einem Issue.
 
 `relationships[].id` aus der Antwort lesen.
 
-**Schritt 2 — Verknüpfung entfernen:**
+**Schritt 2 – Verknüpfung entfernen:**
 
 **Tool:** `remove_relationship`
 
 **Parameter:**
-- `issue_id` — numerische Issue-ID
-- `relationship_id` — numerische Verknüpfungs-ID aus Schritt 1
+- `issue_id` – numerische Issue-ID
+- `relationship_id` – numerische Verknüpfungs-ID aus Schritt 1
 
 **Request:**
 
@@ -1165,7 +1165,7 @@ Entfernt eine Verknüpfung von einem Issue.
 { "success": true }
 ```
 
-> **Hinweis:** `relationship_id` ist die ID des Verknüpfungsdatensatzes selbst — nicht die Typ-ID und nicht die ID des Ziel-Issues.
+> **Hinweis:** `relationship_id` ist die ID des Verknüpfungsdatensatzes selbst – nicht die Typ-ID und nicht die ID des Ziel-Issues.
 
 ---
 
@@ -1178,8 +1178,8 @@ Hängt einen oder mehrere Tags per Name an ein Issue an. Unbekannte Tag-Namen we
 **Tool:** `attach_tags`
 
 **Parameter:**
-- `issue_id` — numerische Issue-ID
-- `tags` — Array von Tag-Objekten; `{name: "..."}` für Referenz per Name oder `{id: N}` für Referenz per ID
+- `issue_id` – numerische Issue-ID
+- `tags` – Array von Tag-Objekten; `{name: "..."}` für Referenz per Name oder `{id: N}` für Referenz per ID
 
 **Request:**
 
@@ -1205,7 +1205,7 @@ Hängt einen oder mehrere Tags per Name an ein Issue an. Unbekannte Tag-Namen we
 
 Entfernt einen Tag von einem Issue. Erfordert die numerische Tag-ID.
 
-**Schritt 1 — Tag-ID ermitteln:**
+**Schritt 1 – Tag-ID ermitteln:**
 
 **Tool:** `get_issue`
 
@@ -1232,13 +1232,13 @@ Entfernt einen Tag von einem Issue. Erfordert die numerische Tag-ID.
 
 `tags[].id` aus der Antwort lesen.
 
-**Schritt 2 — Tag entfernen:**
+**Schritt 2 – Tag entfernen:**
 
 **Tool:** `detach_tag`
 
 **Parameter:**
-- `issue_id` — numerische Issue-ID
-- `tag_id` — numerische Tag-ID aus Schritt 1
+- `issue_id` – numerische Issue-ID
+- `tag_id` – numerische Tag-ID aus Schritt 1
 
 **Request:**
 
@@ -1255,7 +1255,7 @@ Entfernt einen Tag von einem Issue. Erfordert die numerische Tag-ID.
 "Tag #14 successfully removed from issue #1042."
 ```
 
-> **Hinweis:** `detach_tag` erfordert eine numerische ID, keinen Tag-Namen. Es gibt keine Suche per Name — die ID muss immer zuerst über `get_issue` oder `list_tags` abgerufen werden.
+> **Hinweis:** `detach_tag` erfordert eine numerische ID, keinen Tag-Namen. Es gibt keine Suche per Name – die ID muss immer zuerst über `get_issue` oder `list_tags` abgerufen werden.
 
 ---
 
@@ -1268,8 +1268,8 @@ Abonniert einen Benutzer für Benachrichtigungen zu einem Issue.
 **Tool:** `add_monitor`
 
 **Parameter:**
-- `issue_id` — numerische Issue-ID
-- `username` — Benutzername als Zeichenkette
+- `issue_id` – numerische Issue-ID
+- `username` – Benutzername als Zeichenkette
 
 **Request:**
 
@@ -1295,8 +1295,8 @@ Deabonniert einen Benutzer von Benachrichtigungen zu einem Issue.
 **Tool:** `remove_monitor`
 
 **Parameter:**
-- `issue_id` — numerische Issue-ID
-- `username` — Benutzername als Zeichenkette
+- `issue_id` – numerische Issue-ID
+- `username` – Benutzername als Zeichenkette
 
 **Request:**
 
@@ -1326,7 +1326,7 @@ Baut den vollständigen Vektor-Suchindex von Grund auf neu auf. Einmalig nach de
 **Tool:** `rebuild_search_index`
 
 **Parameter:**
-- `full` — auf `true` setzen, um den bestehenden Index vor dem Aufbau zu leeren
+- `full` – auf `true` setzen, um den bestehenden Index vor dem Aufbau zu leeren
 
 **Request:**
 
@@ -1356,8 +1356,8 @@ Aktualisiert den Index mit Issues, die seit dem letzten Aufbau hinzugekommen ode
 **Tool:** `rebuild_search_index`
 
 **Parameter:**
-- `project_id` — _(optional)_ auf ein einzelnes Projekt beschränken
-- `full` — weglassen oder auf `false` setzen für den inkrementellen Modus
+- `project_id` – _(optional)_ auf ein einzelnes Projekt beschränken
+- `full` – weglassen oder auf `false` setzen für den inkrementellen Modus
 
 **Request:**
 
@@ -1415,9 +1415,9 @@ Findet Issues, die einem natürlichsprachigen Suchbegriff semantisch ähnlich si
 **Tool:** `search_issues`
 
 **Parameter:**
-- `query` — Suchanfrage in natürlicher Sprache
-- `top_n` — _(optional)_ Anzahl zurückzugebender Ergebnisse; Standard 10
-- `highlight` — _(optional)_ bei `true` werden keyword-basierte Ausschnitte je Ergebnis ergänzt; Standard `false`
+- `query` – Suchanfrage in natürlicher Sprache
+- `top_n` – _(optional)_ Anzahl zurückzugebender Ergebnisse; Standard 10
+- `highlight` – _(optional)_ bei `true` werden keyword-basierte Ausschnitte je Ergebnis ergänzt; Standard `false`
 
 **Request:**
 
@@ -1438,7 +1438,7 @@ Findet Issues, die einem natürlichsprachigen Suchbegriff semantisch ähnlich si
 ]
 ```
 
-> **Hinweis:** Die semantische Suche gibt die top-N ähnlichsten Issues zurück — vollständige Treffergarantie besteht nicht. Sie eignet sich nicht für Abfragen wie »alle Issues zu Thema X auflisten«.
+> **Hinweis:** Die semantische Suche gibt die top-N ähnlichsten Issues zurück – vollständige Treffergarantie besteht nicht. Sie eignet sich nicht für Abfragen wie »alle Issues zu Thema X auflisten«.
 
 ---
 
@@ -1449,10 +1449,10 @@ Reichert Suchergebnisse mit bestimmten Feldern aus MantisBT an. Ohne `select` we
 **Tool:** `search_issues`
 
 **Parameter:**
-- `query` — Suchanfrage in natürlicher Sprache
-- `top_n` — _(optional)_ Anzahl der Ergebnisse
-- `select` — kommagetrennte Feldnamen, die für jedes Ergebnis abgerufen werden
-- `highlight` — _(optional)_ bei `true` werden keyword-basierte Ausschnitte je Ergebnis ergänzt; Standard `false`
+- `query` – Suchanfrage in natürlicher Sprache
+- `top_n` – _(optional)_ Anzahl der Ergebnisse
+- `select` – kommagetrennte Feldnamen, die für jedes Ergebnis abgerufen werden
+- `highlight` – _(optional)_ bei `true` werden keyword-basierte Ausschnitte je Ergebnis ergänzt; Standard `false`
 
 **Request:**
 
@@ -1486,14 +1486,14 @@ Reichert Suchergebnisse mit bestimmten Feldern aus MantisBT an. Ohne `select` we
 
 ### Suche mit Keyword-Highlights
 
-Zeigt, welcher Teil eines Issues mit der Suchanfrage übereinstimmt. Jedes Ergebnis, das lexikalisch mit der Anfrage übereinstimmt, erhält ein `highlights`-Feld mit fett hervorgehobenen Ausschnitten. Highlights sind keyword-basiert (lexikalisch), nicht semantisch — Ergebnisse ohne lexikalische Übereinstimmung haben kein `highlights`-Feld.
+Zeigt, welcher Teil eines Issues mit der Suchanfrage übereinstimmt. Jedes Ergebnis, das lexikalisch mit der Anfrage übereinstimmt, erhält ein `highlights`-Feld mit fett hervorgehobenen Ausschnitten. Highlights sind keyword-basiert (lexikalisch), nicht semantisch – Ergebnisse ohne lexikalische Übereinstimmung haben kein `highlights`-Feld.
 
 **Tool:** `search_issues`
 
 **Parameter:**
-- `query` — Suchanfrage in natürlicher Sprache
-- `top_n` — _(optional)_ Anzahl der Ergebnisse; Standard 10
-- `highlight` — auf `true` setzen, um Highlights zu aktivieren
+- `query` – Suchanfrage in natürlicher Sprache
+- `top_n` – _(optional)_ Anzahl der Ergebnisse; Standard 10
+- `highlight` – auf `true` setzen, um Highlights zu aktivieren
 
 **Request:**
 
@@ -1523,7 +1523,7 @@ Zeigt, welcher Teil eines Issues mit der Suchanfrage übereinstimmt. Jedes Ergeb
     "score": 0.84,
     "view_url": "https://mantis.example.com/view.php?id=987",
     "highlights": {
-      "summary": "**Login** schlägt mit 401 fehl — Token ungültig"
+      "summary": "**Login** schlägt mit 401 fehl – Token ungültig"
     }
   },
   {
@@ -1547,7 +1547,7 @@ Gibt alle verfügbaren Kategorien eines MantisBT-Projekts zurück. Die zurückge
 **Tool:** `get_project_categories`
 
 **Parameter:**
-- `project_id` — numerische Projekt-ID
+- `project_id` – numerische Projekt-ID
 
 **Request:**
 
@@ -1578,9 +1578,9 @@ Sucht Projektmitglieder nach Name, Realname oder E-Mail. Die Suche ist Groß-/Kl
 **Tool:** `find_project_member`
 
 **Parameter:**
-- `project_id` — numerische Projekt-ID
-- `query` — _(optional)_ Suchbegriff für `name`, `real_name` oder `email`
-- `limit` — _(optional)_ maximale Trefferanzahl, Standard 10, max. 100
+- `project_id` – numerische Projekt-ID
+- `query` – _(optional)_ Suchbegriff für `name`, `real_name` oder `email`
+- `limit` – _(optional)_ maximale Trefferanzahl, Standard 10, max. 100
 
 **Request:**
 
@@ -1614,12 +1614,12 @@ Erstellt eine neue Version in einem MantisBT-Projekt. Ohne `timestamp` verwendet
 **Tool:** `create_version`
 
 **Parameter:**
-- `project_id` — numerische Projekt-ID
-- `name` — Versionsname, z. B. `"2.0.0"`
-- `description` — _(optional)_ Versionsbeschreibung
-- `released` — _(optional)_ Version als veröffentlicht markieren; Standard `false`
-- `obsolete` — _(optional)_ Version als veraltet markieren; Standard `false`
-- `timestamp` — _(optional)_ Versionsdatum als ISO-8601-String, z. B. `"2026-09-27"`
+- `project_id` – numerische Projekt-ID
+- `name` – Versionsname, z. B. `"2.0.0"`
+- `description` – _(optional)_ Versionsbeschreibung
+- `released` – _(optional)_ Version als veröffentlicht markieren; Standard `false`
+- `obsolete` – _(optional)_ Version als veraltet markieren; Standard `false`
+- `timestamp` – _(optional)_ Versionsdatum als ISO-8601-String, z. B. `"2026-09-27"`
 
 **Request:**
 
@@ -1655,13 +1655,13 @@ Aktualisiert eine bestehende Version eines MantisBT-Projekts. Es werden nur die 
 **Tool:** `update_version`
 
 **Parameter:**
-- `project_id` — numerische Projekt-ID
-- `version_id` — numerische Versions-ID (mit `get_project_versions` ermittelbar)
-- `name` — _(optional)_ neuer Versionsname (muss im Projekt eindeutig sein)
-- `description` — _(optional)_ neue Versionsbeschreibung
-- `released` — _(optional)_ Veröffentlichungs-Flag
-- `obsolete` — _(optional)_ Veraltet-Flag
-- `timestamp` — _(optional)_ Versionsdatum als ISO-8601-String
+- `project_id` – numerische Projekt-ID
+- `version_id` – numerische Versions-ID (mit `get_project_versions` ermittelbar)
+- `name` – _(optional)_ neuer Versionsname (muss im Projekt eindeutig sein)
+- `description` – _(optional)_ neue Versionsbeschreibung
+- `released` – _(optional)_ Veröffentlichungs-Flag
+- `obsolete` – _(optional)_ Veraltet-Flag
+- `timestamp` – _(optional)_ Versionsdatum als ISO-8601-String
 
 **Request:** _(Version als veraltet markieren)_
 
@@ -1689,17 +1689,17 @@ Aktualisiert eine bestehende Version eines MantisBT-Projekts. Es werden nur die 
 
 ### Version freigeben und nächsten Bugfix-Platzhalter erstellen
 
-Markiert eine Version als veröffentlicht (mit Datumsangabe) und erstellt im selben Aufruf optional eine Folgeversion als Platzhalter. Der Name der Folgeversion wird unverändert übernommen — keine automatische Nummerierung. Schlägt das Erstellen der Folgeversion fehl, bleibt die Freigabe wirksam und der Fehler wird in `next_version_error` gemeldet.
+Markiert eine Version als veröffentlicht (mit Datumsangabe) und erstellt im selben Aufruf optional eine Folgeversion als Platzhalter. Der Name der Folgeversion wird unverändert übernommen – keine automatische Nummerierung. Schlägt das Erstellen der Folgeversion fehl, bleibt die Freigabe wirksam und der Fehler wird in `next_version_error` gemeldet.
 
 > **Berechtigung erforderlich:** `manage_project_threshold` (MantisBT-Standard: Manager). Vom Elternprojekt geerbte Versionen können nur über die `project_id` des Elternprojekts geändert werden.
 
 **Tool:** `release_version`
 
 **Parameter:**
-- `project_id` — numerische Projekt-ID
-- `version_id` — numerische Versions-ID der freizugebenden Version
-- `timestamp` — _(optional)_ Freigabedatum als ISO-8601-String; Standard: jetzt
-- `next_version` — _(optional)_ Name der Folgeversion, die als unveröffentlichter Platzhalter angelegt wird
+- `project_id` – numerische Projekt-ID
+- `version_id` – numerische Versions-ID der freizugebenden Version
+- `timestamp` – _(optional)_ Freigabedatum als ISO-8601-String; Standard: jetzt
+- `next_version` – _(optional)_ Name der Folgeversion, die als unveröffentlichter Platzhalter angelegt wird
 
 **Request:**
 
@@ -1733,7 +1733,7 @@ Markiert eine Version als veröffentlicht (mit Datumsangabe) und erstellt im sel
 }
 ```
 
-> **Hinweis:** Das Setzen von `released=true` via `update_version` ändert das Versionsdatum nicht — `release_version` verwenden, wenn beides in einem Schritt erledigt werden soll.
+> **Hinweis:** Das Setzen von `released=true` via `update_version` ändert das Versionsdatum nicht – `release_version` verwenden, wenn beides in einem Schritt erledigt werden soll.
 
 ---
 
@@ -1746,8 +1746,8 @@ Löscht eine Version dauerhaft aus einem MantisBT-Projekt. Diese Aktion ist nich
 **Tool:** `delete_version`
 
 **Parameter:**
-- `project_id` — numerische Projekt-ID
-- `version_id` — numerische Versions-ID
+- `project_id` – numerische Projekt-ID
+- `version_id` – numerische Versions-ID
 
 **Request:**
 
@@ -1882,7 +1882,7 @@ Gibt die Version der verbundenen MantisBT-Installation zurück und vergleicht si
 **Tool:** `get_mantis_version`
 
 **Parameter:**
-- `check_latest` — _(optional)_ ob gegen das neueste GitHub-Release verglichen werden soll; Standard `true`
+- `check_latest` – _(optional)_ ob gegen das neueste GitHub-Release verglichen werden soll; Standard `true`
 
 **Request:**
 
@@ -1938,9 +1938,9 @@ Gibt das Profil des Benutzers zurück, der dem konfigurierten API-Key zugeordnet
 
 ## Ressourcen
 
-MCP-Ressourcen sind URI-adressierbare, schreibgeschützte Daten. Clients, die Ressourcen unterstützen, können sie direkt per URI abrufen — kein Tool-Aufruf nötig. Hinweis: Ressourcen werden von MCP-Clients weniger breit unterstützt als Tools; bitte die Dokumentation des jeweiligen Clients prüfen.
+MCP-Ressourcen sind URI-adressierbare, schreibgeschützte Daten. Clients, die Ressourcen unterstützen, können sie direkt per URI abrufen – kein Tool-Aufruf nötig. Hinweis: Ressourcen werden von MCP-Clients weniger breit unterstützt als Tools; bitte die Dokumentation des jeweiligen Clients prüfen.
 
-> **Hinweis:** Ressourcen sind schreibgeschützt. Schreiboperationen sind über das Ressourcen-Primitiv nicht möglich — für Änderungen das entsprechende Tool verwenden (`create_issue`, `update_issue` usw.).
+> **Hinweis:** Ressourcen sind schreibgeschützt. Schreiboperationen sind über das Ressourcen-Primitiv nicht möglich – für Änderungen das entsprechende Tool verwenden (`create_issue`, `update_issue` usw.).
 
 ### Eigenes Benutzerprofil lesen
 
@@ -1948,7 +1948,7 @@ Gibt das Profil des authentifizierten API-Benutzers zurück.
 
 **Ressource-URI:** `mantis://me`
 
-**Abrufverhalten:** Immer live — ruft bei jedem Zugriff `GET /users/me` auf.
+**Abrufverhalten:** Immer live – ruft bei jedem Zugriff `GET /users/me` auf.
 
 **Response:**
 
@@ -2024,11 +2024,11 @@ Gibt eine kombinierte Ansicht eines einzelnen Projekts zurück: Projektfelder so
 
 ### Issue-Enum-Werte lesen
 
-Gibt gültige ID/Name-Paare für alle Issue-Enum-Felder zurück (Severity, Priority, Status, Resolution, Reproducibility). Bei `create_issue` werden sowohl kanonische englische Namen als auch lokalisierte `name`/`label`-Werte akzeptiert — diese Ressource hilft, alle verfügbaren Werte zu ermitteln.
+Gibt gültige ID/Name-Paare für alle Issue-Enum-Felder zurück (Severity, Priority, Status, Resolution, Reproducibility). Bei `create_issue` werden sowohl kanonische englische Namen als auch lokalisierte `name`/`label`-Werte akzeptiert – diese Ressource hilft, alle verfügbaren Werte zu ermitteln.
 
 **Ressource-URI:** `mantis://enums`
 
-**Abrufverhalten:** Immer live — ruft bei jedem Zugriff den MantisBT-Config-Endpoint auf.
+**Abrufverhalten:** Immer live – ruft bei jedem Zugriff den MantisBT-Config-Endpoint auf.
 
 **Response:**
 
@@ -2068,7 +2068,7 @@ Gibt gültige ID/Name-Paare für alle Issue-Enum-Felder zurück (Severity, Prior
 
 ## Prompts
 
-MCP-Prompt-Templates starten eine geführte Unterhaltung — der Client sendet die Prompt-Argumente und der Server liefert eine vorgefertigte Nachricht, die den LLM anweist, die passenden Tools aufzurufen. Beispiele in natürlicher Sprache sind in [examples.de.md](examples.de.md) zu finden.
+MCP-Prompt-Templates starten eine geführte Unterhaltung – der Client sendet die Prompt-Argumente und der Server liefert eine vorgefertigte Nachricht, die den LLM anweist, die passenden Tools aufzurufen. Beispiele in natürlicher Sprache sind in [examples.de.md](examples.de.md) zu finden.
 
 ### Bug-Report erstellen
 
@@ -2077,16 +2077,16 @@ Sammelt strukturierte Bug-Daten und ruft `create_issue` auf.
 **Prompt:** `create-bug-report`
 
 **Pflichtargumente:**
-- `project_id` — numerische Projekt-ID
-- `category` — Kategoriename
-- `summary` — Issue-Titel
-- `description` — detaillierte Fehlerbeschreibung
+- `project_id` – numerische Projekt-ID
+- `category` – Kategoriename
+- `summary` – Issue-Titel
+- `description` – detaillierte Fehlerbeschreibung
 
 **Optionale Argumente:**
-- `steps_to_reproduce` — Schritte zur Reproduktion
-- `expected` — erwartetes Verhalten
-- `actual` — tatsächliches (beobachtetes) Verhalten
-- `environment` — Umgebungsangaben (Betriebssystem, Browser, Version usw.)
+- `steps_to_reproduce` – Schritte zur Reproduktion
+- `expected` – erwartetes Verhalten
+- `actual` – tatsächliches (beobachtetes) Verhalten
+- `environment` – Umgebungsangaben (Betriebssystem, Browser, Version usw.)
 
 **Ablauf:** Der Prompt liefert eine Nachricht, die den LLM anweist, zunächst `get_issue_enums` aufzurufen (um gültige Schweregrad- und Prioritätswerte zu ermitteln) und anschließend `create_issue` mit den übergebenen Daten auszuführen.
 
@@ -2114,13 +2114,13 @@ Sammelt Feature-Details und ruft `create_issue` auf.
 **Prompt:** `create-feature-request`
 
 **Pflichtargumente:**
-- `project_id` — numerische Projekt-ID
-- `category` — Kategoriename
-- `summary` — Feature-Titel
-- `description` — detaillierte Beschreibung des Features
+- `project_id` – numerische Projekt-ID
+- `category` – Kategoriename
+- `summary` – Feature-Titel
+- `description` – detaillierte Beschreibung des Features
 
 **Optionale Argumente:**
-- `use_case` — konkreter Anwendungsfall oder Motivation für das Feature
+- `use_case` – konkreter Anwendungsfall oder Motivation für das Feature
 
 **Ablauf:** Der Prompt liefert eine Nachricht, die den LLM anweist, `create_issue` mit dem Schweregrad `feature` aufzurufen.
 
@@ -2145,9 +2145,9 @@ Ruft ein einzelnes Issue ab und liefert eine prägnante Zusammenfassung.
 **Prompt:** `summarize-issue`
 
 **Pflichtargumente:**
-- `issue_id` — numerische Issue-ID
+- `issue_id` – numerische Issue-ID
 
-**Ablauf:** Der Prompt liefert eine Nachricht, die den LLM anweist, `get_issue` aufzurufen und das Ergebnis zusammenzufassen — inklusive Status, Priorität, aktueller Notizen und empfohlener nächster Schritte.
+**Ablauf:** Der Prompt liefert eine Nachricht, die den LLM anweist, `get_issue` aufzurufen und das Ergebnis zusammenzufassen – inklusive Status, Priorität, aktueller Notizen und empfohlener nächster Schritte.
 
 **Beispielaufruf:**
 
@@ -2166,7 +2166,7 @@ Listet alle Issues eines Projekts auf und erstellt einen Status-Report nach Schw
 **Prompt:** `project-status`
 
 **Pflichtargumente:**
-- `project_id` — numerische Projekt-ID
+- `project_id` – numerische Projekt-ID
 
 **Ablauf:** Der Prompt liefert eine Nachricht, die den LLM anweist, `list_issues` für das Projekt aufzurufen und einen strukturierten Report zu erstellen: Anzahl offener Issues, Aufschlüsselung nach Schweregrad und eine Liste der kritischsten Einträge.
 
@@ -2189,7 +2189,7 @@ Löscht ein MantisBT-Issue dauerhaft. Diese Aktion kann nicht rückgängig gemac
 **Tool:** `delete_issue`
 
 **Parameter:**
-- `id` — numerische Issue-ID
+- `id` – numerische Issue-ID
 
 **Request:**
 
