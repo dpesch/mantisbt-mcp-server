@@ -4,7 +4,7 @@ Thank you for your interest in contributing to `mantisbt-mcp-server`!
 
 ## Prerequisites
 
-- Node.js ≥ 18
+- Node.js ≥ 22
 - A MantisBT instance with a valid API token for integration testing
 
 ## Setup

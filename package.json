@@ -49,13 +49,13 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/node": "^20.19.43",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@types/node": "^22.20.4",
+    "@vitest/coverage-v8": "^5.0.2",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.2"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }

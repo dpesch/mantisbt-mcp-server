@@ -11,6 +11,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Minimum Node.js version is now 22** (`engines: >=22`). Node.js 18 and 20 are end-of-life and no longer receive security updates; the test toolchain (vitest 5) no longer runs on them, so they could not be tested anymore. CI now runs on Node.js 22. Users on Node.js 20 or older should upgrade — npm only warns about the `engines` mismatch, but these versions are no longer tested.
+- Dev dependencies: vitest and `@vitest/coverage-v8` 5, `@types/node` 22 (matching the minimum Node.js version).
 - Dependencies: minimum versions raised to the current releases within each major (`@modelcontextprotocol/sdk` ^1.30.1, `zod` ^3.25.76, `@huggingface/transformers` ^3.8.1).
 - CI: the publish job now checks `NPM_TOKEN` and `GH_RELEASE_TOKEN` before `npm publish`, so an empty or invalid token stops the release before anything is published. Each publish step (npm, Codeberg release, GitHub release) is skipped when its target already exists, so re-running a failed job only catches up on what is missing.
 

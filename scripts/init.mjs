@@ -2,7 +2,7 @@
 // Project setup script — run via: npm run init
 //
 // Steps:
-//   1. Check Node.js version (requires >=18)
+//   1. Check Node.js version (requires >=22)
 //   2. Install dependencies (npm install)
 //   3. Install git hooks from scripts/hooks/ into .git/hooks/
 //   4. Run typecheck to verify the setup
@@ -23,8 +23,8 @@ const [npmBin, npmBaseArgs] = process.platform === 'win32'
 // ---------------------------------------------------------------------------
 
 const [major] = process.versions.node.split('.').map(Number);
-if (major < 18) {
-  console.error(`✗ Node.js >= 18 required, found ${process.version}`);
+if (major < 22) {
+  console.error(`✗ Node.js >= 22 required, found ${process.version}`);
   process.exit(1);
 }
 console.log(`✓ Node.js ${process.version}`);

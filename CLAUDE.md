@@ -26,7 +26,7 @@ npm run build     # Compile TypeScript → dist/
 npm run typecheck # Type check without output (fast)
 npm run dev       # Watch mode for development
 npm test          # Run tests (vitest)
-npm run init      # First-time setup: checks Node ≥18, installs deps + git hooks
+npm run init      # First-time setup: checks Node ≥22, installs deps + git hooks
 ```
 
 ---

@@ -12,7 +12,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that i
 
 ## Requirements
 
-- Node.js ≥ 18
+- Node.js ≥ 22
 - MantisBT installation with REST API enabled (version 2.23+)
 - MantisBT API token (create under *My Account → API Tokens*)
 
