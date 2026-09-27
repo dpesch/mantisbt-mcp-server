@@ -58,7 +58,64 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Every publish step below is skipped when its target already exists, so a
+      # re-run after a partial failure only catches up on what is missing instead
+      # of dying at `npm publish` on an already published version.
+      - name: Determine what is already published
+        id: state
+        env:
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          PKG="$(node -p 'require("./package.json").name')"
+          VERSION_NUM="${TAG#v}"
+
+          if [ "$(npm view "${PKG}@${VERSION_NUM}" version 2>/dev/null)" = "$VERSION_NUM" ]; then
+            echo "npm: ${PKG}@${VERSION_NUM} already published — skipping"
+            echo "npm_published=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          CB_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' \
+            "https://codeberg.org/api/v1/repos/dpesch/mantisbt-mcp-server/releases/tags/${TAG}")"
+          case "$CB_STATUS" in
+            200) echo "Codeberg: release ${TAG} exists — skipping"; echo "codeberg_exists=true" >> "$GITHUB_OUTPUT" ;;
+            404) ;;
+            *) echo "::error::Codeberg release lookup returned HTTP ${CB_STATUS}"; exit 1 ;;
+          esac
+
+          # Authenticated on purpose: the lookup doubles as the GH_RELEASE_TOKEN check
+          GH_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/repos/dpesch/mantisbt-mcp-server/releases/tags/${TAG}")"
+          case "$GH_STATUS" in
+            200) echo "GitHub: release ${TAG} exists — skipping"; echo "github_exists=true" >> "$GITHUB_OUTPUT" ;;
+            404) ;;
+            401) echo "::error::GH_RELEASE_TOKEN is empty or invalid (GitHub answered 401) — renew it in the Codeberg secrets"; exit 1 ;;
+            *) echo "::error::GitHub release lookup returned HTTP ${GH_STATUS}"; exit 1 ;;
+          esac
+
+      # Fail before anything is published, not after npm is already out
+      - name: Check release tokens
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
+        run: |
+          if [ "${{ steps.state.outputs.npm_published }}" != "true" ]; then
+            [ -n "$NODE_AUTH_TOKEN" ] || { echo "::error::NPM_TOKEN secret is empty"; exit 1; }
+            npm whoami || { echo "::error::NPM_TOKEN is invalid or expired — renew it (npm caps tokens at 90 days)"; exit 1; }
+          fi
+          if [ "${{ steps.state.outputs.github_exists }}" != "true" ]; then
+            [ -n "$GH_TOKEN" ] || { echo "::error::GH_RELEASE_TOKEN secret is empty"; exit 1; }
+            SCOPES="$(curl -sS -D - -o /dev/null -H "Authorization: Bearer ${GH_TOKEN}" https://api.github.com/user \
+              | tr -d '\r' | sed -n 's/^x-oauth-scopes: *//Ip')"
+            # Classic tokens report their scopes; fine-grained tokens send no header
+            if [ -n "$SCOPES" ] && ! echo "$SCOPES" | grep -Eq '(^|, *)(repo|public_repo)(,|$)'; then
+              echo "::error::GH_RELEASE_TOKEN lacks the repo/public_repo scope (has: ${SCOPES})"; exit 1
+            fi
+          fi
+
       - name: Publish to npm
+        if: steps.state.outputs.npm_published != 'true'
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -77,6 +134,7 @@ jobs:
       # rejected request looks exactly like a successful one and the release
       # silently never appears (happened with the GitHub step in v1.12.0).
       - name: Create Codeberg release
+        if: steps.state.outputs.codeberg_exists != 'true'
         run: |
           curl --fail-with-body -sS -X POST "https://codeberg.org/api/v1/repos/dpesch/mantisbt-mcp-server/releases" \
             -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
@@ -88,9 +146,12 @@ jobs:
               '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: false}')"
 
       - name: Create GitHub release
+        if: steps.state.outputs.github_exists != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
         run: |
           curl --fail-with-body -sS -X POST "https://api.github.com/repos/dpesch/mantisbt-mcp-server/releases" \
-            -H "Authorization: Bearer ${{ secrets.GH_RELEASE_TOKEN }}" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
               --arg tag "${{ github.ref_name }}" \

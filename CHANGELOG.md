@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- CI: the publish job now checks `NPM_TOKEN` and `GH_RELEASE_TOKEN` before `npm publish`, so an empty or invalid token stops the release before anything is published. Each publish step (npm, Codeberg release, GitHub release) is skipped when its target already exists, so re-running a failed job only catches up on what is missing.
+
 ---
 
 ## [1.13.0] – 2026-09-27
