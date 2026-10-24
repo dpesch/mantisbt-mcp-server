@@ -1351,7 +1351,9 @@ Builds the full vector search index from scratch. Run this once after enabling s
 
 ### Incremental index update
 
-Updates the index with issues added or changed since the last build. Faster than a full rebuild.
+Updates the index with issues added or changed since the last sync. Faster than a full rebuild: only issues changed since then are fetched and re-embedded.
+
+Only one server process syncs the shared index at a time. If another process (for example another client session) is already syncing, the tool returns an error ("A search index sync is already running") — try again once that sync has finished. A sync limited to `project_id` does not advance `last_synced_at`, so changes in other projects are still picked up by the next sync.
 
 **Tool:** `rebuild_search_index`
 
@@ -1372,7 +1374,7 @@ Updates the index with issues added or changed since the last build. Faster than
 ```json
 {
   "indexed": 14,
-  "skipped": 298,
+  "skipped": 0,
   "total": 312,
   "duration_ms": 2104
 }
@@ -1382,7 +1384,7 @@ Updates the index with issues added or changed since the last build. Faster than
 
 ### Check index status
 
-Returns the number of indexed issues, total issue count, and the timestamp of the last sync.
+Returns the number of indexed issues, total issue count, and the timestamp of the last sync. `last_synced_at` is the newest `updated_at` the MantisBT server reported at that sync (server time), so it can lie before the actual time of the sync.
 
 **Tool:** `get_search_index_status`
 
@@ -1402,7 +1404,7 @@ Returns the number of indexed issues, total issue count, and the timestamp of th
   "indexed": 312,
   "total": 312,
   "percent": 100,
-  "last_synced_at": "2024-11-05T14:00:00.000Z"
+  "last_synced_at": "2024-11-05T14:00:00+01:00"
 }
 ```
 

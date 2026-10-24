@@ -1,6 +1,7 @@
 import type { MantisClient } from '../client.js';
 import type { VectorStore, VectorStoreItem } from './store.js';
 import type { Embedder } from './embedder.js';
+import { acquireSyncLock } from './sync-lock.js';
 
 // ---------------------------------------------------------------------------
 // Types for MantisBT issue list response
@@ -26,14 +27,46 @@ const PAGE_SIZE = 50;
 const EMBED_BATCH_SIZE = 10;
 const CHECKPOINT_INTERVAL = 100; // flush to disk every N indexed issues
 
+type SyncResult = { indexed: number; skipped: number; total: number | null };
+
+export class SyncLockedError extends Error {
+  constructor() {
+    super('A search index sync is already running — try again once it has finished');
+    this.name = 'SyncLockedError';
+  }
+}
+
 export class SearchSyncService {
   constructor(
     private readonly client: MantisClient,
     private readonly store: VectorStore,
     private readonly embedder: Embedder,
+    private readonly lockDir?: string,
   ) {}
 
-  async sync(projectId?: number): Promise<{ indexed: number; skipped: number; total: number | null }> {
+  /**
+   * Indexes all issues changed since the last sync. With `full`, the index is
+   * cleared first — inside the lock, so a running sync of another process is
+   * never wiped underneath it.
+   */
+  async sync(projectId?: number, { full = false }: { full?: boolean } = {}): Promise<SyncResult> {
+    if (this.lockDir === undefined) return this.syncUnlocked(projectId, full);
+
+    const release = await acquireSyncLock(this.lockDir);
+    if (!release) throw new SyncLockedError();
+    try {
+      return await this.syncUnlocked(projectId, full);
+    } finally {
+      await release();
+    }
+  }
+
+  private async syncUnlocked(projectId: number | undefined, full: boolean): Promise<SyncResult> {
+    if (full) {
+      await this.store.clear();
+      await this.store.resetLastSyncedAt();
+    }
+
     const lastSyncedAt = await this.store.getLastSyncedAt();
 
     const { issues: allIssues, totalFromApi } = await this.fetchAllIssues(lastSyncedAt ?? undefined, projectId);
@@ -51,6 +84,9 @@ export class SearchSyncService {
         if (!issue.summary) {
           skipped++;
           continue;
+        }
+        if (issue.updated_at && (await this.store.getItem(issue.id))?.metadata.updated_at === issue.updated_at) {
+          continue; // already indexed in this exact version
         }
         const text = `${issue.summary}\n${issue.description ?? ''}`.trim();
         toEmbed.push({ issue, text });
@@ -86,7 +122,14 @@ export class SearchSyncService {
       await this.store.flush();
     }
 
-    await this.store.setLastSyncedAt(new Date().toISOString());
+    // The watermark is the newest updated_at the server reported, not the local
+    // clock: a client clock running ahead of the server would otherwise skip
+    // changes for good. A project-scoped sync must not move the shared watermark,
+    // since changes in the other projects were not looked at.
+    const newestUpdatedAt = allIssues.find(issue => issue.updated_at)?.updated_at;
+    if (projectId === undefined && newestUpdatedAt && newestUpdatedAt !== lastSyncedAt) {
+      await this.store.setLastSyncedAt(newestUpdatedAt);
+    }
 
     // Persist the best known total for get_search_index_status.
     // Priority: API total_count > full-rebuild count > current store size.
@@ -94,7 +137,7 @@ export class SearchSyncService {
     // total_count and ensures the status tool never shows "total unknown" after
     // any sync has completed.
     const storeCount = await this.store.count();
-    const total = totalFromApi ?? (lastSyncedAt === null ? indexed + skipped : storeCount);
+    const total = totalFromApi ?? (lastSyncedAt === null ? allIssues.length : storeCount);
     await this.store.setLastKnownTotal(total);
 
     return { indexed, skipped, total };
@@ -104,7 +147,9 @@ export class SearchSyncService {
     updatedAfter: string | undefined,
     projectId: number | undefined,
   ): Promise<{ issues: IssueListItem[]; totalFromApi: number | null }> {
-    const allIssues: IssueListItem[] = [];
+    const changedIssues: IssueListItem[] = [];
+    const updatedAfterMs = updatedAfter ? new Date(updatedAfter).getTime() : undefined;
+    let fetchedCount = 0;
     let totalFromApi: number | null = null;
     let page = 1;
 
@@ -127,18 +172,33 @@ export class SearchSyncService {
 
       const response = await this.client.get<IssueListResponse>('issues', params);
       const pageIssues = response.issues ?? [];
-      allIssues.push(...pageIssues);
+      fetchedCount += pageIssues.length;
+
+      // The MantisBT REST API ignores updated_after, sort and direction (they are
+      // still sent for API versions that honour them). It always returns issues
+      // ordered by last_updated DESC without pulling sticky issues to the top
+      // (see filter_get_default() and mc_filter_get_issues()), so the first issue
+      // older than the watermark marks the end of the changes. Ties are kept:
+      // timestamps have one-second resolution, and sync() skips issues whose
+      // indexed version is already current.
+      const cut = updatedAfterMs === undefined
+        ? -1
+        : pageIssues.findIndex(issue => issue.updated_at && new Date(issue.updated_at).getTime() < updatedAfterMs);
+      const reachedWatermark = cut !== -1;
+      changedIssues.push(...(reachedWatermark ? pageIssues.slice(0, cut) : pageIssues));
 
       // Capture total_count from the first page that provides it
       if (totalFromApi === null && response.total_count != null) {
         totalFromApi = response.total_count;
       }
 
-      // Stop when we have fetched all issues:
+      // Stop when we have fetched all changed issues:
+      // - the watermark was reached on this page, or
       // - total_count is provided and reached, or
       // - page returned fewer items than requested (last page)
+      if (reachedWatermark) break;
       if (totalFromApi !== null) {
-        if (allIssues.length >= totalFromApi) break;
+        if (fetchedCount >= totalFromApi) break;
       } else if (pageIssues.length < PAGE_SIZE) {
         break;
       }
@@ -146,6 +206,6 @@ export class SearchSyncService {
       page++;
     }
 
-    return { issues: allIssues, totalFromApi };
+    return { issues: changedIssues, totalFromApi };
   }
 }

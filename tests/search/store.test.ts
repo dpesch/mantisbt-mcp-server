@@ -191,3 +191,31 @@ describe('VectraStore.flush (atomic write)', () => {
     expect(files.some(f => f.endsWith('.tmp'))).toBe(false);
   });
 });
+
+describe('VectraStore – index written by another process', () => {
+  // Every client session runs its own server process on the same index. A
+  // process that loaded the index earlier must pick up what another process
+  // synced since, or its next flush would write the old state back.
+  it('reloads the index when index.json changed on disk', async () => {
+    await store.count(); // load the (empty) index into memory
+
+    const other = new VectraStore(dir);
+    await other.add({ id: 7, vector: randomVector(), metadata: { summary: 'Synced elsewhere' } });
+
+    expect(await store.getItem(7)).not.toBeNull();
+    expect(await store.count()).toBe(1);
+  });
+
+  it('keeps the other process\'s items when flushing its own', async () => {
+    await store.count();
+
+    const other = new VectraStore(dir);
+    await other.add({ id: 7, vector: randomVector(), metadata: { summary: 'Synced elsewhere' } });
+
+    await store.addBatch([{ id: 8, vector: randomVector(), metadata: { summary: 'Mine' } }]);
+    await store.flush();
+
+    const fresh = new VectraStore(dir);
+    expect(await fresh.count()).toBe(2);
+  });
+});

@@ -1351,7 +1351,9 @@ Baut den vollständigen Vektor-Suchindex von Grund auf neu auf. Einmalig nach de
 
 ### Inkrementelles Index-Update
 
-Aktualisiert den Index mit Issues, die seit dem letzten Aufbau hinzugekommen oder geändert wurden. Schneller als ein vollständiger Neuaufbau.
+Aktualisiert den Index mit Issues, die seit der letzten Synchronisation hinzugekommen oder geändert wurden. Schneller als ein vollständiger Neuaufbau: Nur die seitdem geänderten Issues werden abgerufen und neu eingebettet.
+
+Es synchronisiert immer nur ein Serverprozess den gemeinsamen Index. Läuft bereits eine Synchronisation in einem anderen Prozess (etwa einer anderen Client-Sitzung), gibt das Tool einen Fehler zurück – nach deren Ende einfach erneut aufrufen. Eine auf `project_id` beschränkte Synchronisation verschiebt `last_synced_at` nicht, damit Änderungen in anderen Projekten beim nächsten Sync trotzdem erfasst werden.
 
 **Tool:** `rebuild_search_index`
 
@@ -1372,7 +1374,7 @@ Aktualisiert den Index mit Issues, die seit dem letzten Aufbau hinzugekommen ode
 ```json
 {
   "indexed": 14,
-  "skipped": 298,
+  "skipped": 0,
   "total": 312,
   "duration_ms": 2104
 }
@@ -1382,7 +1384,7 @@ Aktualisiert den Index mit Issues, die seit dem letzten Aufbau hinzugekommen ode
 
 ### Index-Status prüfen
 
-Gibt die Anzahl der indizierten Issues, die Gesamtanzahl der Issues und den Zeitstempel der letzten Synchronisation zurück.
+Gibt die Anzahl der indizierten Issues, die Gesamtanzahl der Issues und den Zeitstempel der letzten Synchronisation zurück. `last_synced_at` ist das jüngste `updated_at`, das der MantisBT-Server bei dieser Synchronisation gemeldet hat (Serverzeit), und kann daher vor dem tatsächlichen Zeitpunkt der Synchronisation liegen.
 
 **Tool:** `get_search_index_status`
 
@@ -1402,7 +1404,7 @@ Gibt die Anzahl der indizierten Issues, die Gesamtanzahl der Issues und den Zeit
   "indexed": 312,
   "total": 312,
   "percent": 100,
-  "last_synced_at": "2024-11-05T14:00:00.000Z"
+  "last_synced_at": "2024-11-05T14:00:00+01:00"
 }
 ```
 

@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { MantisClient } from '../../src/client.js';
-import { SearchSyncService } from '../../src/search/sync.js';
+import { SearchSyncService, SyncLockedError } from '../../src/search/sync.js';
+import { acquireSyncLock } from '../../src/search/sync-lock.js';
 import { makeMockStore, makeMockEmbedder } from '../helpers/search-mocks.js';
 import { makeResponse } from '../helpers/mock-server.js';
 import type { Embedder } from '../../src/search/embedder.js';
@@ -97,6 +101,156 @@ describe('SearchSyncService.sync – incremental (with lastSyncedAt)', () => {
     const url = new URL(calledUrl);
     expect(url.searchParams.get('updated_after')).toBe(lastSync);
     expect(store.addBatch).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Incremental sync against the real API behaviour (regression #8439):
+// MantisBT ignores updated_after and always returns all issues, newest first.
+// ---------------------------------------------------------------------------
+
+describe('SearchSyncService.sync – incremental filtering (API ignores updated_after)', () => {
+  const WATERMARK = '2024-03-10T00:00:00Z';
+
+  // Builds `count` issues sorted newest first; the first `newer` of them are
+  // newer than WATERMARK, the rest are older.
+  function makePage(startId: number, count: number, newer: number) {
+    return Array.from({ length: count }, (_, i) => ({
+      id: startId + i,
+      summary: `Issue ${startId + i}`,
+      updated_at: i < newer ? '2024-03-11T00:00:00Z' : '2024-03-01T00:00:00Z',
+    }));
+  }
+
+  function mockPages(pages: Array<ReturnType<typeof makePage>>, totalCount: number) {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const page = Number(new URL(input as string).searchParams.get('page'));
+      return makeResponse(200, JSON.stringify({ issues: pages[page - 1] ?? [], total_count: totalCount }));
+    });
+  }
+
+  it('embeds only issues updated after the watermark', async () => {
+    const store = makeMockStore({ lastSyncedAt: WATERMARK, itemCount: 150 });
+    mockPages([makePage(1, 50, 3), makePage(51, 50, 0), makePage(101, 50, 0)], 150);
+
+    const service = new SearchSyncService(client, store, embedder);
+    const result = await service.sync();
+
+    expect(result.indexed).toBe(3);
+    const embedded = vi.mocked(store.addBatch).mock.calls.flat(2).map(item => item.id);
+    expect(embedded).toEqual([1, 2, 3]);
+  });
+
+  it('stops paging after the first page that reaches the watermark', async () => {
+    const store = makeMockStore({ lastSyncedAt: WATERMARK, itemCount: 150 });
+    mockPages([makePage(1, 50, 50), makePage(51, 50, 10), makePage(101, 50, 0)], 150);
+
+    const service = new SearchSyncService(client, store, embedder);
+    const result = await service.sync();
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(result.indexed).toBe(60);
+  });
+
+  it('re-embeds an issue updated exactly at the watermark unless it is already current', async () => {
+    // MantisBT timestamps have one-second resolution: an issue changed in the same
+    // second as the watermark must not be dropped.
+    const store = makeMockStore({
+      lastSyncedAt: WATERMARK,
+      items: [{ id: 2, updated_at: WATERMARK }],
+    });
+    mockPages([[
+      { id: 1, summary: 'Changed in the watermark second', updated_at: WATERMARK },
+      { id: 2, summary: 'Already indexed in this version', updated_at: WATERMARK },
+      { id: 3, summary: 'Older', updated_at: '2024-03-01T00:00:00Z' },
+    ]], 3);
+
+    const service = new SearchSyncService(client, store, embedder);
+    const result = await service.sync();
+
+    const embedded = vi.mocked(store.addBatch).mock.calls.flat(2).map(item => item.id);
+    expect(embedded).toEqual([1]);
+    expect(result.indexed).toBe(1);
+  });
+
+  it('does not flush when nothing changed', async () => {
+    const store = makeMockStore({ lastSyncedAt: WATERMARK, itemCount: 50 });
+    mockPages([makePage(1, 50, 0)], 50);
+
+    const service = new SearchSyncService(client, store, embedder);
+    const result = await service.sync();
+
+    expect(result.indexed).toBe(0);
+    expect(store.flush).not.toHaveBeenCalled();
+  });
+
+  it('advances the watermark to the newest updated_at reported by the server', async () => {
+    const store = makeMockStore({ lastSyncedAt: WATERMARK, itemCount: 50 });
+    mockPages([makePage(1, 50, 3)], 50);
+
+    const service = new SearchSyncService(client, store, embedder);
+    await service.sync();
+
+    expect(store.setLastSyncedAt).toHaveBeenCalledWith('2024-03-11T00:00:00Z');
+  });
+
+  it('keeps the watermark when no issue is newer', async () => {
+    const store = makeMockStore({ lastSyncedAt: WATERMARK, itemCount: 50 });
+    mockPages([makePage(1, 50, 0)], 50);
+
+    const service = new SearchSyncService(client, store, embedder);
+    await service.sync();
+
+    expect(store.setLastSyncedAt).not.toHaveBeenCalled();
+  });
+
+  it('does not move the global watermark for a project-scoped sync', async () => {
+    // A project-scoped sync only sees one project; advancing the shared watermark
+    // would hide changes in all other projects from the next full sync.
+    const store = makeMockStore({ lastSyncedAt: WATERMARK, itemCount: 50 });
+    mockPages([makePage(1, 50, 3)], 50);
+
+    const service = new SearchSyncService(client, store, embedder);
+    await service.sync(7);
+
+    expect(store.setLastSyncedAt).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sync lock: only one process syncs the shared index at a time
+// ---------------------------------------------------------------------------
+
+describe('SearchSyncService.sync – sync lock', () => {
+  let lockDir: string;
+
+  beforeEach(async () => {
+    lockDir = await mkdtemp(join(tmpdir(), 'mantis-sync-'));
+  });
+
+  afterEach(async () => {
+    await rm(lockDir, { recursive: true, force: true });
+  });
+
+  it('throws SyncLockedError and does not fetch while another sync holds the lock', async () => {
+    const release = await acquireSyncLock(lockDir);
+    const store = makeMockStore({ lastSyncedAt: null });
+
+    const service = new SearchSyncService(client, store, embedder, lockDir);
+    await expect(service.sync()).rejects.toBeInstanceOf(SyncLockedError);
+    expect(fetch).not.toHaveBeenCalled();
+
+    await release!();
+  });
+
+  it('releases the lock after the sync, also when it fails', async () => {
+    const store = makeMockStore({ lastSyncedAt: null });
+    vi.mocked(fetch).mockResolvedValueOnce(makeResponse(500, 'boom'));
+
+    const service = new SearchSyncService(client, store, embedder, lockDir);
+    await expect(service.sync()).rejects.toThrow();
+
+    expect(await acquireSyncLock(lockDir)).not.toBeNull();
   });
 });
 

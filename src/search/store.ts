@@ -1,4 +1,4 @@
-import { readFile, writeFile, rename, mkdir, unlink } from 'node:fs/promises';
+import { readFile, writeFile, rename, mkdir, unlink, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 
 // ---------------------------------------------------------------------------
@@ -37,6 +37,12 @@ export class VectraStore implements VectorStore {
   private readonly lastTotalFile: string;
   private items: Map<number, VectorStoreItem> = new Map();
   private loaded = false;
+  // Version of index.json the in-memory items correspond to (null: no file).
+  // Every client session runs its own server process on the same index, so
+  // another process may have rewritten the file since it was loaded.
+  private loadedVersion: string | null = null;
+  // Unflushed addBatch() changes — never discard them by reloading.
+  private dirty = false;
 
   constructor(private readonly dir: string) {
     this.vectraDir = join(dir, 'vectra');
@@ -44,12 +50,27 @@ export class VectraStore implements VectorStore {
     this.lastTotalFile = join(dir, 'last_total.txt');
   }
 
-  private async ensureLoaded(): Promise<void> {
-    if (this.loaded) return;
-    await mkdir(this.vectraDir, { recursive: true });
-    const indexFile = join(this.vectraDir, 'index.json');
+  private get indexFile(): string {
+    return join(this.vectraDir, 'index.json');
+  }
+
+  private async fileVersion(): Promise<string | null> {
     try {
-      const raw = await readFile(indexFile, 'utf-8');
+      const { mtimeMs, size } = await stat(this.indexFile);
+      return `${mtimeMs}:${size}`;
+    } catch {
+      return null;
+    }
+  }
+
+  private async ensureLoaded(): Promise<void> {
+    if (this.loaded && this.dirty) return;
+    const version = await this.fileVersion();
+    if (this.loaded && version === this.loadedVersion) return;
+
+    await mkdir(this.vectraDir, { recursive: true });
+    try {
+      const raw = await readFile(this.indexFile, 'utf-8');
       const parsed = JSON.parse(raw) as VectorStoreItem[];
       this.items = new Map(parsed.map(item => [item.id, item]));
     } catch {
@@ -57,14 +78,16 @@ export class VectraStore implements VectorStore {
       this.items = new Map();
     }
     this.loaded = true;
+    this.loadedVersion = version;
   }
 
   private async persist(): Promise<void> {
-    const indexFile = join(this.vectraDir, 'index.json');
-    const tmpFile = indexFile + '.tmp';
+    const tmpFile = this.indexFile + '.tmp';
     const data = JSON.stringify([...this.items.values()]);
     await writeFile(tmpFile, data, 'utf-8');
-    await rename(tmpFile, indexFile);
+    await rename(tmpFile, this.indexFile);
+    this.loadedVersion = await this.fileVersion();
+    this.dirty = false;
   }
 
   async add(item: VectorStoreItem): Promise<void> {
@@ -78,6 +101,7 @@ export class VectraStore implements VectorStore {
     for (const item of items) {
       this.items.set(item.id, item);
     }
+    this.dirty = items.length > 0 || this.dirty;
     // No persist() here — call flush() once after all batches are processed.
   }
 

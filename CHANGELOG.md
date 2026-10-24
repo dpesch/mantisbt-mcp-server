@@ -9,6 +9,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Semantic search: the background sync on server start re-fetched and re-embedded **every** issue instead of only the changed ones. The MantisBT REST API ignores the `updated_after` filter the sync relied on, so each start of each client session caused minutes of full CPU load and rewrote the whole index file. The sync now filters by `updated_at` itself and stops paging at the first unchanged issue; issues whose indexed version is already current are not re-embedded. With an up-to-date index a start now fetches a single page.
+- Semantic search: only one server process syncs the shared index at a time (lock file `sync.lock` in the search directory, stale locks from crashed processes are taken over). Other processes skip the startup sync; `rebuild_search_index` returns an error while another sync is running. Previously concurrent syncs overwrote each other's `index.json`.
+- Semantic search: a server process now reloads the index when another process has rewritten it, instead of writing its outdated copy back on the next flush.
+- Semantic search: `last_synced_at` is now taken from the newest `updated_at` reported by the server instead of the local clock, so a client clock running ahead of the server can no longer skip changes. A sync limited to `project_id` no longer advances it, so changes in other projects are not lost.
+
 ---
 
 ## [1.14.0] – 2026-09-27

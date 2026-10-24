@@ -43,6 +43,7 @@ export function registerSearchTools(
   client: MantisClient,
   store: VectorStore,
   embedder: Embedder,
+  lockDir?: string,
 ): void {
 
   // ---------------------------------------------------------------------------
@@ -266,14 +267,9 @@ export function registerSearchTools(
     },
     async ({ project_id, full }) => {
       try {
-        if (full) {
-          await store.clear();
-          await store.resetLastSyncedAt();
-        }
-
         const startMs = Date.now();
-        const syncService = new SearchSyncService(client, store, embedder);
-        const { indexed, skipped, total } = await syncService.sync(project_id);
+        const syncService = new SearchSyncService(client, store, embedder, lockDir);
+        const { indexed, skipped, total } = await syncService.sync(project_id, { full });
         const duration_ms = Date.now() - startMs;
 
         return {
