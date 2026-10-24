@@ -156,7 +156,7 @@ Statt einfachem Keyword-Matching versteht die semantische Suche die *Bedeutung* 
 - *„Performance-Probleme auf der Checkout-Seite"* – liefert verwandte Meldungen unabhängig von der verwendeten Terminologie
 - *„doppelte Einträge in der Rechnungsliste"* – erkennt auch Issues, die als „zweifach angezeigt", „dupliziert" o.ä. beschrieben sind
 
-Das Embedding-Modell (~80 MB) läuft vollständig **offline** – kein OpenAI-Key, keine externe API. Es wird beim ersten Start einmalig heruntergeladen und lokal gecacht. Issues werden bei jedem Serverstart inkrementell indexiert (nur neue und geänderte Issues werden neu verarbeitet). Starten mehrere Client-Sitzungen gleichzeitig einen Server, synchronisiert nur einer davon den gemeinsamen Index.
+Das Embedding-Modell (~80 MB) läuft vollständig **offline** – kein OpenAI-Key, keine externe API. Es wird beim ersten Start einmalig heruntergeladen und lokal gecacht. Issues werden bei jedem Serverstart inkrementell indexiert (nur neue und geänderte Issues werden neu verarbeitet). Starten mehrere Client-Sitzungen gleichzeitig einen Server, synchronisiert nur einer davon den gemeinsamen Index. Das Modell wird bei der ersten Nutzung geladen und nach 10 Minuten ohne Einbetten wieder entladen, damit ruhende Sitzungen seinen Speicher (~0,9 GB pro Serverprozess) nicht dauerhaft belegen.
 
 Aktivierung mit `MANTIS_SEARCH_ENABLED=true`.
 

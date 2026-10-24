@@ -14,6 +14,7 @@ interface PipelineOutput {
 
 interface Pipeline {
   (text: string | string[], options?: Record<string, unknown>): Promise<PipelineOutput | PipelineOutput[]>;
+  dispose?: () => Promise<void>;
 }
 
 interface PipelineOptions {
@@ -27,17 +28,52 @@ interface TransformersModule {
   pipeline: (task: string, model: string, options?: PipelineOptions) => Promise<Pipeline>;
 }
 
+// A loaded model takes ~0.9 GB RAM, and every client session runs its own
+// server process. An idle process releases the model; the next use reloads it.
+const IDLE_UNLOAD_MS = 10 * 60 * 1000;
+
 export class Embedder {
-  private pipe: Pipeline | null = null;
+  private pipe: Promise<Pipeline> | null = null;
+  private running = 0;
+  private idleTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly modelName: string,
     private readonly numThreads: number = 1,
   ) {}
 
-  private async load(): Promise<Pipeline> {
-    if (this.pipe) return this.pipe;
+  private async withPipeline<T>(fn: (extractor: Pipeline) => Promise<T>): Promise<T> {
+    this.running++;
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+    try {
+      if (!this.pipe) {
+        const loading = this.load();
+        // Never keep a failed load around — the next call retries.
+        loading.catch(() => { if (this.pipe === loading) this.pipe = null; });
+        this.pipe = loading;
+      }
+      return await fn(await this.pipe);
+    } finally {
+      // The timer only runs while nothing is embedding; unref() keeps it from
+      // holding the process alive.
+      if (--this.running === 0 && this.pipe) {
+        this.idleTimer = setTimeout(() => void this.unload(), IDLE_UNLOAD_MS).unref();
+      }
+    }
+  }
 
+  private async unload(): Promise<void> {
+    const pipe = this.pipe!;
+    this.idleTimer = null;
+    this.pipe = null;
+    process.stderr.write(`[mantisbt-search] Unloading idle embedding model ${this.modelName}\n`);
+    await (await pipe).dispose?.();
+  }
+
+  private async load(): Promise<Pipeline> {
     process.stderr.write(`[mantisbt-search] Loading embedding model ${this.modelName} (threads: ${this.numThreads})...\n`);
 
     let transformers: TransformersModule;
@@ -49,30 +85,31 @@ export class Embedder {
       throw new Error(`Failed to load @huggingface/transformers: ${msg}`);
     }
 
-    this.pipe = await transformers.pipeline('feature-extraction', this.modelName, {
+    return transformers.pipeline('feature-extraction', this.modelName, {
       session_options: {
         intra_op_num_threads: this.numThreads,
         inter_op_num_threads: 1, // Transformer graphs are sequential — no benefit from inter-op parallelism
       },
     });
-    return this.pipe;
   }
 
   async embed(text: string): Promise<number[]> {
-    const extractor = await this.load();
-    const output = await extractor(text, { pooling: 'mean', normalize: true });
-    return extractVector(output as PipelineOutput);
+    return this.withPipeline(async extractor => {
+      const output = await extractor(text, { pooling: 'mean', normalize: true });
+      return extractVector(output as PipelineOutput);
+    });
   }
 
   async embedBatch(texts: string[]): Promise<number[][]> {
     if (texts.length === 0) return [];
-    const extractor = await this.load();
-    const output = await extractor(texts, { pooling: 'mean', normalize: true });
-    if (Array.isArray(output)) {
-      return (output as PipelineOutput[]).map(extractVector);
-    }
-    // Some versions return a single tensor for batch input
-    return extractBatchVectors(output as PipelineOutput, texts.length);
+    return this.withPipeline(async extractor => {
+      const output = await extractor(texts, { pooling: 'mean', normalize: true });
+      if (Array.isArray(output)) {
+        return (output as PipelineOutput[]).map(extractVector);
+      }
+      // Some versions return a single tensor for batch input
+      return extractBatchVectors(output as PipelineOutput, texts.length);
+    });
   }
 }
 
