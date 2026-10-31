@@ -2535,6 +2535,8 @@ Listet alle Issues eines Projekts auf und erstellt einen Status-Report nach Schw
 
 ## Destruktive Operationen
 
+> Um alle destruktiven Tools auf einmal auszublenden – etwa für eine Sitzung, die nie etwas löschen soll –, `MANTIS_DISABLE_DESTRUCTIVE=true` setzen; siehe [Nur bestimmte Tool-Gruppen anbieten](#nur-bestimmte-tool-gruppen-anbieten).
+
 ### Issue löschen
 
 Löscht ein MantisBT-Issue dauerhaft. Diese Aktion kann nicht rückgängig gemacht werden.

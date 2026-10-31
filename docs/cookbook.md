@@ -2535,6 +2535,8 @@ Lists all issues for a project and generates a status report grouped by severity
 
 ## Destructive Operations
 
+> To hide all destructive tools at once — e.g. for a session that should never delete anything — set `MANTIS_DISABLE_DESTRUCTIVE=true`; see [Offer only some tool groups](#offer-only-some-tool-groups).
+
 ### Delete an issue
 
 Permanently deletes a MantisBT issue. This action cannot be undone.
