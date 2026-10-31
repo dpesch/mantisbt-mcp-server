@@ -64,6 +64,10 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 
 > »Füge eine private Notiz zu #512 hinzu: Kundenreferenz AC-2291, nicht weitergeben.«
 
+> »Korrigiere den Tippfehler in Notiz #88 von Issue #1042 – ›Version 2.0.3‹ soll ›Version 2.0.4‹ heißen.«
+
+> »Stelle Notiz #89 von Issue #1042 auf privat.«
+
 ---
 
 ### Anhänge

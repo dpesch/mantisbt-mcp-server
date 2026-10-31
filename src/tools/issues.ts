@@ -7,7 +7,7 @@ import { getVersionHint } from '../version-hint.js';
 import { MANTIS_CANONICAL_ENUM_NAMES, MANTIS_RESOLVED_STATUS_ID, resolveEnumId } from '../constants.js';
 import { dateFilterSchema, matchesDateFilter, hasDateFilter, type DateFilter } from '../date-filter.js';
 import { fetchIssueEnumsWithCache } from './config.js';
-import { postNote } from './notes.js';
+import { postNote, noteEditsSchema, prepareNoteEdits, verifyNoteEdits } from './notes.js';
 import { applyMonitorChanges } from './monitors.js';
 import { firstIssue, type IssueEnvelope } from '../issue-envelope.js';
 
@@ -478,6 +478,7 @@ The "fields" object accepts any combination of:
 - fixed_in_version: { name: "<version_name>" }
 - view_state: { name: "public"|"private" }
 - custom_fields: [{field: {id|name}, value: "<string>"}]  (only the listed custom fields are changed, others stay untouched; use get_issue_fields to discover fields)
+- notes: [{ id: <note_id>, text?: "<new text>", view_state?: "public"|"private" }]  (edits existing notes; note IDs come from get_issue or list_notes. An omitted view_state keeps the note's current visibility. To add a new note use the "note" parameter or add_note.)
 
 Important: when resolving an issue, always set BOTH status and resolution to avoid leaving resolution as "open".
 
@@ -485,7 +486,7 @@ Use the optional "note" parameter to append a note in the same call (e.g. the re
 
 Use "add_monitors" / "remove_monitors" (lists of MantisBT login names) to change who watches the issue — "fields" may be omitted then. The response contains "monitors" with added/removed/not_monitoring and the current monitor list. Adding or removing other users requires the monitor_add_others_bug_threshold / monitor_delete_others_bug_threshold access level.
 
-Steps run in order: fields, monitors, note. Once one step succeeded, a later failure is reported inline ("monitors_error", "note_error") instead of failing the call — do not retry the steps that went through. Only if every requested step failed is the call an error.`,
+Steps run in order: fields, monitors, note. Once one step succeeded, a later failure is reported inline ("notes_error" when a note edit was not applied, "monitors_error", "note_error") instead of failing the call — do not retry the steps that went through. Only if every requested step failed is the call an error.`,
       inputSchema: z.object({
         id: z.coerce.number().int().positive().describe('Numeric issue ID to update'),
         add_monitors: z.array(z.string().min(1)).min(1).optional().describe('MantisBT login names to add as monitors (watchers) of the issue'),
@@ -515,6 +516,7 @@ Steps run in order: fields, monitors, note. Once one step succeeded, a later fai
             fixed_in_version: ref.optional(),
             view_state: ref.optional(),
             custom_fields: z.array(customFieldEntry).optional(),
+            notes: noteEditsSchema.optional(),
           }).strict().optional().describe('Fields to update (partial update — only provided fields are changed; unknown keys are rejected). May be omitted when only add_monitors, remove_monitors or note are given.')
         ),
       }),
@@ -544,32 +546,42 @@ Steps run in order: fields, monitors, note. Once one step succeeded, a later fai
         };
       }
 
-      if (dry_run) {
-        return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify({
-              dry_run: true,
-              id,
-              would_patch: fieldChanges,
-              ...(add_monitors && { would_add_monitors: add_monitors }),
-              ...(remove_monitors && { would_remove_monitors: remove_monitors }),
-              would_add_note: note ?? null,
-            }, null, 2),
-          }],
-        };
-      }
       try {
-        const patched = hasFields ? await patchIssueFields(id, fieldChanges) : undefined;
+        // Note edits need the current notes first (unknown IDs, missing view_state).
+        const noteEdits = fieldChanges.notes && await prepareNoteEdits(client, id, fieldChanges.notes);
+        const patchFields = noteEdits ? { ...fieldChanges, notes: noteEdits } : fieldChanges;
+
+        if (dry_run) {
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                dry_run: true,
+                id,
+                would_patch: patchFields,
+                ...(add_monitors && { would_add_monitors: add_monitors }),
+                ...(remove_monitors && { would_remove_monitors: remove_monitors }),
+                would_add_note: note ?? null,
+              }, null, 2),
+            }],
+          };
+        }
+
+        const patched = hasFields ? await patchIssueFields(id, patchFields) : undefined;
         const response: Record<string, unknown> = patched
           ? { ...patched }
           : { id, view_url: buildIssueViewUrl(await client.getBaseUrl(), id) };
 
-        // Steps after the field update. As soon as one step succeeded, later
-        // failures are reported inline — otherwise the caller would retry
-        // changes that already went through. Only if every requested step
-        // failed is the call an error.
-        let succeeded = hasFields;
+        // MantisBT skips note edits it does not apply without an error, so the
+        // response is checked.
+        const noteProblems = noteEdits && patched ? verifyNoteEdits(noteEdits, patched.notes) : [];
+
+        // As soon as one step succeeded, later failures are reported inline —
+        // otherwise the caller would retry changes that already went through.
+        // Only if every requested step failed is the call an error. The field
+        // step succeeded unless note edits failed and no other field was sent.
+        let succeeded = hasFields
+          && (noteProblems.length === 0 || Object.keys(fieldChanges).some(k => k !== 'notes'));
         const failures: string[] = [];
         const describeFailure = (what: string, detail: string): string => {
           const message = succeeded
@@ -578,6 +590,10 @@ Steps run in order: fields, monitors, note. Once one step succeeded, a later fai
           failures.push(message);
           return message;
         };
+
+        if (noteProblems.length > 0) {
+          response['notes_error'] = describeFailure('editing notes', `${noteProblems.join('; ')}.`);
+        }
 
         if (hasMonitorChanges) {
           // The PATCH response already holds the monitor list; MantisBT omits

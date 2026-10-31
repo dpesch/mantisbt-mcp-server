@@ -31,6 +31,78 @@ export async function postNote(
   return { ...note, view_url: buildNoteViewUrl(baseUrl, issueId, note.id) };
 }
 
+// ---------------------------------------------------------------------------
+// Note edits via PATCH /issues/{id} (update_issue fields.notes)
+// ---------------------------------------------------------------------------
+
+// Edit of an existing note. Without id MantisBT would create a new note, so
+// id is required here.
+const noteEdit = z.object({
+  id: z.coerce.number().int().positive().describe('ID of the note to edit (from get_issue or list_notes)'),
+  text: z.string().min(1).optional().describe('New note text'),
+  view_state: z.enum(['public', 'private']).optional().describe('New visibility; omitted = keep the current one'),
+}).strict().refine(e => e.text !== undefined || e.view_state !== undefined, { message: "A note edit needs 'text' or 'view_state'" });
+
+export type NoteEdit = z.infer<typeof noteEdit>;
+
+/** Schema of update_issue fields.notes. */
+export const noteEditsSchema = z.array(noteEdit).min(1).superRefine((edits, ctx) => {
+  const ids = edits.map(e => e.id);
+  const twice = ids.filter((noteId, i) => ids.indexOf(noteId) !== i);
+  if (twice.length > 0) ctx.addIssue({ code: 'custom', message: `Note ${twice.join(', ')} listed more than once` });
+});
+
+/** A note edit as sent to MantisBT — view_state is always set. */
+export interface NotePatch {
+  id: number;
+  text?: string;
+  view_state: { name: string };
+}
+
+/**
+ * Turns note edits into the PATCH payload. MantisBT has no REST route for
+ * editing a note, but PATCH /issues/{id} edits notes by id. The current notes
+ * are read first: unknown IDs throw before anything is written, and a
+ * missing view_state is filled with the note's current one, so an edit keeps
+ * the note's visibility unless the caller changes it.
+ */
+export async function prepareNoteEdits(
+  client: MantisClient,
+  issueId: number,
+  edits: NoteEdit[],
+): Promise<NotePatch[]> {
+  const result = await client.get<IssueEnvelope>(`issues/${issueId}`, { select: 'id,notes' });
+  const current = new Map((firstIssue(result)?.notes ?? []).map(n => [n.id, n]));
+  const unknown = edits.filter(e => !current.has(e.id)).map(e => e.id);
+  if (unknown.length > 0) {
+    throw new Error(`Note(s) ${unknown.join(', ')} do not belong to issue ${issueId} or are not visible to you — use list_notes to look up note IDs.`);
+  }
+  return edits.map(({ id, text, view_state }) => ({
+    id,
+    ...(text !== undefined && { text }),
+    view_state: { name: view_state ?? current.get(id)!.view_state?.name ?? 'public' },
+  }));
+}
+
+const normalizeText = (text: string): string => text.replace(/\r\n/g, '\n').trim();
+
+/** Compares the notes in the PATCH response with the edits; returns one message per edit MantisBT did not apply. */
+export function verifyNoteEdits(edits: NotePatch[], notes: MantisNote[] | undefined): string[] {
+  const byId = new Map((notes ?? []).map(n => [n.id, n]));
+  return edits.flatMap(edit => {
+    const note = byId.get(edit.id);
+    if (!note) return [`note ${edit.id} is missing from the updated issue`];
+    const problems: string[] = [];
+    if (edit.text !== undefined && normalizeText(note.text) !== normalizeText(edit.text)) {
+      problems.push(`the text of note ${edit.id} was not changed`);
+    }
+    if (note.view_state?.name !== edit.view_state.name) {
+      problems.push(`note ${edit.id} is ${note.view_state?.name ?? 'unknown'} instead of ${edit.view_state.name}`);
+    }
+    return problems;
+  });
+}
+
 export function registerNoteTools(server: McpServer, client: MantisClient): void {
 
   // ---------------------------------------------------------------------------

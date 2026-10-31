@@ -28,6 +28,7 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
   - [Add a public note](#add-a-public-note)
   - [Add a private note](#add-a-private-note)
   - [Delete a note](#delete-a-note)
+  - [Edit a note](#edit-a-note)
 - [File Attachments](#file-attachments)
   - [Upload a local file](#upload-a-local-file)
   - [Upload file content (base64)](#upload-file-content-base64)
@@ -887,6 +888,51 @@ Permanently removes a note from an issue.
 ```
 
 > **Note:** This action is permanent and cannot be undone.
+
+---
+
+### Edit a note
+
+Edits the text and/or visibility of an existing note via `update_issue`. The note ID comes from `get_issue` or `list_notes`. At least one of `text` or `view_state` must be given. Multiple notes can be edited in a single call.
+
+**Tool:** `update_issue`
+
+**Parameters:**
+- `id` — numeric issue ID
+- `fields.notes` — array of note edits: `{ id, text?, view_state? }`; omitting `view_state` keeps the note's current visibility
+
+**Request:** _(text-only edit)_
+
+```json
+{
+  "id": 1042,
+  "fields": {
+    "notes": [
+      { "id": 88, "text": "Reproduced on version 2.0.4 — auth middleware is missing a null check." }
+    ]
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 1042,
+  "summary": "Login button unresponsive on mobile Safari",
+  "notes": [
+    {
+      "id": 88,
+      "text": "Reproduced on version 2.0.4 — auth middleware is missing a null check.",
+      "view_state": { "id": 10, "name": "public" },
+      "updated_at": "2024-11-06T12:00:00+00:00"
+    }
+  ],
+  "view_url": "https://mantis.example.com/view.php?id=1042"
+}
+```
+
+> **Note:** Unknown note IDs are rejected before any write. If MantisBT did not apply an edit, the response contains `notes_error` with the details instead of failing the call — only when the note edit was the only requested change does the call return an error. To add a new note use the `note` parameter or `add_note`.
 
 ---
 

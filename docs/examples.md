@@ -64,6 +64,10 @@ Practical examples of how to interact with MantisBT through Claude once the MCP 
 
 > "Add a private note to #512: customer reference AC-2291, do not disclose."
 
+> "Fix the typo in note #88 on issue #1042 — change 'version 2.0.3' to 'version 2.0.4'."
+
+> "Make note #89 on issue #1042 private."
+
 ---
 
 ### Attachments

@@ -1467,6 +1467,123 @@ describe('update_issue – PATCH response shape', () => {
 });
 
 // ---------------------------------------------------------------------------
+// update_issue – edit notes via fields.notes (#8495)
+// Edits keep the note's visibility unless view_state is given; note IDs that
+// do not belong to the issue are rejected before writing.
+// ---------------------------------------------------------------------------
+
+describe('update_issue – fields.notes', () => {
+  const PRIVATE = { id: 50, name: 'private', label: 'privat' };
+  const PUBLIC = { id: 10, name: 'public', label: 'öffentlich' };
+  const notesResponse = (notes: Array<{ id: number; text: string; view_state: typeof PRIVATE }>, extra: Record<string, unknown> = {}) =>
+    makeResponse(200, JSON.stringify({ issues: [{ id: 42, ...extra, notes }] }));
+
+  it('keeps the current view_state when only the text changes', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(notesResponse([{ id: 5, text: 'old', view_state: PRIVATE }]))
+      .mockResolvedValueOnce(notesResponse([{ id: 5, text: 'new', view_state: PRIVATE }]));
+
+    const result = await mockServer.callTool('update_issue', { id: 42, fields: { notes: [{ id: 5, text: 'new' }] } }, { validate: true });
+
+    expect(result.isError).toBeUndefined();
+    expect(fetchCall(0).method).toBe('GET');
+    expect(fetchCall(0).url).toContain('select=id%2Cnotes');
+    expect(fetchCall(1)).toMatchObject({ method: 'PATCH', body: { notes: [{ id: 5, text: 'new', view_state: { name: 'private' } }] } });
+    const parsed = JSON.parse(result.content[0]!.text) as Record<string, unknown>;
+    expect(parsed['notes_error']).toBeUndefined();
+  });
+
+  it('passes an explicit view_state through', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(notesResponse([{ id: 5, text: 'old', view_state: PRIVATE }]))
+      .mockResolvedValueOnce(notesResponse([{ id: 5, text: 'old', view_state: PUBLIC }]));
+
+    const result = await mockServer.callTool('update_issue', { id: 42, fields: { notes: [{ id: 5, view_state: 'public' }] } }, { validate: true });
+
+    expect(result.isError).toBeUndefined();
+    expect(fetchCall(1).body).toEqual({ notes: [{ id: 5, view_state: { name: 'public' } }] });
+  });
+
+  it('rejects a note ID that does not belong to the issue before writing anything', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(notesResponse([{ id: 5, text: 'old', view_state: PUBLIC }]));
+
+    const result = await mockServer.callTool('update_issue', { id: 42, fields: { notes: [{ id: 99, text: 'x' }] } }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('99');
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns isError when MantisBT did not apply the edit and no other field changed', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(notesResponse([{ id: 5, text: 'old', view_state: PUBLIC }]))
+      .mockResolvedValueOnce(notesResponse([{ id: 5, text: 'old', view_state: PUBLIC }]));
+
+    const result = await mockServer.callTool('update_issue', { id: 42, fields: { notes: [{ id: 5, text: 'new' }] } }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('note 5');
+  });
+
+  it('reports notes_error inline when other fields were updated', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(notesResponse([{ id: 5, text: 'old', view_state: PUBLIC }]))
+      .mockResolvedValueOnce(notesResponse([{ id: 5, text: 'old', view_state: PUBLIC }], { summary: 'Updated' }));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { summary: 'Updated', notes: [{ id: 5, text: 'new' }] } },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { summary: string; notes_error: string };
+    expect(parsed.summary).toBe('Updated');
+    expect(parsed.notes_error).toContain('note 5');
+  });
+
+  it('dry_run shows the edit with the filled-in view_state without writing', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(notesResponse([{ id: 5, text: 'old', view_state: PRIVATE }]));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { notes: [{ id: 5, text: 'new' }] }, dry_run: true },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    expect(fetchCall(0).method).toBe('GET');
+    const parsed = JSON.parse(result.content[0]!.text) as { would_patch: Record<string, unknown> };
+    expect(parsed.would_patch).toEqual({ notes: [{ id: 5, text: 'new', view_state: { name: 'private' } }] });
+  });
+
+  it.each([
+    ['without id (would create a new note)', { text: 'x' }, /notes.*id/s],
+    ['with neither text nor view_state', { id: 5 }, /needs 'text' or 'view_state'/],
+    ['with an unknown key', { id: 5, text: 'x', time_tracking: '0:10' }, /time_tracking/],
+  ])('rejects a note edit %s without calling the API', async (_label, edit, message) => {
+    const result = await mockServer.callTool('update_issue', { id: 42, fields: { notes: [edit] } }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toMatch(message);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('rejects the same note ID listed twice without calling the API', async () => {
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { notes: [{ id: 5, text: 'a' }, { id: 5, text: 'b' }] } },
+      { validate: true },
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('listed more than once');
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // update_issue – monitors (#8499): replacement for add_monitor / remove_monitor
 // ---------------------------------------------------------------------------
 

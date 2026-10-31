@@ -28,6 +28,7 @@ Tool-orientierte Rezepte für den MantisBT MCP Server – jedes Rezept zeigt gen
   - [Öffentliche Notiz hinzufügen](#öffentliche-notiz-hinzufügen)
   - [Private Notiz hinzufügen](#private-notiz-hinzufügen)
   - [Notiz löschen](#notiz-löschen)
+  - [Notiz ändern](#notiz-ändern)
 - [Dateianhänge](#dateianhänge)
   - [Lokale Datei hochladen](#lokale-datei-hochladen)
   - [Dateiinhalt hochladen (Base64)](#dateiinhalt-hochladen-base64)
@@ -887,6 +888,51 @@ Entfernt eine Notiz dauerhaft von einem Issue.
 ```
 
 > **Hinweis:** Diese Aktion ist dauerhaft und kann nicht rückgängig gemacht werden.
+
+---
+
+### Notiz ändern
+
+Bearbeitet Text und/oder Sichtbarkeit einer bestehenden Notiz über `update_issue`. Die Notiz-ID stammt aus `get_issue` oder `list_notes`. Mindestens eines von `text` oder `view_state` muss angegeben werden. Mehrere Notizen können in einem Aufruf bearbeitet werden.
+
+**Tool:** `update_issue`
+
+**Parameter:**
+- `id` – numerische Issue-ID
+- `fields.notes` – Array von Notiz-Änderungen: `{ id, text?, view_state? }`; ein weggelassenes `view_state` behält die aktuelle Sichtbarkeit der Notiz
+
+**Request:** _(nur Text ändern)_
+
+```json
+{
+  "id": 1042,
+  "fields": {
+    "notes": [
+      { "id": 88, "text": "Auf Version 2.0.4 reproduziert – Null-Check in der Auth-Middleware fehlt." }
+    ]
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 1042,
+  "summary": "Login-Button reagiert auf Mobile Safari nicht",
+  "notes": [
+    {
+      "id": 88,
+      "text": "Auf Version 2.0.4 reproduziert – Null-Check in der Auth-Middleware fehlt.",
+      "view_state": { "id": 10, "name": "public" },
+      "updated_at": "2024-11-06T12:00:00+00:00"
+    }
+  ],
+  "view_url": "https://mantis.example.com/view.php?id=1042"
+}
+```
+
+> **Hinweis:** Unbekannte Notiz-IDs werden vor dem Schreiben abgelehnt. Hat MantisBT eine Änderung nicht übernommen, enthält die Antwort `notes_error` mit Details statt den gesamten Aufruf abzubrechen – nur wenn die Notizbearbeitung die einzige angeforderte Änderung war, wird ein Fehler zurückgegeben. Zum Hinzufügen einer neuen Notiz den `note`-Parameter oder `add_note` verwenden.
 
 ---
 
