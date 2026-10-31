@@ -94,7 +94,7 @@ npm run build
 | `get_issues` | Mehrere Issues per ID in einem Aufruf abrufen (1–50 IDs); nicht zugängliche IDs liefern `null` an ihrer Position, statt den gesamten Aufruf abzubrechen |
 | `list_issues` | Issues nach Projekt, Status, Autor u.v.m. filtern; optionales `select` für Feldprojektion und `status` für clientseitige Statusfilterung – kanonische englische Statusnamen (z.B. `"new"`, `"resolved"`) werden per ID abgeglichen und funktionieren damit sprachunabhängig auf lokalisierten Installationen |
 | `create_issue` | Neues Issue anlegen; `severity` und `priority` müssen kanonische englische Namen sein (z.B. `minor`, `major`, `normal`, `high`) – `get_issue_enums` aufrufen, um alle gültigen Werte und deren lokalisierte Bezeichnungen zu sehen; optionaler `handler`-Parameter akzeptiert einen Benutzernamen als Alternative zu `handler_id` (wird gegen die Projektmitglieder aufgelöst); optionales `custom_fields` zum Setzen benutzerdefinierter Felder |
-| `update_issue` | Bestehendes Issue bearbeiten; Enum-Felder (`status`, `priority`, `severity`, `resolution`, `reproducibility`) akzeptieren kanonische englische Namen, lokalisierte Namen oder numerische IDs – der Server löst Namen automatisch zu IDs auf; unterstützt `custom_fields` sowie einen optionalen `note`-Parameter, der im selben Aufruf eine Notiz anhängt (z.B. die Begründung eines Status-Wechsels) |
+| `update_issue` | Bestehendes Issue bearbeiten; Enum-Felder (`status`, `priority`, `severity`, `resolution`, `reproducibility`) akzeptieren kanonische englische Namen, lokalisierte Namen oder numerische IDs – der Server löst Namen automatisch zu IDs auf; unterstützt `custom_fields` sowie einen optionalen `note`-Parameter, der im selben Aufruf eine Notiz anhängt; `fields` darf entfallen, wenn nur `add_monitors`, `remove_monitors` oder `note` angegeben werden; mit `add_monitors` / `remove_monitors` (Arrays von Login-Namen) können Beobachter hinzugefügt oder entfernt werden – die Antwort enthält einen `monitors`-Schlüssel mit der aktuellen und der geänderten Beobachterliste |
 | `delete_issue` | Issue löschen |
 
 ### Notizen
@@ -123,8 +123,8 @@ npm run build
 
 | Tool | Beschreibung |
 |---|---|
-| `add_monitor` | Einen Benutzer als Beobachter eines Issues eintragen |
-| `remove_monitor` | Benutzer als Beobachter eines Issues austragen |
+| `add_monitor` | **Veraltet:** stattdessen `update_issue` mit `add_monitors` verwenden – wird in 2.0.0 entfernt |
+| `remove_monitor` | **Veraltet:** stattdessen `update_issue` mit `remove_monitors` verwenden – wird in 2.0.0 entfernt |
 
 ### Tags
 
@@ -141,8 +141,8 @@ npm run build
 | `list_projects` | Alle zugänglichen Projekte auflisten; gibt normalisierte Projektdaten zurück (konsistent mit dem `sync_metadata`-Cache) |
 | `get_project_versions` | Versionen eines Projekts abrufen; optionale Booleans `obsolete` und `inherit` für veraltete bzw. vom Elternprojekt geerbte Versionen; jede Version enthält ein `timestamp`-Feld (Versionsdatum); zum Ändern siehe `create_version`, `update_version`, `release_version`, `delete_version` |
 | `create_version` | Neue Version in einem Projekt erstellen; gibt das erstellte Versionsobjekt zurück (id, name, description, released, obsolete, timestamp); erfordert `manage_project_threshold` (Standard: Manager) |
-| `update_version` | Bestehende Version aktualisieren; nur übergebene Felder werden geändert (mindestens eines erforderlich); Umbenennen schreibt version/target_version/fixed_in_version aller referenzierenden Issues neu; erfordert `manage_project_threshold` (Standard: Manager) |
-| `release_version` | Version als veröffentlicht markieren und Datum setzen (Standard: jetzt); optional eine Folgeversion im gleichen Schritt anlegen via `next_version`; erfordert `manage_project_threshold` (Standard: Manager) |
+| `update_version` | Bestehende Version aktualisieren; nur übergebene Felder werden geändert (mindestens eines erforderlich); Umbenennen schreibt version/target_version/fixed_in_version aller referenzierenden Issues neu; optionales `next_version` (nur zusammen mit `released: true`) legt eine Folgeversion im gleichen Aufruf an; erfordert `manage_project_threshold` (Standard: Manager) |
+| `release_version` | **Veraltet:** stattdessen `update_version` mit `released: true`, `timestamp` und optional `next_version` verwenden – wird in 2.0.0 entfernt |
 | `delete_version` | Version dauerhaft löschen – nicht umkehrbar, MantisBT leert version/target_version/fixed_in_version aller referenzierenden Issues; `update_version` mit `obsolete=true` als nicht-destruktive Alternative bevorzugen; erfordert `manage_project_threshold` (Standard: Manager) |
 | `get_project_categories` | Kategorien eines Projekts abrufen |
 | `get_project_users` | Benutzer eines Projekts abrufen |

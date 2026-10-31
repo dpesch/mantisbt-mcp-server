@@ -50,6 +50,10 @@ Practical examples of how to interact with MantisBT through Claude once the MCP 
 
 > "Set the fix version of issues #901 and #902 to 2.4.1."
 
+> "Add jsmith as a watcher on issue #1042."
+
+> "Remove jsmith from the watchers of issue #887."
+
 ---
 
 ### Notes and comments

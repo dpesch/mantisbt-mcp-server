@@ -50,6 +50,10 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 
 > »Setze die Fix-Version von Issues #901 und #902 auf 2.4.1.«
 
+> »Trage jsmith als Beobachter von Issue #1042 ein.«
+
+> »Entferne jsmith aus den Beobachtern von Issue #887.«
+
 ---
 
 ### Notizen und Kommentare

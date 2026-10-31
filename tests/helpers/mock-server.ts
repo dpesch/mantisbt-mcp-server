@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 export function makeResponse(status: number, body: string): Response {
   return {
     ok: status >= 200 && status < 300,
@@ -6,6 +8,21 @@ export function makeResponse(status: number, body: string): Response {
     text: () => Promise.resolve(body),
     headers: { get: (_key: string) => null },
   } as unknown as Response;
+}
+
+/** URL, method and parsed JSON body of the n-th mocked fetch call. */
+export function fetchCall(index: number): { url: string; method: string; body: unknown } {
+  const [url, init] = vi.mocked(fetch).mock.calls[index]! as [string, RequestInit];
+  return {
+    url,
+    method: init.method ?? 'GET',
+    body: init.body !== undefined ? JSON.parse(init.body as string) : undefined,
+  };
+}
+
+/** Issue payload with monitors, as returned by GET/PATCH /issues/{id} (200) and POST /issues/{id}/monitors (201). */
+export function monitorsResponse(monitors: Array<{ id: number; name: string }>, status = 200): Response {
+  return makeResponse(status, JSON.stringify({ issues: [{ id: 42, monitors }] }));
 }
 
 // Typ für das Result-Objekt das die Tools zurückgeben
@@ -63,12 +80,16 @@ interface PromptDefinition {
 export class MockMcpServer {
   private readonly handlers = new Map<string, ToolHandler>();
   private readonly schemas = new Map<string, z.ZodTypeAny>();
+  private readonly descriptions = new Map<string, string>();
   private readonly promptHandlers = new Map<string, PromptHandler>();
   private readonly resourceEntries = new Map<string, ResourceEntry>();
 
   // Nachahmt McpServer.registerTool – fängt Handler und Schema ein
   registerTool(name: string, definition: ToolDefinition, handler: ToolHandler): void {
     this.handlers.set(name, handler);
+    if (typeof definition['description'] === 'string') {
+      this.descriptions.set(name, definition['description']);
+    }
     if (definition.inputSchema) {
       this.schemas.set(name, definition.inputSchema);
     }
@@ -114,6 +135,10 @@ export class MockMcpServer {
     const handler = this.promptHandlers.get(name);
     if (!handler) throw new Error(`Prompt not registered: ${name}`);
     return handler(args);
+  }
+
+  toolDescription(name: string): string | undefined {
+    return this.descriptions.get(name);
   }
 
   hasToolRegistered(name: string): boolean {

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { MantisClient } from '../client.js';
 import type { MantisIssue, MantisUser } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
+import { deprecationNote } from '../deprecation.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -86,16 +87,20 @@ export interface RemoveMonitorsResult {
  * MantisBT skips monitors the caller may not remove without reporting an
  * error — those end up in `stillPresent`. Usernames are matched
  * case-insensitively. No PATCH is sent when none of the users is a monitor.
+ *
+ * `knownMonitors` skips the initial GET when the caller already has the
+ * current monitor list (e.g. from a preceding addMonitors call).
  */
 export async function removeMonitors(
   client: MantisClient,
   issueId: number,
   usernames: string[],
+  knownMonitors?: MantisUser[],
 ): Promise<RemoveMonitorsResult> {
   const wanted = new Set(usernames.map(u => u.toLowerCase()));
   const isWanted = (m: MantisUser) => wanted.has(m.name.toLowerCase());
 
-  const current = monitorsOf(
+  const current = knownMonitors ?? monitorsOf(
     await client.get<IssuesResponse>(`issues/${issueId}`, { select: 'id,monitors' }),
   );
   const present = loginsOf(current.filter(isWanted));
@@ -121,6 +126,57 @@ export async function removeMonitors(
   };
 }
 
+const NOT_ADDED_HINT = 'adding other users requires the monitor_add_others_bug_threshold access level';
+const STILL_PRESENT_HINT = 'removing other users requires the monitor_delete_others_bug_threshold access level';
+
+export interface MonitorChanges {
+  added?: string[];
+  removed?: string[];
+  not_monitoring?: string[];
+  current: string[];
+}
+
+/**
+ * Applies a combined add/remove of monitors (update_issue add_monitors /
+ * remove_monitors). Never throws: API errors and changes MantisBT silently
+ * skipped are returned as `problems`. Adds run first; the resulting monitor
+ * list is reused for the removal, so no extra GET is needed.
+ */
+export async function applyMonitorChanges(
+  client: MantisClient,
+  issueId: number,
+  add: string[] | undefined,
+  remove: string[] | undefined,
+): Promise<{ changes?: MonitorChanges; problems: string[] }> {
+  const changes: MonitorChanges = { current: [] };
+  const problems: string[] = [];
+  try {
+    let known: MantisUser[] | undefined;
+    if (add) {
+      const result = await addMonitors(client, issueId, add);
+      changes.added = result.added;
+      changes.current = result.monitors.map(m => m.name);
+      known = result.monitors;
+      if (result.notAdded.length > 0) {
+        problems.push(`MantisBT did not add ${result.notAdded.join(', ')} as monitor(s) — ${NOT_ADDED_HINT}.`);
+      }
+    }
+    if (remove) {
+      const result = await removeMonitors(client, issueId, remove, known);
+      changes.removed = result.removed;
+      changes.not_monitoring = result.notMonitoring;
+      changes.current = result.monitors.map(m => m.name);
+      if (result.stillPresent.length > 0) {
+        problems.push(`${result.stillPresent.join(', ')} still monitor(s) the issue — ${STILL_PRESENT_HINT}.`);
+      }
+    }
+    return { changes, problems };
+  } catch (error) {
+    problems.push(error instanceof Error ? error.message : String(error));
+    return { problems };
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Tools
 // ---------------------------------------------------------------------------
@@ -135,9 +191,11 @@ export function registerMonitorTools(server: McpServer, client: MantisClient): v
     'add_monitor',
     {
       title: 'Add Issue Monitor',
-      description: `Add a user as a monitor (watcher) of a MantisBT issue. Monitors receive email notifications whenever the issue is updated. Returns { success, monitors } — "monitors" lists the login names now monitoring the issue.
+      description: `${deprecationNote('add_monitor', 'update_issue with add_monitors')}
 
-Use add_monitor to subscribe team members to issue updates without assigning them as the handler. To unsubscribe a user, call remove_monitor with the same parameters.
+Add a user as a monitor (watcher) of a MantisBT issue. Monitors receive email notifications whenever the issue is updated. Returns { success, monitors } — "monitors" lists the login names now monitoring the issue.
+
+Use it to subscribe team members to issue updates without assigning them as the handler.
 
 Adding a user who is already a monitor is a no-op — the operation succeeds without creating duplicates.
 
@@ -173,7 +231,9 @@ Prerequisites: obtain issue_id from list_issues or get_issue; use find_project_m
     'remove_monitor',
     {
       title: 'Remove Issue Monitor',
-      description: `Remove a user from the monitor list of a MantisBT issue. The user will no longer receive email notifications for updates to this issue.
+      description: `${deprecationNote('remove_monitor', 'update_issue with remove_monitors')}
+
+Remove a user from the monitor list of a MantisBT issue. The user will no longer receive email notifications for updates to this issue.
 
 Returns { success, removed, monitors } — "monitors" lists the login names still monitoring the issue. If the user was not a monitor, the call succeeds with removed=false and nothing is changed.
 
@@ -194,7 +254,7 @@ Removing another user requires the monitor_delete_others_bug_threshold access le
         const monitors = result.monitors.map(m => m.name);
 
         if (result.stillPresent.length > 0) {
-          return errorResult(`User "${username}" is still a monitor of issue ${issue_id}. MantisBT silently skipped the removal — removing other users requires the monitor_delete_others_bug_threshold access level.`);
+          return errorResult(`User "${username}" is still a monitor of issue ${issue_id}. MantisBT silently skipped the removal — ${STILL_PRESENT_HINT}.`);
         }
 
         if (result.removed.length === 0) {

@@ -8,7 +8,7 @@ import { MantisClient } from '../../src/client.js';
 import { MetadataCache, type CachedMetadata } from '../../src/cache.js';
 import type { MantisVersion } from '../../src/types.js';
 import { registerProjectVersionTools } from '../../src/tools/project-versions.js';
-import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
+import { MockMcpServer, makeResponse, fetchCall } from '../helpers/mock-server.js';
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -49,15 +49,6 @@ const version = (overrides: Partial<MantisVersion> = {}): MantisVersion => ({
 
 function versionResponse(v: MantisVersion, status = 200): Response {
   return makeResponse(status, JSON.stringify({ version: v }));
-}
-
-function fetchCall(index: number): { url: string; method: string; body: unknown } {
-  const [url, init] = vi.mocked(fetch).mock.calls[index]! as [string, RequestInit];
-  return {
-    url,
-    method: init.method ?? 'GET',
-    body: init.body !== undefined ? JSON.parse(init.body as string) : undefined,
-  };
 }
 
 /** Seeds a cache file where project 7 is the parent of project 8 (8 inherits version 42). */
@@ -214,6 +205,78 @@ describe('update_version', () => {
     expect(data.byProject[8]!.versions[0]!.name).toBe('1.2.1');
     expect(data.byProject[8]!.versions[1]!.name).toBe('child-only');
   });
+
+  // next_version makes update_version a full replacement for release_version (#8499)
+  describe('next_version', () => {
+    it('creates the follow-up version after a successful release', async () => {
+      vi.mocked(fetch)
+        .mockResolvedValueOnce(versionResponse(version({ released: true })))
+        .mockResolvedValueOnce(versionResponse(version({ id: 43, name: '1.2.1' }), 201));
+
+      const result = await mockServer.callTool('update_version', {
+        project_id: 7, version_id: 42, released: true, timestamp: '2026-11-01', next_version: '1.2.1',
+      }, { validate: true });
+
+      expect(result.isError).toBeUndefined();
+      expect(fetchCall(0).body).toEqual({ released: true, timestamp: '2026-11-01' });
+      const second = fetchCall(1);
+      expect(second.method).toBe('POST');
+      expect(second.url).toContain('projects/7/versions');
+      expect(second.body).toEqual({ name: '1.2.1' });
+      expect(JSON.parse(result.content[0]!.text)).toEqual({
+        version: version({ released: true }),
+        next_version: version({ id: 43, name: '1.2.1' }),
+      });
+    });
+
+    it('does not send next_version to the version PATCH', async () => {
+      vi.mocked(fetch)
+        .mockResolvedValueOnce(versionResponse(version({ released: true })))
+        .mockResolvedValueOnce(versionResponse(version({ id: 43, name: '1.2.1' }), 201));
+
+      await mockServer.callTool('update_version', {
+        project_id: 7, version_id: 42, released: true, next_version: '1.2.1',
+      }, { validate: true });
+
+      expect(fetchCall(0).body).not.toHaveProperty('next_version');
+    });
+
+    it('rejects next_version without released: true', async () => {
+      const result = await mockServer.callTool('update_version', {
+        project_id: 7, version_id: 42, name: '1.2.0-rc', next_version: '1.2.1',
+      }, { validate: true });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0]!.text).toContain('released');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('reports a failed follow-up version without hiding the successful update', async () => {
+      vi.mocked(fetch)
+        .mockResolvedValueOnce(versionResponse(version({ released: true })))
+        .mockResolvedValueOnce(makeResponse(400, JSON.stringify({ message: "Version '1.2.1' already exists" })));
+
+      const result = await mockServer.callTool('update_version', {
+        project_id: 7, version_id: 42, released: true, next_version: '1.2.1',
+      }, { validate: true });
+
+      expect(result.isError).toBeUndefined();
+      const parsed = JSON.parse(result.content[0]!.text) as { version: MantisVersion; next_version_error: string };
+      expect(parsed.version).toEqual(version({ released: true }));
+      expect(parsed.next_version_error).toContain('already exists');
+    });
+
+    it('does not create a follow-up version when the update fails', async () => {
+      vi.mocked(fetch).mockResolvedValue(makeResponse(404, JSON.stringify({ message: "Version with id '42' not found" })));
+
+      const result = await mockServer.callTool('update_version', {
+        project_id: 7, version_id: 42, released: true, next_version: '1.2.1',
+      }, { validate: true });
+
+      expect(result.isError).toBe(true);
+      expect(fetch).toHaveBeenCalledOnce();
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -223,6 +286,13 @@ describe('update_version', () => {
 describe('release_version', () => {
   it('is registered', () => {
     expect(mockServer.hasToolRegistered('release_version')).toBe(true);
+  });
+
+  it('is marked deprecated in favour of update_version', () => {
+    const description = mockServer.toolDescription('release_version');
+    expect(description).toMatch(/^Deprecated:/);
+    expect(description).toContain('update_version');
+    expect(description).toContain('2.0.0');
   });
 
   it('marks the version released with the current date by default', async () => {

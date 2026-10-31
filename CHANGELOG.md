@@ -9,6 +9,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `update_issue` accepts two new optional parameters `add_monitors` and `remove_monitors` (arrays of MantisBT login names, case-insensitive). `fields` may now be omitted when only monitor changes or a note are given. The response contains a `monitors` key with `added?`, `removed?`, `not_monitoring?`, and `current`. The steps run in order — fields, monitors, note. Once one of them succeeded, a later failure is reported inline (`monitors_error`, `note_error`) instead of failing the call, so changes that went through are not retried; only when every requested step failed does the call return an error. A user in both lists is rejected; a call with nothing to change is rejected. `dry_run` additionally shows `would_add_monitors` / `would_remove_monitors`.
+- `update_version` accepts a new optional `next_version` parameter (only allowed together with `released: true`): creates a follow-up version in the same call. With `next_version` the response is `{ version: <updated>, next_version: <created> }` — or `{ version, next_version_error: <message> }` when creating the follow-up fails (the update itself stays in effect). Without `next_version` the response is unchanged (the updated version object).
+
+### Deprecated
+
+- `add_monitor` — use `update_issue` with `add_monitors` instead; `add_monitor` will be removed in 2.0.0.
+- `remove_monitor` — use `update_issue` with `remove_monitors` instead; `remove_monitor` will be removed in 2.0.0.
+- `release_version` — use `update_version` with `released: true`, `timestamp`, and optionally `next_version` instead; `release_version` will be removed in 2.0.0.
+
 ### Fixed
 
 - `add_monitor` always subscribed the owner of the API key instead of the given user. It sent `{ name }`, but MantisBT reads only a `users` array and falls back to the logged-in user when it is missing. The tool now sends `{ users: [{ name }] }` and checks the returned monitor list; the response is now `{ success, monitors }` instead of the full issue object.

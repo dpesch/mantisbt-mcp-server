@@ -94,7 +94,7 @@ npm run build
 | `get_issues` | Retrieve multiple issues by ID in one call (1–50 IDs); missing or inaccessible IDs return `null` at their position instead of failing the call |
 | `list_issues` | Filter issues by project, status, author, and more; optional `select` for field projection and `status` for client-side status filtering — canonical English status names (e.g. `"new"`, `"resolved"`) are matched by ID, making the filter language-independent on localized installations |
 | `create_issue` | Create a new issue; `severity` and `priority` must be canonical English names (e.g. `minor`, `major`, `normal`, `high`) — call `get_issue_enums` to see all valid values and their localized labels; optional `handler` parameter accepts a username as alternative to `handler_id` (resolved against project members); optional `custom_fields` to set custom field values |
-| `update_issue` | Update an existing issue; enum fields (`status`, `priority`, `severity`, `resolution`, `reproducibility`) accept canonical English names, localized names, or numeric IDs — the server resolves names to IDs automatically; supports `custom_fields` and an optional `note` parameter that appends a note in the same call (e.g. the reason for a status change) |
+| `update_issue` | Update an existing issue; enum fields (`status`, `priority`, `severity`, `resolution`, `reproducibility`) accept canonical English names, localized names, or numeric IDs — the server resolves names to IDs automatically; supports `custom_fields` and an optional `note` parameter that appends a note in the same call; `fields` may be omitted when only `add_monitors`, `remove_monitors`, or `note` are given; use `add_monitors` / `remove_monitors` (arrays of login names) to add or remove watchers — the response includes a `monitors` key with the current and changed monitor lists |
 | `delete_issue` | Delete an issue |
 
 ### Notes
@@ -123,8 +123,8 @@ npm run build
 
 | Tool | Description |
 |---|---|
-| `add_monitor` | Add a user as a monitor of an issue |
-| `remove_monitor` | Remove a user as a monitor of an issue |
+| `add_monitor` | **Deprecated:** use `update_issue` with `add_monitors` instead — will be removed in 2.0.0 |
+| `remove_monitor` | **Deprecated:** use `update_issue` with `remove_monitors` instead — will be removed in 2.0.0 |
 
 ### Tags
 
@@ -141,8 +141,8 @@ npm run build
 | `list_projects` | List all accessible projects; returns normalized project data (consistent with `sync_metadata` cache) |
 | `get_project_versions` | Get versions of a project; optional `obsolete` and `inherit` booleans to include obsolete or parent-inherited versions; each version includes a `timestamp` field (version date); see `create_version`, `update_version`, `release_version`, `delete_version` to modify versions |
 | `create_version` | Create a new version in a project; returns the created version object (id, name, description, released, obsolete, timestamp); requires `manage_project_threshold` (default: manager) |
-| `update_version` | Update an existing version; only the fields you pass are changed (at least one required); renaming rewrites version/target_version/fixed_in_version on all referencing issues; requires `manage_project_threshold` (default: manager) |
-| `release_version` | Mark a version as released and set its date (default: now); optionally create a follow-up version in the same step via `next_version`; requires `manage_project_threshold` (default: manager) |
+| `update_version` | Update an existing version; only the fields you pass are changed (at least one required); renaming rewrites version/target_version/fixed_in_version on all referencing issues; optional `next_version` (only with `released: true`) creates a follow-up version in the same call; requires `manage_project_threshold` (default: manager) |
+| `release_version` | **Deprecated:** use `update_version` with `released: true`, `timestamp`, and optionally `next_version` instead — will be removed in 2.0.0 |
 | `delete_version` | Permanently delete a version — irreversible, MantisBT clears version/target_version/fixed_in_version on all referencing issues; prefer `update_version` with `obsolete=true` as the non-destructive alternative; requires `manage_project_threshold` (default: manager) |
 | `get_project_categories` | Get categories of a project |
 | `get_project_users` | Get users of a project |

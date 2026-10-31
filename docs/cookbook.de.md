@@ -41,8 +41,9 @@ Tool-orientierte Rezepte für den MantisBT MCP Server – jedes Rezept zeigt gen
   - [Tags per Name anhängen](#tags-per-name-anhängen)
   - [Tag entfernen](#tag-entfernen)
 - [Monitore (Beobachter)](#monitore-beobachter)
-  - [Beobachter hinzufügen](#beobachter-hinzufügen)
-  - [Beobachter entfernen](#beobachter-entfernen)
+  - [Beobachter via update_issue ändern](#beobachter-via-update_issue-ändern)
+  - [Beobachter hinzufügen (veraltet)](#beobachter-hinzufügen-veraltet)
+  - [Beobachter entfernen (veraltet)](#beobachter-entfernen-veraltet)
 - [Semantische Suche](#semantische-suche)
   - [Initialen Index aufbauen](#initialen-index-aufbauen)
   - [Inkrementelles Index-Update](#inkrementelles-index-update)
@@ -54,7 +55,7 @@ Tool-orientierte Rezepte für den MantisBT MCP Server – jedes Rezept zeigt gen
   - [Projektmitglied suchen](#projektmitglied-suchen)
   - [Projektversion erstellen](#projektversion-erstellen)
   - [Projektversion aktualisieren](#projektversion-aktualisieren)
-  - [Version freigeben und nächsten Bugfix-Platzhalter erstellen](#version-freigeben-und-nächsten-bugfix-platzhalter-erstellen)
+  - [Version freigeben und nächsten Bugfix-Platzhalter erstellen (veraltet)](#version-freigeben-und-nächsten-bugfix-platzhalter-erstellen-veraltet)
   - [Projektversion löschen](#projektversion-löschen)
 - [Metadaten](#metadaten)
   - [Metadaten-Zusammenfassung abrufen](#metadaten-zusammenfassung-abrufen)
@@ -1261,7 +1262,70 @@ Entfernt einen Tag von einem Issue. Erfordert die numerische Tag-ID.
 
 ## Monitore (Beobachter)
 
-### Beobachter hinzufügen
+### Beobachter via update_issue ändern
+
+Fügt Beobachter (Monitore) eines Issues hinzu und/oder entfernt sie in einem einzigen `update_issue`-Aufruf. `fields` darf entfallen – es genügt `add_monitors`, `remove_monitors` oder beides. Namen werden ohne Rücksicht auf Groß-/Kleinschreibung abgeglichen.
+
+**Tool:** `update_issue`
+
+**Parameter:**
+- `id` – numerische Issue-ID
+- `add_monitors` – _(optional)_ Array von MantisBT-Login-Namen, die als Beobachter eingetragen werden sollen
+- `remove_monitors` – _(optional)_ Array von MantisBT-Login-Namen, die aus den Beobachtern entfernt werden sollen; Namen, die das Issue nicht beobachten, werden still übergangen
+- Ein Name in beiden Arrays wird abgelehnt.
+
+**Request:** _(einen Beobachter hinzufügen)_
+
+```json
+{
+  "id": 1042,
+  "add_monitors": ["jsmith"]
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 1042,
+  "view_url": "https://mantis.example.com/view.php?id=1042",
+  "monitors": {
+    "added": ["jsmith"],
+    "current": ["asmith", "jsmith"]
+  }
+}
+```
+
+**Request:** _(einen Beobachter entfernen)_
+
+```json
+{
+  "id": 1042,
+  "remove_monitors": ["jsmith"]
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 1042,
+  "view_url": "https://mantis.example.com/view.php?id=1042",
+  "monitors": {
+    "removed": ["jsmith"],
+    "not_monitoring": [],
+    "current": ["asmith"]
+  }
+}
+```
+
+`monitors.current` listet stets alle verbleibenden Beobachter. `monitors.added` enthält erfolgreich hinzugefügte, `monitors.removed` erfolgreich entfernte Namen; `monitors.not_monitoring` enthält Namen, die das Issue nicht beobachtet haben und daher übersprungen wurden. Andere Benutzer hinzuzufügen oder zu entfernen erfordert die Zugriffsstufe `monitor_add_others_bug_threshold` bzw. `monitor_delete_others_bug_threshold`. Die Schritte laufen nacheinander – `fields`, Beobachter, `note`. Sobald einer davon geklappt hat, wird ein späterer Fehler in der Antwort als `monitors_error` bzw. `note_error` gemeldet (nichts wird zurückgenommen); nur wenn alle angeforderten Schritte fehlschlagen, liefert der Aufruf einen Fehler.
+
+---
+
+### Beobachter hinzufügen (veraltet)
+
+> **Veraltet:** stattdessen `update_issue` mit `add_monitors` verwenden – `add_monitor` wird in 2.0.0 entfernt.
 
 Abonniert einen Benutzer für Benachrichtigungen zu einem Issue.
 
@@ -1293,7 +1357,9 @@ Abonniert einen Benutzer für Benachrichtigungen zu einem Issue.
 
 ---
 
-### Beobachter entfernen
+### Beobachter entfernen (veraltet)
+
+> **Veraltet:** stattdessen `update_issue` mit `remove_monitors` verwenden – `remove_monitor` wird in 2.0.0 entfernt.
 
 Deabonniert einen Benutzer von Benachrichtigungen zu einem Issue.
 
@@ -1675,6 +1741,7 @@ Aktualisiert eine bestehende Version eines MantisBT-Projekts. Es werden nur die 
 - `released` – _(optional)_ Veröffentlichungs-Flag
 - `obsolete` – _(optional)_ Veraltet-Flag
 - `timestamp` – _(optional)_ Versionsdatum als ISO-8601-String
+- `next_version` – _(optional, nur zusammen mit `released: true`)_ Name der Folgeversion, die als unveröffentlichter Platzhalter angelegt wird, z.B. `"1.2.1"`; wird unverändert übernommen – keine automatische Nummerierung
 
 **Request:** _(Version als veraltet markieren)_
 
@@ -1698,9 +1765,46 @@ Aktualisiert eine bestehende Version eines MantisBT-Projekts. Es werden nur die 
 }
 ```
 
+**Request:** _(Version freigeben und Folgeversion anlegen)_
+
+```json
+{
+  "project_id": 3,
+  "version_id": 42,
+  "released": true,
+  "timestamp": "2026-10-31",
+  "next_version": "1.2.1"
+}
+```
+
+**Response:**
+
+```json
+{
+  "version": {
+    "id": 42,
+    "name": "1.2.0",
+    "released": true,
+    "obsolete": false,
+    "timestamp": "2026-10-31T00:00:00+00:00"
+  },
+  "next_version": {
+    "id": 43,
+    "name": "1.2.1",
+    "released": false,
+    "obsolete": false,
+    "timestamp": "2026-10-31T00:00:00+00:00"
+  }
+}
+```
+
+Das Setzen von `released=true` ändert das Versionsdatum nicht – `timestamp` mit dem Freigabedatum immer mitübergeben. Schlägt das Anlegen der Folgeversion fehl, bleibt der Update wirksam und der Fehler wird als `next_version_error` in der Antwort gemeldet.
+
 ---
 
-### Version freigeben und nächsten Bugfix-Platzhalter erstellen
+### Version freigeben und nächsten Bugfix-Platzhalter erstellen (veraltet)
+
+> **Veraltet:** stattdessen `update_version` mit `released: true`, `timestamp` und optional `next_version` verwenden – `release_version` wird in 2.0.0 entfernt. Das Ersatzrezept steht unter [Projektversion aktualisieren](#projektversion-aktualisieren).
 
 Markiert eine Version als veröffentlicht (mit Datumsangabe) und erstellt im selben Aufruf optional eine Folgeversion als Platzhalter. Der Name der Folgeversion wird unverändert übernommen – keine automatische Nummerierung. Schlägt das Erstellen der Folgeversion fehl, bleibt die Freigabe wirksam und der Fehler wird in `next_version_error` gemeldet.
 
@@ -1746,7 +1850,7 @@ Markiert eine Version als veröffentlicht (mit Datumsangabe) und erstellt im sel
 }
 ```
 
-> **Hinweis:** Das Setzen von `released=true` via `update_version` ändert das Versionsdatum nicht – `release_version` verwenden, wenn beides in einem Schritt erledigt werden soll.
+> **Hinweis:** Das Setzen von `released=true` via `update_version` ändert das Versionsdatum nicht – `timestamp` mit dem Freigabedatum immer mitübergeben. Mit `next_version` lässt sich die Folgeversion im selben Aufruf anlegen.
 
 ---
 

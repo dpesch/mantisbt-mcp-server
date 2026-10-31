@@ -4,6 +4,7 @@ import { MantisClient } from '../client.js';
 import type { MantisVersion } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
 import { MetadataCache } from '../cache.js';
+import { deprecationNote } from '../deprecation.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -52,6 +53,21 @@ export function registerProjectVersionTools(server: McpServer, client: MantisCli
     // Version IDs are global, so inherited copies in subprojects are updated as well
     await patchCachedVersions((_pid, versions) => versions.map((v) => (v.id === versionId ? result.version : v)));
     return result.version;
+  }
+
+  /**
+   * Creates the follow-up version after a release. A failure must not hide the
+   * release that already succeeded, so it is reported as next_version_error.
+   */
+  async function createFollowUpVersion(
+    projectId: number,
+    name: string,
+  ): Promise<{ next_version: MantisVersion } | { next_version_error: string }> {
+    try {
+      return { next_version: await createVersion(projectId, { name }) };
+    } catch (error) {
+      return { next_version_error: error instanceof Error ? error.message : String(error) };
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -106,7 +122,9 @@ ${PERMISSION_NOTE}`,
 
 Renaming a version also rewrites the version, target_version and fixed_in_version fields of all issues that reference it (including subprojects if versions are inherited).
 
-Setting released=true does not change the version date — pass timestamp as well, or use release_version, which does both.
+Setting released=true does not change the version date — pass timestamp as well (e.g. the release date).
+
+To release a version: released=true, timestamp=<release date>, and optionally next_version=<name> to create the follow-up version in the same call. With next_version the response is { version: <updated>, next_version: <created> } — or next_version_error: <message> if creating the follow-up failed (the update itself stays in effect). Without next_version the response is the updated version object.
 
 ${OWNING_PROJECT_NOTE}
 
@@ -119,6 +137,7 @@ ${PERMISSION_NOTE}`,
         released: boolFlag.optional().describe('Released flag'),
         obsolete: boolFlag.optional().describe('Obsolete flag'),
         timestamp: timestampSchema.optional(),
+        next_version: z.string().trim().min(1).optional().describe('Only with released=true: name of a follow-up version to create as unreleased placeholder, e.g. "1.2.1". Used as-is — no automatic numbering.'),
       }),
       annotations: {
         readOnlyHint: false,
@@ -126,22 +145,31 @@ ${PERMISSION_NOTE}`,
         idempotentHint: true,
       },
     },
-    async ({ project_id, version_id, ...fields }) => {
+    async ({ project_id, version_id, next_version, ...fields }) => {
       if (Object.keys(definedFields(fields)).length === 0) {
         return {
           content: [{ type: 'text', text: errorText('No fields to update — pass at least one of name, description, released, obsolete, timestamp.') }],
           isError: true,
         };
       }
-      try {
-        const updated = await updateVersion(project_id, version_id, fields);
+      if (next_version !== undefined && fields.released !== true) {
         return {
-          content: [{ type: 'text', text: JSON.stringify(updated, null, 2) }],
+          content: [{ type: 'text', text: errorText('next_version is only allowed together with released=true.') }],
+          isError: true,
         };
+      }
+      let updated: MantisVersion;
+      try {
+        updated = await updateVersion(project_id, version_id, fields);
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
       }
+      if (next_version === undefined) {
+        return { content: [{ type: 'text', text: JSON.stringify(updated, null, 2) }] };
+      }
+      const result = { version: updated, ...(await createFollowUpVersion(project_id, next_version)) };
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
     }
   );
 
@@ -153,7 +181,9 @@ ${PERMISSION_NOTE}`,
     'release_version',
     {
       title: 'Release Version',
-      description: `Mark a version as released and set its date (default: now). Optionally create a follow-up version in the same step.
+      description: `${deprecationNote('release_version', 'update_version with released=true, timestamp and (optionally) next_version')}
+
+Mark a version as released and set its date (default: now). Optionally create a follow-up version in the same step.
 
 The follow-up version is only created when next_version is given; its name is used as-is — no automatic numbering.
 
@@ -186,14 +216,10 @@ ${PERMISSION_NOTE}`,
         return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
       }
 
-      const result: { released: MantisVersion; next_version?: MantisVersion; next_version_error?: string } = { released };
-      if (next_version !== undefined) {
-        try {
-          result.next_version = await createVersion(project_id, { name: next_version });
-        } catch (error) {
-          result.next_version_error = error instanceof Error ? error.message : String(error);
-        }
-      }
+      const result = {
+        released,
+        ...(next_version !== undefined ? await createFollowUpVersion(project_id, next_version) : {}),
+      };
       return {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       };

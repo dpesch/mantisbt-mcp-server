@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { MantisClient } from '../../src/client.js';
 import { registerIssueTools } from '../../src/tools/issues.js';
 import { MetadataCache } from '../../src/cache.js';
-import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
+import { MockMcpServer, makeResponse, fetchCall, monitorsResponse } from '../helpers/mock-server.js';
 import { MANTIS_RESOLVED_STATUS_ID } from '../../src/constants.js';
 import { clearIssueEnumCache } from '../../src/tools/config.js';
 
@@ -1419,6 +1419,185 @@ describe('update_issue – note', () => {
     const parsed = JSON.parse(result.content[0]!.text) as { note?: unknown; note_error?: unknown };
     expect(parsed.note).toBeUndefined();
     expect(parsed.note_error).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// update_issue – monitors (#8499): replacement for add_monitor / remove_monitor
+// ---------------------------------------------------------------------------
+
+describe('update_issue – monitors', () => {
+  const JDOE = { id: 7, name: 'jdoe' };
+  const ASMITH = { id: 9, name: 'asmith' };
+
+  it('adds monitors without fields: one POST with the users array, no PATCH', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(monitorsResponse([JDOE, ASMITH], 201));
+
+    const result = await mockServer.callTool('update_issue', { id: 42, add_monitors: ['jdoe', 'asmith'] }, { validate: true });
+
+    expect(result.isError).toBeUndefined();
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    expect(fetchCall(0)).toMatchObject({ method: 'POST', body: { users: [{ name: 'jdoe' }, { name: 'asmith' }] } });
+    expect(fetchCall(0).url).toContain('issues/42/monitors');
+    const parsed = JSON.parse(result.content[0]!.text) as { monitors: { added: string[]; current: string[] } };
+    expect(parsed.monitors.added).toEqual(['jdoe', 'asmith']);
+    expect(parsed.monitors.current).toEqual(['jdoe', 'asmith']);
+  });
+
+  it('removes monitors without fields via GET + PATCH of the monitor list', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(monitorsResponse([JDOE, ASMITH]))
+      .mockResolvedValueOnce(monitorsResponse([ASMITH]));
+
+    const result = await mockServer.callTool('update_issue', { id: 42, remove_monitors: ['jdoe'] }, { validate: true });
+
+    expect(result.isError).toBeUndefined();
+    expect(fetchCall(0).method).toBe('GET');
+    expect(fetchCall(1)).toMatchObject({ method: 'PATCH', body: { monitors: [{ id: 9 }] } });
+    const parsed = JSON.parse(result.content[0]!.text) as { monitors: { removed: string[]; current: string[] } };
+    expect(parsed.monitors.removed).toEqual(['jdoe']);
+    expect(parsed.monitors.current).toEqual(['asmith']);
+  });
+
+  it('patches the fields first, then changes the monitors', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 42, summary: 'Updated' } })))
+      .mockResolvedValueOnce(monitorsResponse([JDOE], 201));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { summary: 'Updated' }, add_monitors: ['jdoe'] },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(fetchCall(0)).toMatchObject({ method: 'PATCH', body: { summary: 'Updated' } });
+    expect(fetchCall(1).method).toBe('POST');
+    const parsed = JSON.parse(result.content[0]!.text) as { summary: string; monitors: { added: string[] } };
+    expect(parsed.summary).toBe('Updated');
+    expect(parsed.monitors.added).toEqual(['jdoe']);
+  });
+
+  it('reports monitors_error inline (no isError) when monitors fail after a successful field update', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 42, summary: 'Updated' } })))
+      .mockResolvedValueOnce(monitorsResponse([ASMITH], 201));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { summary: 'Updated' }, add_monitors: ['jdoe'] },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { monitors_error: string };
+    expect(parsed.monitors_error).toContain('jdoe');
+  });
+
+  it('returns isError when a monitor change fails and no field was updated', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(monitorsResponse([JDOE, ASMITH]))
+      .mockResolvedValueOnce(monitorsResponse([JDOE, ASMITH]));
+
+    const result = await mockServer.callTool('update_issue', { id: 42, remove_monitors: ['jdoe'] }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('monitor_delete_others_bug_threshold');
+  });
+
+  it('still posts the note when a monitor change fails after a field update', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 42 } })))
+      .mockResolvedValueOnce(makeResponse(403, JSON.stringify({ message: 'Access denied' })))
+      .mockResolvedValueOnce(makeResponse(201, JSON.stringify({ note: { id: 8, text: 'Grund' } })));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { summary: 'x' }, add_monitors: ['jdoe'], note: 'Grund' },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(fetchCall(2).url).toContain('issues/42/notes');
+    const parsed = JSON.parse(result.content[0]!.text) as { monitors_error: string; note: { id: number } };
+    expect(parsed.monitors_error).toContain('Access denied');
+    expect(parsed.note.id).toBe(8);
+  });
+
+  it('posts the note even when the monitor change fails without field update', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(403, JSON.stringify({ message: 'Access denied' })))
+      .mockResolvedValueOnce(makeResponse(201, JSON.stringify({ note: { id: 8, text: 'Grund' } })));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, add_monitors: ['jdoe'], note: 'Grund' },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { monitors_error: string; note: { id: number } };
+    expect(parsed.note.id).toBe(8);
+    expect(parsed.monitors_error).toContain('Access denied');
+    expect(parsed.monitors_error).not.toContain('updated successfully');
+  });
+
+  it('returns isError when only a note is given and posting it fails', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(makeResponse(403, JSON.stringify({ message: 'Access denied' })));
+
+    const result = await mockServer.callTool('update_issue', { id: 42, note: 'Grund' }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).not.toContain('updated successfully');
+    expect(result.content[0]!.text).toContain('Access denied');
+  });
+
+  it('removes after adding without an extra GET (monitor list known from the POST)', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(monitorsResponse([JDOE, ASMITH], 201))
+      .mockResolvedValueOnce(monitorsResponse([JDOE]));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, add_monitors: ['jdoe'], remove_monitors: ['asmith'] },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+    expect(fetchCall(1)).toMatchObject({ method: 'PATCH', body: { monitors: [{ id: 7 }] } });
+  });
+
+  it('rejects a user in both add_monitors and remove_monitors', async () => {
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, add_monitors: ['jdoe'], remove_monitors: ['JDOE'] },
+      { validate: true },
+    );
+
+    expect(result.isError).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('rejects a call with nothing to change', async () => {
+    const result = await mockServer.callTool('update_issue', { id: 42 }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('dry_run previews the monitor changes without API calls', async () => {
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, add_monitors: ['jdoe'], remove_monitors: ['asmith'], dry_run: true },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+    const parsed = JSON.parse(result.content[0]!.text) as { would_add_monitors: string[]; would_remove_monitors: string[] };
+    expect(parsed.would_add_monitors).toEqual(['jdoe']);
+    expect(parsed.would_remove_monitors).toEqual(['asmith']);
   });
 });
 

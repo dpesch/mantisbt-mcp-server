@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MantisClient } from '../../src/client.js';
 import { registerMonitorTools } from '../../src/tools/monitors.js';
-import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
+import { MockMcpServer, makeResponse, monitorsResponse } from '../helpers/mock-server.js';
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -31,11 +31,6 @@ const JDOE: Monitor = { id: 7, name: 'jdoe' };
 const ASMITH: Monitor = { id: 9, name: 'asmith' };
 const AGENT: Monitor = { id: 51, name: 'agent' };
 
-/** Issue payload as returned by GET/PATCH /issues/{id} (200) and POST /issues/{id}/monitors (201). */
-function issueResponse(monitors: Monitor[], status = 200): Response {
-  return makeResponse(status, JSON.stringify({ issues: [{ id: 42, monitors }] }));
-}
-
 function parsed<T>(result: { content: Array<{ text: string }> }): T {
   return JSON.parse(result.content[0]!.text) as T;
 }
@@ -53,7 +48,7 @@ describe('add_monitor', () => {
   // logged-in user (the API-key owner) instead (see Mantis #8506).
 
   it('posts to the correct endpoint', async () => {
-    vi.mocked(fetch).mockResolvedValue(issueResponse([JDOE], 201));
+    vi.mocked(fetch).mockResolvedValue(monitorsResponse([JDOE], 201));
 
     await mockServer.callTool('add_monitor', { issue_id: 42, username: 'jdoe' });
 
@@ -63,7 +58,7 @@ describe('add_monitor', () => {
   });
 
   it('sends the user in the "users" array MantisBT expects', async () => {
-    vi.mocked(fetch).mockResolvedValue(issueResponse([JDOE], 201));
+    vi.mocked(fetch).mockResolvedValue(monitorsResponse([JDOE], 201));
 
     await mockServer.callTool('add_monitor', { issue_id: 42, username: 'jdoe' });
 
@@ -72,7 +67,7 @@ describe('add_monitor', () => {
   });
 
   it('returns success with the monitors from the POST response, without an extra request', async () => {
-    vi.mocked(fetch).mockResolvedValue(issueResponse([AGENT, JDOE], 201));
+    vi.mocked(fetch).mockResolvedValue(monitorsResponse([AGENT, JDOE], 201));
 
     const result = await mockServer.callTool('add_monitor', { issue_id: 42, username: 'jdoe' });
 
@@ -82,7 +77,7 @@ describe('add_monitor', () => {
   });
 
   it('matches the username case-insensitively when checking the result', async () => {
-    vi.mocked(fetch).mockResolvedValue(issueResponse([JDOE], 201));
+    vi.mocked(fetch).mockResolvedValue(monitorsResponse([JDOE], 201));
 
     const result = await mockServer.callTool('add_monitor', { issue_id: 42, username: 'JDoe' });
 
@@ -90,7 +85,7 @@ describe('add_monitor', () => {
   });
 
   it('returns isError when the user is not a monitor afterwards', async () => {
-    vi.mocked(fetch).mockResolvedValue(issueResponse([AGENT], 201));
+    vi.mocked(fetch).mockResolvedValue(monitorsResponse([AGENT], 201));
 
     const result = await mockServer.callTool('add_monitor', { issue_id: 42, username: 'jdoe' });
 
@@ -118,8 +113,8 @@ describe('add_monitor', () => {
 
 function mockGetThenPatch(before: Monitor[], after: Monitor[]): void {
   vi.mocked(fetch)
-    .mockResolvedValueOnce(issueResponse(before))
-    .mockResolvedValueOnce(issueResponse(after));
+    .mockResolvedValueOnce(monitorsResponse(before))
+    .mockResolvedValueOnce(monitorsResponse(after));
 }
 
 function patchBody(): unknown {
@@ -177,7 +172,7 @@ describe('remove_monitor', () => {
   });
 
   it('succeeds without PATCH when the user is not a monitor', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(issueResponse([ASMITH]));
+    vi.mocked(fetch).mockResolvedValueOnce(monitorsResponse([ASMITH]));
 
     const result = await mockServer.callTool('remove_monitor', { issue_id: 42, username: 'jdoe' });
 
@@ -218,12 +213,29 @@ describe('remove_monitor', () => {
 
   it('returns isError when the PATCH fails', async () => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce(issueResponse([JDOE]))
+      .mockResolvedValueOnce(monitorsResponse([JDOE]))
       .mockResolvedValueOnce(makeResponse(403, JSON.stringify({ message: 'Access denied' })));
 
     const result = await mockServer.callTool('remove_monitor', { issue_id: 42, username: 'jdoe' });
 
     expect(result.isError).toBe(true);
     expect(result.content[0]!.text).toContain('Error:');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Deprecation (#8499) – replaced by update_issue add_monitors / remove_monitors
+// ---------------------------------------------------------------------------
+
+describe('monitor tools – deprecation', () => {
+  it.each([
+    ['add_monitor', 'add_monitors'],
+    ['remove_monitor', 'remove_monitors'],
+  ])('%s is marked deprecated in favour of update_issue %s', (tool, param) => {
+    const description = mockServer.toolDescription(tool);
+    expect(description).toMatch(/^Deprecated:/);
+    expect(description).toContain('update_issue');
+    expect(description).toContain(param);
+    expect(description).toContain('2.0.0');
   });
 });

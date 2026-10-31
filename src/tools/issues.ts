@@ -8,6 +8,7 @@ import { MANTIS_CANONICAL_ENUM_NAMES, MANTIS_RESOLVED_STATUS_ID, resolveEnumId }
 import { dateFilterSchema, matchesDateFilter, hasDateFilter, type DateFilter } from '../date-filter.js';
 import { fetchIssueEnumsWithCache } from './config.js';
 import { postNote } from './notes.js';
+import { applyMonitorChanges } from './monitors.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -437,6 +438,24 @@ For the handler, prefer the username field (resolved server-side) over handler_i
   const coerceBool = (val: unknown) =>
     val === 'true' ? true : val === 'false' ? false : val;
 
+  /** PATCHes the issue fields (enum names resolved to IDs) and returns the enriched issue. */
+  async function patchIssueFields(id: number, fields: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const patch: Record<string, unknown> = { ...fields };
+    for (const field of ['status', 'priority', 'severity', 'resolution', 'reproducibility'] as const) {
+      const val = fields[field] as { id?: number; name?: string } | undefined;
+      if (val?.name !== undefined && val.id === undefined) {
+        const resolved = await resolveEnum(field, val.name, client);
+        if (typeof resolved !== 'string') patch[field] = resolved;
+      }
+    }
+    const [result, baseUrl] = await Promise.all([
+      client.patch<{ issue: MantisIssue }>(`issues/${id}`, patch),
+      client.getBaseUrl(),
+    ]);
+    const issue = result.issue ?? (result as unknown as MantisIssue);
+    return { ...enrichIssue(issue, baseUrl, id) };
+  }
+
   server.registerTool(
     'update_issue',
     {
@@ -463,9 +482,15 @@ The "fields" object accepts any combination of:
 
 Important: when resolving an issue, always set BOTH status and resolution to avoid leaving resolution as "open".
 
-Use the optional "note" parameter to append a note in the same call (e.g. the reason for a status change) — no separate add_note call needed. For a note without field changes use add_note.`,
+Use the optional "note" parameter to append a note in the same call (e.g. the reason for a status change) — no separate add_note call needed. For a note without field changes use add_note.
+
+Use "add_monitors" / "remove_monitors" (lists of MantisBT login names) to change who watches the issue — "fields" may be omitted then. The response contains "monitors" with added/removed/not_monitoring and the current monitor list. Adding or removing other users requires the monitor_add_others_bug_threshold / monitor_delete_others_bug_threshold access level.
+
+Steps run in order: fields, monitors, note. Once one step succeeded, a later failure is reported inline ("monitors_error", "note_error") instead of failing the call — do not retry the steps that went through. Only if every requested step failed is the call an error.`,
       inputSchema: z.object({
         id: z.coerce.number().int().positive().describe('Numeric issue ID to update'),
+        add_monitors: z.array(z.string().min(1)).min(1).optional().describe('MantisBT login names to add as monitors (watchers) of the issue'),
+        remove_monitors: z.array(z.string().min(1)).min(1).optional().describe('MantisBT login names to remove from the monitors of the issue; names that are not monitoring are ignored'),
         dry_run: z.preprocess(coerceBool, z.boolean().optional()).describe('If true, return the patch payload that would be sent without actually updating the issue. Useful for previewing changes before committing them.'),
         note: z.string().min(1).optional().describe('Optional note text appended after a successful update (e.g. reason for a status change). Replaces a separate add_note call.'),
         note_view_state: z.enum(['public', 'private']).default('public').describe('Visibility of the appended note: "public" (default) or "private". Only used when "note" is set.'),
@@ -491,7 +516,7 @@ Use the optional "note" parameter to append a note in the same call (e.g. the re
             fixed_in_version: ref.optional(),
             view_state: ref.optional(),
             custom_fields: z.array(customFieldEntry).optional(),
-          }).strict().describe('Fields to update (partial update — only provided fields are changed; unknown keys are rejected)')
+          }).strict().optional().describe('Fields to update (partial update — only provided fields are changed; unknown keys are rejected). May be omitted when only add_monitors, remove_monitors or note are given.')
         ),
       }),
       annotations: {
@@ -500,39 +525,83 @@ Use the optional "note" parameter to append a note in the same call (e.g. the re
         idempotentHint: false,
       },
     },
-    async ({ id, fields, dry_run, note, note_view_state }) => {
+    async ({ id, fields, dry_run, note, note_view_state, add_monitors, remove_monitors }) => {
+      const fieldChanges = fields ?? {};
+      const hasFields = Object.keys(fieldChanges).length > 0;
+      const hasMonitorChanges = add_monitors !== undefined || remove_monitors !== undefined;
+
+      if (!hasFields && !hasMonitorChanges && note === undefined) {
+        return {
+          content: [{ type: 'text', text: errorText('Nothing to update — pass fields, add_monitors, remove_monitors or note.') }],
+          isError: true,
+        };
+      }
+      const removing = new Set(remove_monitors?.map(u => u.toLowerCase()));
+      const conflicting = add_monitors?.filter(u => removing.has(u.toLowerCase())) ?? [];
+      if (conflicting.length > 0) {
+        return {
+          content: [{ type: 'text', text: errorText(`${conflicting.join(', ')} appear(s) in both add_monitors and remove_monitors.`) }],
+          isError: true,
+        };
+      }
+
       if (dry_run) {
         return {
-          content: [{ type: 'text', text: JSON.stringify({ dry_run: true, id, would_patch: fields, would_add_note: note ?? null }, null, 2) }],
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              dry_run: true,
+              id,
+              would_patch: fieldChanges,
+              ...(add_monitors && { would_add_monitors: add_monitors }),
+              ...(remove_monitors && { would_remove_monitors: remove_monitors }),
+              would_add_note: note ?? null,
+            }, null, 2),
+          }],
         };
       }
       try {
-        const patch: Record<string, unknown> = { ...fields };
-        for (const field of ['status', 'priority', 'severity', 'resolution', 'reproducibility'] as const) {
-          const val = (fields as Record<string, { id?: number; name?: string } | undefined>)[field];
-          if (val?.name !== undefined && val.id === undefined) {
-            const resolved = await resolveEnum(field, val.name, client);
-            if (typeof resolved !== 'string') patch[field] = resolved;
+        const response: Record<string, unknown> = hasFields
+          ? await patchIssueFields(id, fieldChanges)
+          : { id, view_url: buildIssueViewUrl(await client.getBaseUrl(), id) };
+
+        // Steps after the field update. As soon as one step succeeded, later
+        // failures are reported inline — otherwise the caller would retry
+        // changes that already went through. Only if every requested step
+        // failed is the call an error.
+        let succeeded = hasFields;
+        const failures: string[] = [];
+        const describeFailure = (what: string, detail: string): string => {
+          const message = succeeded
+            ? `Issue #${id} was updated successfully, but ${what} failed: ${detail}`
+            : `${what.charAt(0).toUpperCase()}${what.slice(1)} failed: ${detail}`;
+          failures.push(message);
+          return message;
+        };
+
+        if (hasMonitorChanges) {
+          const { changes, problems } = await applyMonitorChanges(client, id, add_monitors, remove_monitors);
+          if (changes) response['monitors'] = changes;
+          if (problems.length > 0) {
+            response['monitors_error'] = describeFailure('changing monitors', problems.join(' '));
+          } else {
+            succeeded = true;
           }
         }
-        const [result, baseUrl] = await Promise.all([
-          client.patch<{ issue: MantisIssue }>(`issues/${id}`, patch),
-          client.getBaseUrl(),
-        ]);
-        const issue = result.issue ?? (result as unknown as MantisIssue);
-        const response: Record<string, unknown> = { ...enrichIssue(issue, baseUrl, id) };
 
         if (note !== undefined) {
-          // The PATCH already succeeded — a note failure must not look like a failed
-          // update, or the caller would retry the whole update. Report it inline instead.
           try {
             response['note'] = await postNote(client, id, note, note_view_state);
+            succeeded = true;
           } catch (noteError) {
             const noteMsg = noteError instanceof Error ? noteError.message : String(noteError);
-            response['note_error'] = `Issue #${id} was updated successfully, but adding the note failed: ${noteMsg}. Retry with add_note.`;
+            response['note_error'] = describeFailure('adding the note', `${noteMsg}. Retry with add_note.`);
           }
         }
 
+        if (!succeeded) {
+          return { content: [{ type: 'text', text: errorText(failures.join(' ')) }], isError: true };
+        }
         return {
           content: [{ type: 'text', text: JSON.stringify(response, null, 2) }],
         };

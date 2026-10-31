@@ -41,8 +41,9 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
   - [Attach tags by name](#attach-tags-by-name)
   - [Detach a tag](#detach-a-tag)
 - [Monitors (Watchers)](#monitors-watchers)
-  - [Add a watcher](#add-a-watcher)
-  - [Remove a watcher](#remove-a-watcher)
+  - [Change watchers via update_issue](#change-watchers-via-update_issue)
+  - [Add a watcher (deprecated)](#add-a-watcher-deprecated)
+  - [Remove a watcher (deprecated)](#remove-a-watcher-deprecated)
 - [Semantic Search](#semantic-search)
   - [Build the initial index](#build-the-initial-index)
   - [Incremental index update](#incremental-index-update)
@@ -54,7 +55,7 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
   - [Find a project member](#find-a-project-member)
   - [Create a project version](#create-a-project-version)
   - [Update a project version](#update-a-project-version)
-  - [Release a version and create the next bugfix placeholder](#release-a-version-and-create-the-next-bugfix-placeholder)
+  - [Release a version and create the next bugfix placeholder (deprecated)](#release-a-version-and-create-the-next-bugfix-placeholder-deprecated)
   - [Delete a project version](#delete-a-project-version)
 - [Metadata](#metadata)
   - [Get a metadata summary](#get-a-metadata-summary)
@@ -1261,7 +1262,70 @@ Read `tags[].id` from the response.
 
 ## Monitors (Watchers)
 
-### Add a watcher
+### Change watchers via update_issue
+
+Adds and/or removes watchers (monitors) of an issue in a single `update_issue` call. `fields` may be omitted — only `add_monitors`, `remove_monitors`, or both are required. Names are matched case-insensitively.
+
+**Tool:** `update_issue`
+
+**Parameters:**
+- `id` — numeric issue ID
+- `add_monitors` — _(optional)_ array of MantisBT login names to add as watchers
+- `remove_monitors` — _(optional)_ array of MantisBT login names to remove from watchers; names not currently watching are silently skipped
+- A user listed in both arrays is rejected.
+
+**Request:** _(add one watcher)_
+
+```json
+{
+  "id": 1042,
+  "add_monitors": ["jsmith"]
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 1042,
+  "view_url": "https://mantis.example.com/view.php?id=1042",
+  "monitors": {
+    "added": ["jsmith"],
+    "current": ["asmith", "jsmith"]
+  }
+}
+```
+
+**Request:** _(remove one watcher)_
+
+```json
+{
+  "id": 1042,
+  "remove_monitors": ["jsmith"]
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 1042,
+  "view_url": "https://mantis.example.com/view.php?id=1042",
+  "monitors": {
+    "removed": ["jsmith"],
+    "not_monitoring": [],
+    "current": ["asmith"]
+  }
+}
+```
+
+`monitors.current` always lists all remaining watchers. `monitors.added` lists names successfully added; `monitors.removed` lists names successfully removed; `monitors.not_monitoring` lists names that were not watching and were therefore skipped. Adding or removing other users requires the `monitor_add_others_bug_threshold` / `monitor_delete_others_bug_threshold` access level. The steps run in order — `fields`, monitors, `note`. Once one of them succeeded, a later failure is reported inline as `monitors_error` or `note_error` (nothing is rolled back); only when every requested step failed does the call return an error.
+
+---
+
+### Add a watcher (deprecated)
+
+> **Deprecated:** use `update_issue` with `add_monitors` instead — `add_monitor` will be removed in 2.0.0.
 
 Subscribes a user to notifications for an issue.
 
@@ -1293,7 +1357,9 @@ Subscribes a user to notifications for an issue.
 
 ---
 
-### Remove a watcher
+### Remove a watcher (deprecated)
+
+> **Deprecated:** use `update_issue` with `remove_monitors` instead — `remove_monitor` will be removed in 2.0.0.
 
 Unsubscribes a user from notifications for an issue.
 
@@ -1675,6 +1741,7 @@ Updates an existing version of a MantisBT project. Only the fields you pass are 
 - `released` — _(optional)_ released flag
 - `obsolete` — _(optional)_ obsolete flag
 - `timestamp` — _(optional)_ version date as ISO 8601 string
+- `next_version` — _(optional, only with `released: true`)_ name of a follow-up version to create as an unreleased placeholder, e.g. `"1.2.1"`; used as-is — no automatic numbering
 
 **Request:** _(mark a version as obsolete)_
 
@@ -1698,9 +1765,46 @@ Updates an existing version of a MantisBT project. Only the fields you pass are 
 }
 ```
 
+**Request:** _(release a version and create a follow-up placeholder)_
+
+```json
+{
+  "project_id": 3,
+  "version_id": 42,
+  "released": true,
+  "timestamp": "2026-10-31",
+  "next_version": "1.2.1"
+}
+```
+
+**Response:**
+
+```json
+{
+  "version": {
+    "id": 42,
+    "name": "1.2.0",
+    "released": true,
+    "obsolete": false,
+    "timestamp": "2026-10-31T00:00:00+00:00"
+  },
+  "next_version": {
+    "id": 43,
+    "name": "1.2.1",
+    "released": false,
+    "obsolete": false,
+    "timestamp": "2026-10-31T00:00:00+00:00"
+  }
+}
+```
+
+Setting `released=true` does not change the version date — always pass `timestamp` with the release date. If creating the follow-up version fails, the update itself stays in effect and the error is reported as `next_version_error` in the response.
+
 ---
 
-### Release a version and create the next bugfix placeholder
+### Release a version and create the next bugfix placeholder (deprecated)
+
+> **Deprecated:** use `update_version` with `released: true`, `timestamp`, and optionally `next_version` instead — `release_version` will be removed in 2.0.0. See [Update a project version](#update-a-project-version) for the replacement recipe.
 
 Marks a version as released (setting its date) and creates a follow-up version placeholder in the same call. The follow-up version name is used as-is — no automatic numbering. If the follow-up creation fails, the release stays in effect and the error is reported in `next_version_error`.
 
@@ -1746,7 +1850,7 @@ Marks a version as released (setting its date) and creates a follow-up version p
 }
 ```
 
-> **Note:** Setting `released=true` via `update_version` does not change the version date — use `release_version` when you want to set both in one step.
+> **Note:** Setting `released=true` via `update_version` does not change the version date — always pass `timestamp` for the release date. Use `next_version` to create a follow-up version in the same call.
 
 ---
 
