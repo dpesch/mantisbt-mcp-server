@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { MantisClient, buildNoteViewUrl } from '../client.js';
 import type { MantisNote } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
+import { firstIssue, type IssueEnvelope } from '../issue-envelope.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -53,10 +54,10 @@ export function registerNoteTools(server: McpServer, client: MantisClient): void
     async ({ issue_id }) => {
       try {
         const [result, baseUrl] = await Promise.all([
-          client.get<{ issues: Array<{ notes?: MantisNote[] }> }>(`issues/${issue_id}`),
+          client.get<IssueEnvelope>(`issues/${issue_id}`),
           client.getBaseUrl(),
         ]);
-        const notes = (result.issues?.[0]?.notes ?? []).map(note => ({
+        const notes = (firstIssue(result)?.notes ?? []).map(note => ({
           ...note,
           view_url: buildNoteViewUrl(baseUrl, issue_id, note.id),
         }));

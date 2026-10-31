@@ -5,6 +5,7 @@ import type { VectorStore } from './store.js';
 import type { Embedder } from './embedder.js';
 import { SearchSyncService } from './sync.js';
 import { getVersionHint } from '../version-hint.js';
+import { firstIssue, type IssueEnvelope } from '../issue-envelope.js';
 import { dateFilterSchema, matchesDateFilter, hasDateFilter, type DateFilter } from '../date-filter.js';
 import { extractTerms, highlightText, extractSnippet, hasTermMatch } from './highlight.js';
 
@@ -141,8 +142,8 @@ export function registerSearchTools(
         const enriched = await Promise.all(
           results.map(async ({ id, score }) => {
             try {
-              const issueResult = await client.get<{ issues: Array<Record<string, unknown>> }>(`issues/${id}`);
-              const issue = issueResult.issues?.[0] ?? {};
+              const issueResult = await client.get<IssueEnvelope>(`issues/${id}`);
+              const issue = (firstIssue(issueResult) ?? {}) as Record<string, unknown>;
               if (filterActive && !matchesDateFilter(issue as { updated_at?: string; created_at?: string }, dateFilter)) {
                 return null;
               }

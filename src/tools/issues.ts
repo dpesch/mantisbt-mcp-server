@@ -114,8 +114,8 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
     },
     async ({ id, select }) => {
       try {
-        const result = await client.get<{ issues: MantisIssue[] }>(`issues/${id}`, { select });
-        const issue = result.issues?.[0] ?? result;
+        const result = await client.get<IssueEnvelope>(`issues/${id}`, { select });
+        const issue = firstIssue(result) ?? (result as MantisIssue);
         const baseUrl = await client.getBaseUrl();
         return {
           content: [{ type: 'text', text: JSON.stringify(enrichIssue(issue, baseUrl, id), null, 2) }],
@@ -161,8 +161,8 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
           GET_ISSUES_CONCURRENCY,
           async (id): Promise<MantisIssue | null> => {
             try {
-              const result = await client.get<{ issues: MantisIssue[] }>(`issues/${id}`);
-              return result.issues?.[0] ?? (result as unknown as MantisIssue);
+              const result = await client.get<IssueEnvelope>(`issues/${id}`);
+              return firstIssue(result) ?? (result as MantisIssue);
             } catch {
               return null;
             }
@@ -406,17 +406,15 @@ For the handler, prefer the username field (resolved server-side) over handler_i
         if (view_state !== undefined) body.view_state = { name: view_state };
         if (custom_fields !== undefined) body.custom_fields = custom_fields;
 
-        const raw = await client.post<Record<string, unknown>>('issues', body);
-        const partial = ('issue' in raw && typeof raw['issue'] === 'object' && raw['issue'] !== null)
-          ? raw['issue'] as MantisIssue
-          : raw as unknown as MantisIssue;
+        const raw = await client.post<IssueEnvelope>('issues', body);
+        const partial = firstIssue(raw) ?? (raw as MantisIssue);
         let issue: MantisIssue = partial;
         if (!('summary' in (partial as unknown as Record<string, unknown>))) {
           // Older MantisBT returned only { id: N } — fetch the full issue.
           // Suppress GET errors: the issue was already created.
           try {
-            const fetched = await client.get<{ issues: MantisIssue[] }>(`issues/${partial.id}`);
-            issue = fetched.issues?.[0] ?? partial;
+            const fetched = await client.get<IssueEnvelope>(`issues/${partial.id}`);
+            issue = firstIssue(fetched) ?? partial;
           } catch {
             // unable to fetch details — return minimal object
           }

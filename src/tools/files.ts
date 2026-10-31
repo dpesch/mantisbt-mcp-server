@@ -3,8 +3,8 @@ import { basename, resolve, sep } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MantisClient } from '../client.js';
-import type { MantisFile } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
+import { firstIssue, type IssueEnvelope } from '../issue-envelope.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -49,8 +49,8 @@ Use this tool when you need to inspect or enumerate files attached to an issue. 
     },
     async ({ issue_id }) => {
       try {
-        const result = await client.get<{ issues: Array<{ attachments?: MantisFile[] }> }>(`issues/${issue_id}`);
-        const attachments = result.issues?.[0]?.attachments ?? [];
+        const result = await client.get<IssueEnvelope>(`issues/${issue_id}`);
+        const attachments = firstIssue(result)?.attachments ?? [];
         return {
           content: [{ type: 'text', text: JSON.stringify(attachments, null, 2) }],
         };
