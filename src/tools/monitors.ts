@@ -1,7 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MantisClient } from '../client.js';
-import type { MantisIssue, MantisUser } from '../types.js';
+import type { MantisUser } from '../types.js';
+import { firstIssue, type IssueEnvelope } from '../issue-envelope.js';
 import { getVersionHint } from '../version-hint.js';
 import { deprecationNote } from '../deprecation.js';
 
@@ -24,10 +25,10 @@ function errorResult(msg: string) {
 // Monitor helpers
 // ---------------------------------------------------------------------------
 
-type IssuesResponse = { issues?: MantisIssue[] };
 
-const monitorsOf = (response: IssuesResponse | undefined): MantisUser[] =>
-  response?.issues?.[0]?.monitors ?? [];
+/** MantisBT omits the "monitors" key when the issue has no monitors. */
+const monitorsOf = (response: IssueEnvelope | undefined): MantisUser[] =>
+  firstIssue(response)?.monitors ?? [];
 
 /** Lower-cased login names of the given monitors (MantisBT login names are case-insensitive). */
 const loginsOf = (monitors: MantisUser[]): Set<string> =>
@@ -56,7 +57,7 @@ export async function addMonitors(
   usernames: string[],
 ): Promise<AddMonitorsResult> {
   const monitors = monitorsOf(
-    await client.post<IssuesResponse>(`issues/${issueId}/monitors`, {
+    await client.post<IssueEnvelope>(`issues/${issueId}/monitors`, {
       users: usernames.map(name => ({ name })),
     }),
   );
@@ -101,7 +102,7 @@ export async function removeMonitors(
   const isWanted = (m: MantisUser) => wanted.has(m.name.toLowerCase());
 
   const current = knownMonitors ?? monitorsOf(
-    await client.get<IssuesResponse>(`issues/${issueId}`, { select: 'id,monitors' }),
+    await client.get<IssueEnvelope>(`issues/${issueId}`, { select: 'id,monitors' }),
   );
   const present = loginsOf(current.filter(isWanted));
   const notMonitoring = usernames.filter(u => !present.has(u.toLowerCase()));
@@ -111,7 +112,7 @@ export async function removeMonitors(
   }
 
   const after = monitorsOf(
-    await client.patch<IssuesResponse>(`issues/${issueId}`, {
+    await client.patch<IssueEnvelope>(`issues/${issueId}`, {
       monitors: current.filter(m => !isWanted(m)).map(m => ({ id: m.id })),
     }),
   );
@@ -140,18 +141,20 @@ export interface MonitorChanges {
  * Applies a combined add/remove of monitors (update_issue add_monitors /
  * remove_monitors). Never throws: API errors and changes MantisBT silently
  * skipped are returned as `problems`. Adds run first; the resulting monitor
- * list is reused for the removal, so no extra GET is needed.
+ * list is reused for the removal, so no extra GET is needed. `knownMonitors`
+ * (e.g. from a preceding field PATCH) skips the GET when only removing.
  */
 export async function applyMonitorChanges(
   client: MantisClient,
   issueId: number,
   add: string[] | undefined,
   remove: string[] | undefined,
+  knownMonitors?: MantisUser[],
 ): Promise<{ changes?: MonitorChanges; problems: string[] }> {
   const changes: MonitorChanges = { current: [] };
   const problems: string[] = [];
   try {
-    let known: MantisUser[] | undefined;
+    let known = knownMonitors;
     if (add) {
       const result = await addMonitors(client, issueId, add);
       changes.added = result.added;

@@ -862,7 +862,7 @@ describe('list_issues – recorded fixtures', () => {
 
 describe('update_issue – fields allowlist', () => {
   it('accepts known string fields (summary, description)', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issue: { id: 1, summary: 'Updated' } })));
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issues: [{ id: 1, summary: 'Updated' }] })));
 
     const result = await mockServer.callTool(
       'update_issue',
@@ -874,7 +874,7 @@ describe('update_issue – fields allowlist', () => {
   });
 
   it('accepts known object fields (status, resolution, handler)', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issue: { id: 1 } })));
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issues: [{ id: 1 }] })));
 
     const result = await mockServer.callTool(
       'update_issue',
@@ -930,7 +930,7 @@ describe('update_issue – dry_run', () => {
   });
 
   it('defaults to false (normal update) when dry_run is omitted', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issue: { id: 42, summary: 'Updated' } })));
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issues: [{ id: 42, summary: 'Updated' }] })));
 
     const result = await mockServer.callTool(
       'update_issue',
@@ -961,7 +961,7 @@ describe('update_issue – dry_run', () => {
 describe('update_issue – enum resolution', () => {
   it('resolves canonical severity name to { id } before sending to API', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      makeResponse(200, JSON.stringify({ issue: { id: 1 } })),
+      makeResponse(200, JSON.stringify({ issues: [{ id: 1 }] })),
     );
 
     await mockServer.callTool(
@@ -978,7 +978,7 @@ describe('update_issue – enum resolution', () => {
 
   it('resolves canonical priority name to { id } before sending to API', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      makeResponse(200, JSON.stringify({ issue: { id: 1 } })),
+      makeResponse(200, JSON.stringify({ issues: [{ id: 1 }] })),
     );
 
     await mockServer.callTool(
@@ -994,7 +994,7 @@ describe('update_issue – enum resolution', () => {
 
   it('resolves canonical status name to { id } before sending to API', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      makeResponse(200, JSON.stringify({ issue: { id: 1 } })),
+      makeResponse(200, JSON.stringify({ issues: [{ id: 1 }] })),
     );
 
     await mockServer.callTool(
@@ -1010,7 +1010,7 @@ describe('update_issue – enum resolution', () => {
 
   it('does not resolve when id is already provided', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      makeResponse(200, JSON.stringify({ issue: { id: 1 } })),
+      makeResponse(200, JSON.stringify({ issues: [{ id: 1 }] })),
     );
 
     await mockServer.callTool(
@@ -1038,7 +1038,7 @@ describe('update_issue – enum resolution', () => {
           ],
         }],
       })))
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 1 } })));
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 1 }] })));
 
     await mockServer.callTool(
       'update_issue',
@@ -1055,7 +1055,7 @@ describe('update_issue – enum resolution', () => {
     // Config returns no useful data → name stays unchanged
     vi.mocked(fetch)
       .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ configs: [] })))
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 1 } })));
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 1 }] })));
 
     await mockServer.callTool(
       'update_issue',
@@ -1069,7 +1069,7 @@ describe('update_issue – enum resolution', () => {
 
   it('resolves multiple enum fields in one patch call', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      makeResponse(200, JSON.stringify({ issue: { id: 1 } })),
+      makeResponse(200, JSON.stringify({ issues: [{ id: 1 }] })),
     );
 
     await mockServer.callTool(
@@ -1288,7 +1288,7 @@ describe('create_issue – custom_fields', () => {
 
 describe('update_issue – custom_fields', () => {
   it('sends custom_fields in the PATCH body', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issue: { id: 1 } })));
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issues: [{ id: 1 }] })));
 
     const result = await mockServer.callTool(
       'update_issue',
@@ -1320,7 +1320,7 @@ describe('update_issue – custom_fields', () => {
 describe('update_issue – note', () => {
   it('sends PATCH then POST notes and returns the note with view_url', async () => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 42, summary: 'Updated' } })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 42, summary: 'Updated' }] })))
       .mockResolvedValueOnce(makeResponse(201, JSON.stringify({ note: { id: 7, text: 'Grund' } })));
 
     const result = await mockServer.callTool(
@@ -1347,7 +1347,7 @@ describe('update_issue – note', () => {
 
   it('passes note_view_state "private" through to the note body', async () => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 42 } })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 42 }] })))
       .mockResolvedValueOnce(makeResponse(201, JSON.stringify({ note: { id: 8, text: 'intern' } })));
 
     await mockServer.callTool(
@@ -1362,7 +1362,7 @@ describe('update_issue – note', () => {
 
   it('reports note_error without isError when the note fails after a successful PATCH', async () => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 42, summary: 'Updated' } })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 42, summary: 'Updated' }] })))
       .mockResolvedValueOnce(makeResponse(403, JSON.stringify({ message: 'Access denied' })));
 
     const result = await mockServer.callTool(
@@ -1406,7 +1406,7 @@ describe('update_issue – note', () => {
   });
 
   it('behaves unchanged without a note (single PATCH call, regression)', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issue: { id: 42, summary: 'Updated' } })));
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issues: [{ id: 42, summary: 'Updated' }] })));
 
     const result = await mockServer.callTool(
       'update_issue',
@@ -1419,6 +1419,50 @@ describe('update_issue – note', () => {
     const parsed = JSON.parse(result.content[0]!.text) as { note?: unknown; note_error?: unknown };
     expect(parsed.note).toBeUndefined();
     expect(parsed.note_error).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// update_issue – PATCH response shape (#8511)
+// MantisBT answers PATCH /issues/{id} with { issues: [issue] }, not { issue }.
+// ---------------------------------------------------------------------------
+
+describe('update_issue – PATCH response shape', () => {
+  it('unwraps { issues: [issue] } and enriches the issue itself', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(200, JSON.stringify({ issues: [{ id: 42, summary: 'Updated' }] })),
+    );
+
+    const result = await mockServer.callTool('update_issue', { id: 42, fields: { summary: 'Updated' } }, { validate: true });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as Record<string, unknown>;
+    expect(parsed['issues']).toBeUndefined();
+    expect(parsed['id']).toBe(42);
+    expect(parsed['summary']).toBe('Updated');
+    expect(parsed['view_url']).toContain('view.php?id=42');
+  });
+
+  it('removes monitors after a field update without an extra GET (monitor list from the PATCH response)', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({
+        issues: [{ id: 42, summary: 'Updated', monitors: [{ id: 7, name: 'jdoe' }, { id: 9, name: 'asmith' }] }],
+      })))
+      .mockResolvedValueOnce(monitorsResponse([{ id: 9, name: 'asmith' }]));
+
+    const result = await mockServer.callTool(
+      'update_issue',
+      { id: 42, fields: { summary: 'Updated' }, remove_monitors: ['jdoe'] },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+    expect(fetchCall(0)).toMatchObject({ method: 'PATCH', body: { summary: 'Updated' } });
+    expect(fetchCall(1)).toMatchObject({ method: 'PATCH', body: { monitors: [{ id: 9 }] } });
+    const parsed = JSON.parse(result.content[0]!.text) as { monitors: { removed: string[]; current: string[] } };
+    expect(parsed.monitors.removed).toEqual(['jdoe']);
+    expect(parsed.monitors.current).toEqual(['asmith']);
   });
 });
 
@@ -1461,7 +1505,7 @@ describe('update_issue – monitors', () => {
 
   it('patches the fields first, then changes the monitors', async () => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 42, summary: 'Updated' } })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 42, summary: 'Updated' }] })))
       .mockResolvedValueOnce(monitorsResponse([JDOE], 201));
 
     const result = await mockServer.callTool(
@@ -1480,7 +1524,7 @@ describe('update_issue – monitors', () => {
 
   it('reports monitors_error inline (no isError) when monitors fail after a successful field update', async () => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 42, summary: 'Updated' } })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 42, summary: 'Updated' }] })))
       .mockResolvedValueOnce(monitorsResponse([ASMITH], 201));
 
     const result = await mockServer.callTool(
@@ -1507,7 +1551,7 @@ describe('update_issue – monitors', () => {
 
   it('still posts the note when a monitor change fails after a field update', async () => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issue: { id: 42 } })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 42 }] })))
       .mockResolvedValueOnce(makeResponse(403, JSON.stringify({ message: 'Access denied' })))
       .mockResolvedValueOnce(makeResponse(201, JSON.stringify({ note: { id: 8, text: 'Grund' } })));
 

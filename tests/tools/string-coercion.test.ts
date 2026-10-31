@@ -93,7 +93,7 @@ describe('string-coercion – list_issues', () => {
 
 describe('string-coercion – update_issue', () => {
   it('accepts id as string', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issue: { id: 99, summary: 'Updated' } })));
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issues: [{ id: 99, summary: 'Updated' }] })));
 
     const result = await mockServer.callTool(
       'update_issue',
@@ -265,7 +265,7 @@ describe('string-coercion – get_project_versions', () => {
 
 describe('string-coercion – update_issue fields as JSON string', () => {
   it('accepts fields as JSON string', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issue: { id: 99, summary: 'Updated' } })));
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ issues: [{ id: 99, summary: 'Updated' }] })));
     const result = await mockServer.callTool(
       'update_issue',
       { id: 99, fields: '{"summary":"Updated"}' },

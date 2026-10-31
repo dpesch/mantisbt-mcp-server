@@ -9,6 +9,7 @@ import { dateFilterSchema, matchesDateFilter, hasDateFilter, type DateFilter } f
 import { fetchIssueEnumsWithCache } from './config.js';
 import { postNote } from './notes.js';
 import { applyMonitorChanges } from './monitors.js';
+import { firstIssue, type IssueEnvelope } from '../issue-envelope.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -439,7 +440,7 @@ For the handler, prefer the username field (resolved server-side) over handler_i
     val === 'true' ? true : val === 'false' ? false : val;
 
   /** PATCHes the issue fields (enum names resolved to IDs) and returns the enriched issue. */
-  async function patchIssueFields(id: number, fields: Record<string, unknown>): Promise<Record<string, unknown>> {
+  async function patchIssueFields(id: number, fields: Record<string, unknown>): Promise<MantisIssue> {
     const patch: Record<string, unknown> = { ...fields };
     for (const field of ['status', 'priority', 'severity', 'resolution', 'reproducibility'] as const) {
       const val = fields[field] as { id?: number; name?: string } | undefined;
@@ -449,11 +450,11 @@ For the handler, prefer the username field (resolved server-side) over handler_i
       }
     }
     const [result, baseUrl] = await Promise.all([
-      client.patch<{ issue: MantisIssue }>(`issues/${id}`, patch),
+      client.patch<IssueEnvelope>(`issues/${id}`, patch),
       client.getBaseUrl(),
     ]);
-    const issue = result.issue ?? (result as unknown as MantisIssue);
-    return { ...enrichIssue(issue, baseUrl, id) };
+    const issue = firstIssue(result) ?? (result as MantisIssue);
+    return enrichIssue(issue, baseUrl, id);
   }
 
   server.registerTool(
@@ -561,8 +562,9 @@ Steps run in order: fields, monitors, note. Once one step succeeded, a later fai
         };
       }
       try {
-        const response: Record<string, unknown> = hasFields
-          ? await patchIssueFields(id, fieldChanges)
+        const patched = hasFields ? await patchIssueFields(id, fieldChanges) : undefined;
+        const response: Record<string, unknown> = patched
+          ? { ...patched }
           : { id, view_url: buildIssueViewUrl(await client.getBaseUrl(), id) };
 
         // Steps after the field update. As soon as one step succeeded, later
@@ -580,7 +582,10 @@ Steps run in order: fields, monitors, note. Once one step succeeded, a later fai
         };
 
         if (hasMonitorChanges) {
-          const { changes, problems } = await applyMonitorChanges(client, id, add_monitors, remove_monitors);
+          // The PATCH response already holds the monitor list; MantisBT omits
+          // the key when the issue has no monitors.
+          const knownMonitors = patched ? patched.monitors ?? [] : undefined;
+          const { changes, problems } = await applyMonitorChanges(client, id, add_monitors, remove_monitors, knownMonitors);
           if (changes) response['monitors'] = changes;
           if (problems.length > 0) {
             response['monitors_error'] = describeFailure('changing monitors', problems.join(' '));
