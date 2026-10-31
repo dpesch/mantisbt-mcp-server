@@ -39,6 +39,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Semantic search: the server no longer loads the whole vector index before it starts answering. On startup it read and parsed `index.json` only to count its entries — a number it needs only when `last_total.txt` is missing. With an index of about 70 MB (8,000 issues) the server is now ready roughly 0.2 s sooner on every session start; the background sync still loads the index afterwards.
 - `list_issue_files` promised a `download_url` per attachment, but MantisBT sends it only via SOAP, never via REST. The server now builds it (`file_download.php?file_id=…&type=bug`), for `get_issue` as well.
 - `update_issue` returned the raw MantisBT envelope `{ issues: [issue], view_url }` instead of the issue itself. MantisBT answers `PATCH /issues/{id}` with an `issues` array (unlike `POST /issues`, which answers `{ issue }`), but the tool expected `{ issue }`. The response is now the updated issue with `view_url`, the same shape as `get_issue` and `create_issue`. Combined with `remove_monitors`, the monitor list from the field update is reused, which saves one request.
 - `add_monitor` always subscribed the owner of the API key instead of the given user. It sent `{ name }`, but MantisBT reads only a `users` array and falls back to the logged-in user when it is missing. The tool now sends `{ users: [{ name }] }` and checks the returned monitor list; the response is now `{ success, monitors }` instead of the full issue object.

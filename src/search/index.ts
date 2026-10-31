@@ -23,9 +23,11 @@ export async function initializeSearchModule(
 
   // Pre-initialize lastKnownTotal so the index status (get_metadata) shows a value
   // immediately on startup, even while the background sync is still running.
-  const [startupCount, startupTotal] = await Promise.all([store.count(), store.getLastKnownTotal()]);
-  if (startupTotal === null && startupCount > 0) {
-    await store.setLastKnownTotal(startupCount);
+  // count() loads the whole index into memory, and this runs before the server
+  // connects — so only do it when there is no stored total yet.
+  if (await store.getLastKnownTotal() === null) {
+    const startupCount = await store.count();
+    if (startupCount > 0) await store.setLastKnownTotal(startupCount);
   }
 
   // Non-blocking background sync on startup. If another server process (another
