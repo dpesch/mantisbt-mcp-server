@@ -131,6 +131,14 @@ Practical examples of how to interact with MantisBT through Claude once the MCP 
 
 ---
 
+### Version and schema
+
+> "Which MantisBT version is connected, and is it up to date?"
+
+> "Which fields can I use in a select query, and what status values are available?"
+
+---
+
 ### Triage and reporting
 
 > "Give me an overview of all critical and urgent open issues across all projects."
@@ -247,4 +255,4 @@ If your client does not support Resources, ask Claude to use the corresponding t
 
 > "Which projects are available?" *(uses `list_projects`)*
 
-> "What are the valid priority values?" *(uses `get_issue_enums`)*
+> "What are the valid priority values?" *(uses `get_issue_schema`)*

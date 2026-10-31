@@ -77,7 +77,7 @@ async function resolveEnum(
   }
 
   const valid = Object.values(MANTIS_CANONICAL_ENUM_NAMES[group]).join(', ');
-  return `Invalid ${group} "${value}". Valid canonical names: ${valid}. Call get_issue_enums to see localized labels.`;
+  return `Invalid ${group} "${value}". Valid canonical names: ${valid}. Call get_issue_schema to see localized labels.`;
 }
 
 export function registerIssueTools(server: McpServer, client: MantisClient, cache: MetadataCache): void {
@@ -321,7 +321,7 @@ Recommended workflow:
 2. Optionally add "versions" to include to obtain version names
 3. Optionally call get_project with member_query to resolve the assignee's username
 
-Both priority and severity accept canonical English names or localized labels from the connected MantisBT instance — call get_issue_enums to see all available values.
+Both priority and severity accept canonical English names or localized labels from the connected MantisBT instance — call get_issue_schema to see all available values.
 
 For the handler, prefer the username field (resolved server-side) over handler_id when working interactively.`,
       inputSchema: z.object({
@@ -329,8 +329,8 @@ For the handler, prefer the username field (resolved server-side) over handler_i
         description: z.string().min(1).describe('Detailed issue description (required). Do not create issues without a description. Plain text or Markdown.'),
         project_id: z.coerce.number().int().positive().describe('Project ID the issue belongs to — use list_projects to discover project IDs'),
         category: z.string().min(1).describe('Category name (required). Use get_project with include: ["categories"] to list available categories for the project.'),
-        priority: z.string().default('normal').describe('Priority level. Canonical English names: none, low, normal, high, urgent, immediate. Default: "normal". Use get_issue_enums to see localized labels.'),
-        severity: z.string().default('minor').describe('Severity level. Canonical English names: feature, trivial, text, tweak, minor, major, crash, block. Default: "minor". Use get_issue_enums to see localized labels.'),
+        priority: z.string().default('normal').describe('Priority level. Canonical English names: none, low, normal, high, urgent, immediate. Default: "normal". Use get_issue_schema to see localized labels.'),
+        severity: z.string().default('minor').describe('Severity level. Canonical English names: feature, trivial, text, tweak, minor, major, crash, block. Default: "minor". Use get_issue_schema to see localized labels.'),
         handler_id: z.coerce.number().int().positive().optional().describe('Numeric user ID of the assignee. Alternative to the handler field — use one or the other, not both.'),
         handler: z.string().optional().describe('MantisBT login name of the assignee. The server resolves the name to a user ID from the project member list. Use get_project with member_query or include: ["users"] to look up valid login names.'),
         version: z.string().optional().describe('Affected product version name. Use get_project with include: ["versions"] to list available version names for the project.'),
@@ -338,9 +338,9 @@ For the handler, prefer the username field (resolved server-side) over handler_i
         fixed_in_version: z.string().optional().describe('Version in which the issue was fixed. Use get_project with include: ["versions"] to list available version names.'),
         steps_to_reproduce: z.string().optional().describe('Step-by-step instructions to reproduce the issue. Plain text or Markdown.'),
         additional_information: z.string().optional().describe('Additional context or notes about the issue. Plain text or Markdown.'),
-        reproducibility: z.string().optional().describe('How reliably the issue reproduces. Canonical English names: always, sometimes, random, have not tried, unable to reproduce, N/A. Use get_issue_enums to see localized labels.'),
+        reproducibility: z.string().optional().describe('How reliably the issue reproduces. Canonical English names: always, sometimes, random, have not tried, unable to reproduce, N/A. Use get_issue_schema to see localized labels.'),
         view_state: z.enum(['public', 'private']).optional().describe('Visibility of the issue: "public" (visible to all, default) or "private" (restricted to higher-access users).'),
-        custom_fields: z.array(customFieldEntry).optional().describe('Custom field values: [{field: {id|name}, value: "<string>"}]. Use get_issue_fields or get_metadata to discover available custom fields per project.'),
+        custom_fields: z.array(customFieldEntry).optional().describe('Custom field values: [{field: {id|name}, value: "<string>"}]. Use get_issue_schema or get_metadata to discover available custom fields per project.'),
       }),
       annotations: {
         readOnlyHint: false,
@@ -366,7 +366,7 @@ For the handler, prefer the username field (resolved server-side) over handler_i
         if (!user) {
           const names = users.map(u => u.name).join(', ');
           return {
-            content: [{ type: 'text', text: errorText(`User "${handler}" not found in project ${project_id}. Available users: ${names || 'none (run sync_metadata or check project_id)'}`) }],
+            content: [{ type: 'text', text: errorText(`User "${handler}" not found in project ${project_id}. Available users: ${names || 'none (run get_metadata with refresh: true or check project_id)'}`) }],
             isError: true,
           };
         }
@@ -471,7 +471,7 @@ The "fields" object accepts any combination of:
 - target_version: { name: "<version_name>" }
 - fixed_in_version: { name: "<version_name>" }
 - view_state: { name: "public"|"private" }
-- custom_fields: [{field: {id|name}, value: "<string>"}]  (only the listed custom fields are changed, others stay untouched; use get_issue_fields to discover fields)
+- custom_fields: [{field: {id|name}, value: "<string>"}]  (only the listed custom fields are changed, others stay untouched; use get_issue_schema to discover fields)
 - notes: [{ id: <note_id>, text?: "<new text>", view_state?: "public"|"private" }]  (edits existing notes; note IDs come from get_issue. An omitted view_state keeps the note's current visibility. To add a new note use the "note" parameter or add_note.)
 
 Important: when resolving an issue, always set BOTH status and resolution to avoid leaving resolution as "open".

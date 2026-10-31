@@ -59,7 +59,7 @@ export function registerPrompts(server: McpServer): void {
       lines.push(
         ``,
         `Use the create_issue tool to submit this bug report.`,
-        `Call get_issue_enums first if you need to look up valid severity and priority values.`,
+        `Call get_issue_schema first if you need to look up valid severity and priority values.`,
         `Default to severity "minor" and priority "normal" unless the user specifies otherwise.`,
       );
 
@@ -102,7 +102,7 @@ export function registerPrompts(server: McpServer): void {
       lines.push(
         ``,
         `Use the create_issue tool to submit this feature request.`,
-        `Call get_issue_enums first to look up valid severity values — use severity "feature" and priority "normal" unless the user specifies otherwise.`,
+        `Call get_issue_schema first to look up valid severity values — use severity "feature" and priority "normal" unless the user specifies otherwise.`,
       );
 
       return userMessage(lines.join('\n'));

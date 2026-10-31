@@ -16,6 +16,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - `get_issue` accepts `ids` (1–50 issue IDs) as an alternative to `id` — pass exactly one of the two. With `ids` the response is `{ issues, requested, found, failed }` as with `get_issues`, missing or inaccessible IDs give `null` at their position; `select` applies to every issue, and `view_url` is set even when `select` leaves out `id`.
 - New tool `get_project`: master data of one project plus, on request, its categories, users and versions in one call. `include` takes any of `"categories"`, `"users"`, `"versions"`; `access_level` and `member_query` (case-insensitive substring search in login name, real name and email — all matches are returned) imply `"users"`, `obsolete` and `inherit` imply `"versions"`. Categories come without the `[All Projects] ` prefix and cost no extra request. Users come from the metadata cache when it is fresh and no `access_level` is given.
 - Attachments in `get_issue` and `list_issue_files` now carry a `download_url`.
+- `get_metadata` accepts `detail` (`"summary"`, the default and previous behaviour, or `"full"` for the complete raw cache) and `refresh` (`true` re-fetches all metadata first). With semantic search enabled the response also contains a `search_index` block (indexed, total, percent, last sync).
+- New tool `get_version`: version of this MCP server and of the connected MantisBT installation in one response, `{ mcp_server: { version }, mantis: { installed_version, latest_version?, status? } }`. `check_latest` (default `true`) compares MantisBT with its latest GitHub release. If MantisBT cannot be reached, `mantis` holds an `error` and the MCP server version is still returned.
+- New tool `get_issue_schema` (`project_id` optional): the valid `select` fields and the enum values (severity, status, priority, resolution, reproducibility) in one response.
+- `get_current_user` now describes its fields and points out `language` — the user's MantisBT language, as a hint for the language of issue texts and notes.
 - `update_version` accepts a new optional `next_version` parameter (only allowed together with `released: true`): creates a follow-up version in the same call. With `next_version` the response is `{ version: <updated>, next_version: <created> }` — or `{ version, next_version_error: <message> }` when creating the follow-up fails (the update itself stays in effect). Without `next_version` the response is unchanged (the updated version object).
 
 ### Deprecated
@@ -27,6 +31,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - `list_issue_files` — use `get_issue` with `select: "attachments"` instead; `list_issue_files` will be removed in 2.0.0.
 - `get_project_categories`, `get_project_users`, `get_project_versions` — use `get_project` with `include: ["categories"]`, `["users"]` or `["versions"]` instead; they will be removed in 2.0.0.
 - `find_project_member` — use `get_project` with `member_query` instead; `find_project_member` will be removed in 2.0.0. Unlike `find_project_member`, `get_project` has no `limit` and returns all matching users.
+- `get_metadata_full` — use `get_metadata` with `detail: "full"` instead; `sync_metadata` — use `get_metadata` with `refresh: true`; `get_search_index_status` — use `get_metadata` (field `search_index`). All three will be removed in 2.0.0.
+- `get_mcp_version`, `get_mantis_version` — use `get_version` instead; they will be removed in 2.0.0.
+- `get_issue_fields`, `get_issue_enums` — use `get_issue_schema` instead; they will be removed in 2.0.0. The resource `mantis://enums` stays.
+- `list_languages` — use `get_current_user` (field `language`) instead; `list_languages` will be removed in 2.0.0. Despite its name it never listed languages: MantisBT's `GET /lang` returns only the current user's language.
 - `release_version` — use `update_version` with `released: true`, `timestamp`, and optionally `next_version` instead; `release_version` will be removed in 2.0.0.
 
 ### Fixed

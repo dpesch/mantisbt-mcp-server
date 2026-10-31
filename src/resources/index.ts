@@ -36,7 +36,7 @@ export function registerResources(server: McpServer, client: MantisClient, cache
     'mantis://projects',
     {
       title: 'Projects',
-      description: 'All MantisBT projects accessible to the current API user. Served from local cache when fresh; falls back to live fetch. Refresh via the sync_metadata tool.',
+      description: 'All MantisBT projects accessible to the current API user. Served from local cache when fresh; falls back to live fetch. Refresh via get_metadata with refresh: true.',
       mimeType: 'application/json',
     },
     async (uri) => jsonResource(uri, await loadProjects()),
@@ -60,7 +60,7 @@ export function registerResources(server: McpServer, client: MantisClient, cache
     }),
     {
       title: 'Project Detail',
-      description: 'Combined project view: fields (status, view_state, access_level, description) plus all associated users, versions, and categories. Served from local cache when fresh; falls back to live API fetch. Refresh via the sync_metadata tool.',
+      description: 'Combined project view: fields (status, view_state, access_level, description) plus all associated users, versions, and categories. Served from local cache when fresh; falls back to live API fetch. Refresh via get_metadata with refresh: true.',
       mimeType: 'application/json',
     },
     async (uri, { id }) => {

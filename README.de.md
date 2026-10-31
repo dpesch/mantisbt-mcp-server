@@ -93,7 +93,7 @@ npm run build
 | `get_issue` | Ein Issue per `id` oder mehrere per `ids` (1–50) in einem Aufruf abrufen – genau eines von beiden angeben; mit `ids` lautet die Antwort `{ issues, requested, found, failed }`, nicht zugängliche IDs liefern `null` an ihrer Position; optionales `select` zur Feldauswahl |
 | `get_issues` | **Veraltet:** stattdessen `get_issue` mit `ids` verwenden – wird in 2.0.0 entfernt |
 | `list_issues` | Issues nach Projekt, Status, Autor u.v.m. filtern; optionales `select` für Feldprojektion und `status` für clientseitige Statusfilterung – kanonische englische Statusnamen (z.B. `"new"`, `"resolved"`) werden per ID abgeglichen und funktionieren damit sprachunabhängig auf lokalisierten Installationen |
-| `create_issue` | Neues Issue anlegen; `severity` und `priority` müssen kanonische englische Namen sein (z.B. `minor`, `major`, `normal`, `high`) – `get_issue_enums` aufrufen, um alle gültigen Werte und deren lokalisierte Bezeichnungen zu sehen; optionaler `handler`-Parameter akzeptiert einen Benutzernamen als Alternative zu `handler_id` (wird gegen die Projektmitglieder aufgelöst); optionales `custom_fields` zum Setzen benutzerdefinierter Felder |
+| `create_issue` | Neues Issue anlegen; `severity` und `priority` müssen kanonische englische Namen sein (z.B. `minor`, `major`, `normal`, `high`) – `get_issue_schema` aufrufen, um alle gültigen Werte und deren lokalisierte Bezeichnungen zu sehen; optionaler `handler`-Parameter akzeptiert einen Benutzernamen als Alternative zu `handler_id` (wird gegen die Projektmitglieder aufgelöst); optionales `custom_fields` zum Setzen benutzerdefinierter Felder |
 | `update_issue` | Bestehendes Issue bearbeiten; Enum-Felder (`status`, `priority`, `severity`, `resolution`, `reproducibility`) akzeptieren kanonische englische Namen, lokalisierte Namen oder numerische IDs – der Server löst Namen automatisch zu IDs auf; unterstützt `custom_fields` sowie einen optionalen `note`-Parameter, der im selben Aufruf eine Notiz anhängt; `fields` darf entfallen, wenn nur `add_monitors`, `remove_monitors` oder `note` angegeben werden; mit `add_monitors` / `remove_monitors` (Arrays von Login-Namen) können Beobachter hinzugefügt oder entfernt werden – die Antwort enthält einen `monitors`-Schlüssel mit der aktuellen und der geänderten Beobachterliste; mit `fields.notes` lassen sich bestehende Notizen per ID bearbeiten (Notiz-ID aus `get_issue`) |
 | `delete_issue` | Issue löschen |
 
@@ -130,7 +130,7 @@ npm run build
 
 | Tool | Beschreibung |
 |---|---|
-| `list_tags` | Alle verfügbaren Tags auflisten; greift auf den Metadaten-Cache zurück, wenn `GET /tags` mit 404 antwortet (vorher `sync_metadata` ausführen) |
+| `list_tags` | Alle verfügbaren Tags auflisten; greift auf den Metadaten-Cache zurück, wenn `GET /tags` mit 404 antwortet (vorher `get_metadata` mit `refresh: true` ausführen) |
 | `attach_tags` | Tags an ein Issue hängen |
 | `detach_tag` | Tag von einem Issue entfernen |
 
@@ -138,7 +138,7 @@ npm run build
 
 | Tool | Beschreibung |
 |---|---|
-| `list_projects` | Alle zugänglichen Projekte auflisten; gibt normalisierte Projektdaten zurück (konsistent mit dem `sync_metadata`-Cache) |
+| `list_projects` | Alle zugänglichen Projekte auflisten; gibt normalisierte Projektdaten zurück (konsistent mit dem Metadaten-Cache) |
 | `get_project` | Stammdaten eines Projekts (id, name, status, enabled, Unterprojekte) sowie auf Anfrage Kategorien, Benutzer und/oder Versionen in einem Aufruf; `access_level` und `member_query` implizieren `users`; `obsolete`/`inherit` implizieren `versions` |
 | `get_project_versions` | **Veraltet:** stattdessen `get_project` mit `include: ["versions"]` verwenden – wird in 2.0.0 entfernt |
 | `create_version` | Neue Version in einem Projekt erstellen; gibt das erstellte Versionsobjekt zurück (id, name, description, released, obsolete, timestamp); erfordert `manage_project_threshold` (Standard: Manager) |
@@ -165,7 +165,7 @@ Aktivierung mit `MANTIS_SEARCH_ENABLED=true`.
 |---|---|
 | `search_issues` | Natürlichsprachige Suche über alle indizierten Issues – liefert Top-N-Ergebnisse mit Cosine-Similarity-Score; optionales `select` (kommagetrennte Feldnamen) reichert jedes Ergebnis mit den angeforderten Issue-Feldern an; optionales `highlight` (boolean, Standard `false`) fügt je Ergebnis ein `highlights`-Feld mit keyword-basierten Ausschnitten aus `summary` und `description` hinzu (Treffer werden in `**fett**` dargestellt) |
 | `rebuild_search_index` | Suchindex aufbauen oder aktualisieren; `full: true` löscht und baut ihn vollständig neu |
-| `get_search_index_status` | Aktuellen Füllstand des Suchindex zurückgeben: wie viele Issues bereits indiziert sind im Verhältnis zur Gesamtanzahl, plus Zeitstempel der letzten Synchronisation |
+| `get_search_index_status` | **Veraltet:** stattdessen `get_metadata` (Feld `search_index`) verwenden – wird in 2.0.0 entfernt |
 
 #### Welches Backend wählen?
 
@@ -187,17 +187,19 @@ npm install sqlite-vec better-sqlite3
 
 | Tool | Beschreibung |
 |---|---|
-| `get_issue_fields` | Alle gültigen Feldnamen für den `select`-Parameter von `list_issues` zurückgeben |
-| `get_metadata` | Kompakte Metadaten-Zusammenfassung abrufen: Anzahl Projekte/Tags und Anzahl Benutzer/Versionen/Kategorien je Projekt; für vollständige Arrays `get_metadata_full` verwenden |
-| `get_metadata_full` | Vollständigen rohen Metadaten-Cache als minifiziertes JSON zurückgeben (alle Projekte mit vollständigen Feldern, Benutzer/Versionen/Kategorien je Projekt, alle Tags) |
-| `sync_metadata` | Metadaten-Cache neu befüllen |
+| `get_metadata` | Gecachte Metadaten abrufen: `detail: "summary"` (Standard) liefert Projekt-/Tag-Zählwerte und Benutzer-/Versions-/Kategorie-Zählwerte je Projekt; `detail: "full"` liefert den vollständigen rohen Cache; `refresh: true` lädt alle Daten zuerst von MantisBT nach; mit aktivierter semantischer Suche enthält die Antwort zusätzlich einen `search_index`-Block |
+| `get_version` | Version dieses MCP-Servers und der verbundenen MantisBT-Installation in einer Antwort; `check_latest` (Standard `true`) vergleicht MantisBT mit dem neuesten GitHub-Release; `mantis` enthält `error`, wenn MantisBT nicht erreichbar ist |
+| `get_issue_schema` | Gültige `select`-Felder (`fields`, `fields_source`) und Enum-Werte (`enums`: severity, status, priority, resolution, reproducibility) für diesen MantisBT-Server in einer Antwort; optionale `project_id` schränkt die Feldermittlung ein – vor `create_issue` / `update_issue` oder beim Aufbau eines `select`-Strings verwenden |
+| `get_issue_fields` | **Veraltet:** stattdessen `get_issue_schema` verwenden – wird in 2.0.0 entfernt |
+| `get_issue_enums` | **Veraltet:** stattdessen `get_issue_schema` verwenden; die Ressource `mantis://enums` bleibt – wird in 2.0.0 entfernt |
+| `get_metadata_full` | **Veraltet:** stattdessen `get_metadata` mit `detail: "full"` verwenden – wird in 2.0.0 entfernt |
+| `sync_metadata` | **Veraltet:** stattdessen `get_metadata` mit `refresh: true` verwenden – wird in 2.0.0 entfernt |
 | `list_filters` | Gespeicherte Filter auflisten |
-| `get_current_user` | Eigenes Benutzerprofil abrufen |
-| `list_languages` | Verfügbare Sprachen auflisten |
+| `get_current_user` | Eigenes Benutzerprofil abrufen – enthält `language` (die MantisBT-Sprache des Benutzers, ein Hinweis auf die Sprache für Issue-Texte und Notizen) |
+| `list_languages` | **Veraltet:** stattdessen `get_current_user` (Feld `language`) verwenden – wird in 2.0.0 entfernt |
 | `get_config` | Server-Konfiguration (Basis-URL, Cache-TTL) anzeigen |
-| `get_issue_enums` | Gültige ID/Name-Paare für alle Enum-Felder zurückgeben (Severity, Status, Priority, Resolution, Reproducibility) – vor `create_issue` / `update_issue` verwenden, um korrekte Werte nachzuschlagen; auf lokalisierten Installationen kann jeder Eintrag ein `canonical_name`-Feld mit dem englischen Standard-API-Namen enthalten |
-| `get_mantis_version` | MantisBT-Version abrufen und auf Updates prüfen |
-| `get_mcp_version` | Version dieser mantisbt-mcp-server-Instanz zurückgeben |
+| `get_mantis_version` | **Veraltet:** stattdessen `get_version` verwenden – wird in 2.0.0 entfernt |
+| `get_mcp_version` | **Veraltet:** stattdessen `get_version` verwenden – wird in 2.0.0 entfernt |
 
 ## Verfügbare Ressourcen
 
@@ -206,7 +208,7 @@ MCP-Ressourcen sind URI-adressierbare, schreibgeschützte Daten, die Clients dir
 | Ressource-URI | Beschreibung |
 |---|---|
 | `mantis://me` | Profil des authentifizierten API-Benutzers (Live-Abruf) |
-| `mantis://projects` | Alle zugänglichen MantisBT-Projekte als kompakte Liste (Cache-basiert, Aktualisierung via `sync_metadata`) |
+| `mantis://projects` | Alle zugänglichen MantisBT-Projekte als kompakte Liste (Cache-basiert, Aktualisierung via `get_metadata` mit `refresh: true`) |
 | `mantis://projects/{id}` | Kombinierte Projektansicht: Projektfelder + Benutzer + Versionen + Kategorien in einem Aufruf; Cache-first, List-Support zur Aufzählung aller verfügbaren Projekt-URIs |
 | `mantis://enums` | Gültige Werte für alle Issue-Enum-Felder: Severity, Priority, Status, Resolution, Reproducibility (Live-Abruf) |
 

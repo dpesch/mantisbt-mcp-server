@@ -21,7 +21,9 @@ export function registerUserTools(server: McpServer, client: MantisClient): void
     'get_current_user',
     {
       title: 'Get Current User',
-      description: 'Retrieve the profile of the user associated with the current API key.',
+      description: `Retrieve the profile of the user associated with the current API key: id, name (login name), real_name, email, language, timezone, access_level, created_at and the accessible projects.
+
+"language" is the MantisBT language of this user (e.g. "german", "english") — use it as the hint for which language to write issue texts and notes in, and expect localized enum labels in that language.`,
       inputSchema: z.object({}),
       annotations: {
         readOnlyHint: true,

@@ -2,10 +2,12 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { buildIssueViewUrl, type MantisClient } from '../client.js';
 import type { VectorStore } from './store.js';
+import type { SearchIndexStatus } from '../types.js';
 import type { Embedder } from './embedder.js';
 import { SearchSyncService } from './sync.js';
 import { getVersionHint } from '../version-hint.js';
 import { firstIssue, type IssueEnvelope } from '../issue-envelope.js';
+import { deprecationNote } from '../deprecation.js';
 import { dateFilterSchema, matchesDateFilter, hasDateFilter, type DateFilter } from '../date-filter.js';
 import { extractTerms, highlightText, extractSnippet, hasTermMatch } from './highlight.js';
 
@@ -38,6 +40,18 @@ function errorText(msg: string): string {
 
 const coerceBool = (val: unknown) =>
   val === 'true' ? true : val === 'false' ? false : val;
+
+/** Fill level of the search index (shared by get_metadata and get_search_index_status). */
+export async function getSearchIndexStatus(store: VectorStore): Promise<SearchIndexStatus> {
+  const [indexed, lastSyncedAt, total] = await Promise.all([
+    store.count(),
+    store.getLastSyncedAt(),
+    store.getLastKnownTotal(),
+  ]);
+  const percent = total !== null ? (total > 0 ? Math.round((indexed / total) * 100) : 0) : null;
+  const summary = total !== null ? `${indexed}/${total} (${percent} %)` : `${indexed}/? (total unknown)`;
+  return { summary, indexed, total, percent, last_synced_at: lastSyncedAt };
+}
 
 export function registerSearchTools(
   server: McpServer,
@@ -193,6 +207,7 @@ export function registerSearchTools(
     {
       title: 'Search Index Status',
       description:
+        `${deprecationNote('get_search_index_status', 'get_metadata')}\n\n` +
         'Returns the current fill level of the semantic search index: how many issues are ' +
         'indexed vs. the total number of issues in MantisBT, plus the timestamp of the last sync.',
       inputSchema: z.object({}),
@@ -204,31 +219,8 @@ export function registerSearchTools(
     },
     async () => {
       try {
-        const [indexed, lastSyncedAt, total] = await Promise.all([
-          store.count(),
-          store.getLastSyncedAt(),
-          store.getLastKnownTotal(),
-        ]);
-
-        const percent = total !== null
-          ? (total > 0 ? Math.round((indexed / total) * 100) : 0)
-          : null;
-
-        const summary = total !== null
-          ? `${indexed}/${total} (${percent} %)`
-          : `${indexed}/? (total unknown)`;
-
         return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                { summary, indexed, total, percent, last_synced_at: lastSyncedAt },
-                null,
-                2,
-              ),
-            },
-          ],
+          content: [{ type: 'text', text: JSON.stringify(await getSearchIndexStatus(store), null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);

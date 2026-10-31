@@ -141,3 +141,12 @@ export interface MantisPaginatedIssues {
   page_size?: number;
   page?: number;
 }
+
+/** Fill level of the semantic search index (get_metadata "search_index"). */
+export interface SearchIndexStatus {
+  summary: string;
+  indexed: number;
+  total: number | null;
+  percent: number | null;
+  last_synced_at: string | null;
+}

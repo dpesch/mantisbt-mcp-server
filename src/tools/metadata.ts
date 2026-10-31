@@ -5,6 +5,12 @@ import { MetadataCache, type CachedMetadata, type CachedProjectMeta } from '../c
 import type { MantisProject, MantisIdName, MantisUser, MantisVersion, MantisCategory, MantisTag, MantisPaginatedIssues } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
 import { ALL_PROJECTS_PREFIX } from '../constants.js';
+import { deprecationNote } from '../deprecation.js';
+import type { SearchIndexStatus } from '../types.js';
+import { fetchIssueEnumsWithCache } from './config.js';
+
+const coerceBool = (val: unknown) =>
+  val === 'true' ? true : val === 'false' ? false : val;
 
 // Fields MantisBT strips from issue responses when the array is empty.
 // They are always valid 'select' values even if absent in a sample issue.
@@ -176,7 +182,35 @@ async function fetchAndCacheMetadata(client: MantisClient, cache: MetadataCache)
   return data;
 }
 
-export function registerMetadataTools(server: McpServer, client: MantisClient, cache: MetadataCache): void {
+export function registerMetadataTools(
+  server: McpServer,
+  client: MantisClient,
+  cache: MetadataCache,
+  searchIndexStatus?: () => Promise<SearchIndexStatus>,
+): void {
+
+  /** Metadata from the cache, synced when missing, expired or when refresh is set. */
+  async function loadMetadata(refresh: boolean): Promise<CachedMetadata> {
+    const cached = refresh ? null : await cache.loadIfValid();
+    return cached ?? fetchAndCacheMetadata(client, cache);
+  }
+
+  /**
+   * Valid "select" field names: from the cache, else discovered from a sample
+   * issue plus the fields MantisBT strips when empty, else a static list.
+   */
+  async function loadIssueFields(projectId?: number): Promise<{ fields: string[]; source: 'cache' | 'live' | 'static' }> {
+    const cached = await cache.loadIssueFields();
+    if (cached) return { fields: cached, source: 'cache' };
+
+    const result = await client.get<MantisPaginatedIssues>('issues', { page: 1, page_size: 1, project_id: projectId });
+    const sample = result.issues?.[0];
+    const fields = sample
+      ? Array.from(new Set([...Object.keys(sample), ...EMPTY_STRIPPED_FIELDS])).sort()
+      : STATIC_ISSUE_FIELDS;
+    await cache.saveIssueFields(fields);
+    return { fields, source: sample ? 'live' : 'static' };
+  }
 
   // ---------------------------------------------------------------------------
   // sync_metadata
@@ -186,7 +220,9 @@ export function registerMetadataTools(server: McpServer, client: MantisClient, c
     'sync_metadata',
     {
       title: 'Sync Metadata Cache',
-      description: `Fetch all projects and their associated users, versions, categories, and tags from MantisBT and store them in the local metadata cache.
+      description: `${deprecationNote('sync_metadata', 'get_metadata with refresh: true')}
+
+Fetch all projects and their associated users, versions, categories, and tags from MantisBT and store them in the local metadata cache.
 
 Tags are fetched via the dedicated GET /tags endpoint when available. On installations where that endpoint is missing (MantisBT < 2.26), tags are collected by scanning all issues across all projects.
 
@@ -230,20 +266,35 @@ Use this tool to refresh stale data.`,
     'get_metadata',
     {
       title: 'Get Cached Metadata',
-      description: `Return a compact summary of cached MantisBT metadata: project count, tag count, and per-project counts of users, versions, and categories.
+      description: `Return the cached MantisBT metadata (projects with their users, versions and categories, plus all tags).
 
-If the cache does not exist or has expired (default TTL: 24 hours), it will automatically sync first.
-Use sync_metadata to force a refresh. For full lists use: list_projects (projects), get_project with include (per-project categories, users, versions), list_tags (tags).`,
-      inputSchema: z.object({}),
+- detail: "summary" (default) — compact counts: project count, tag count, per-project counts of users, versions and categories, cached_at, ttl_seconds.
+- detail: "full" — the complete raw cache with all lists (large; minified JSON).
+- refresh: true — re-fetch everything from MantisBT before answering (otherwise the cache is used and only synced when missing or expired; default TTL 24 hours).
+
+When semantic search is enabled, the response also contains "search_index": how many issues are indexed vs. the total, and the time of the last sync.
+
+For lists of a single project use get_project with include; for tags use list_tags.`,
+      inputSchema: z.object({
+        detail: z.enum(['summary', 'full']).default('summary').describe('"summary" (default): counts only; "full": the complete raw cache'),
+        refresh: z.preprocess(coerceBool, z.boolean().default(false)).describe('Re-fetch all metadata from MantisBT first (default: false)'),
+      }),
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
       },
     },
-    async () => {
+    async ({ detail, refresh }) => {
       try {
-        const data: CachedMetadata = await cache.loadIfValid() ?? await fetchAndCacheMetadata(client, cache);
+        const [data, searchIndex] = await Promise.all([
+          loadMetadata(refresh),
+          searchIndexStatus?.(),
+        ]);
+
+        if (detail === 'full') {
+          return { content: [{ type: 'text', text: JSON.stringify({ ...data, search_index: searchIndex }) }] };
+        }
 
         const summary = {
           projects: data.projects.length,
@@ -261,6 +312,7 @@ Use sync_metadata to force a refresh. For full lists use: list_projects (project
           ),
           cached_at: new Date(data.timestamp).toISOString(),
           ttl_seconds: cache.getRemainingTtlSeconds(data.timestamp),
+          search_index: searchIndex,
         };
         return {
           content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }],
@@ -280,10 +332,12 @@ Use sync_metadata to force a refresh. For full lists use: list_projects (project
     'get_metadata_full',
     {
       title: 'Get Full Cached Metadata',
-      description: `Return the complete raw MantisBT metadata cache: all projects with full fields, and per-project lists of users, versions, categories, plus all tags.
+      description: `${deprecationNote('get_metadata_full', 'get_metadata with detail: "full"')}
+
+Return the complete raw MantisBT metadata cache: all projects with full fields, and per-project lists of users, versions, categories, plus all tags.
 
 If the cache does not exist or has expired (default TTL: 24 hours), it will automatically sync first.
-Use sync_metadata to force a refresh. For a lightweight overview use get_metadata instead.`,
+Use get_metadata with refresh: true to force a refresh.`,
       inputSchema: z.object({}),
       annotations: {
         readOnlyHint: true,
@@ -293,7 +347,7 @@ Use sync_metadata to force a refresh. For a lightweight overview use get_metadat
     },
     async () => {
       try {
-        const data: CachedMetadata = await cache.loadIfValid() ?? await fetchAndCacheMetadata(client, cache);
+        const data = await loadMetadata(false);
         return {
           content: [{ type: 'text', text: JSON.stringify(data) }],
         };
@@ -312,7 +366,9 @@ Use sync_metadata to force a refresh. For a lightweight overview use get_metadat
     'get_issue_fields',
     {
       title: 'Get Issue Fields',
-      description: `Return all field names that are valid for the "select" parameter of list_issues and get_issue.
+      description: `${deprecationNote('get_issue_fields', 'get_issue_schema')}
+
+Return all field names that are valid for the "select" parameter of list_issues and get_issue.
 
 Fields are discovered by fetching a sample issue from MantisBT (which reflects the server's active configuration — e.g. whether eta, projection, or profile fields are enabled) and merging the result with fields that MantisBT omits when empty (notes, attachments, relationships, etc.). The result is cached with the same TTL as the metadata cache.
 
@@ -328,32 +384,47 @@ Use this tool before constructing a "select" string to ensure you only request f
     },
     async ({ project_id }) => {
       try {
-        const cached = await cache.loadIssueFields();
-        if (cached) {
-          return {
-            content: [{ type: 'text', text: JSON.stringify({ fields: cached, source: 'cache' }, null, 2) }],
-          };
-        }
-
-        const params: Record<string, string | number | boolean | undefined> = {
-          page: 1,
-          page_size: 1,
-          project_id,
-        };
-        const result = await client.get<MantisPaginatedIssues>('issues', params);
-        const issues = result.issues ?? [];
-
-        let fields: string[];
-        if (issues.length === 0) {
-          fields = STATIC_ISSUE_FIELDS;
-        } else {
-          const discovered = Object.keys(issues[0]);
-          fields = Array.from(new Set([...discovered, ...EMPTY_STRIPPED_FIELDS])).sort();
-        }
-
-        await cache.saveIssueFields(fields);
         return {
-          content: [{ type: 'text', text: JSON.stringify({ fields, source: issues.length > 0 ? 'live' : 'static' }, null, 2) }],
+          content: [{ type: 'text', text: JSON.stringify(await loadIssueFields(project_id), null, 2) }],
+        };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
+      }
+    }
+  );
+
+  // ---------------------------------------------------------------------------
+  // get_issue_schema
+  // ---------------------------------------------------------------------------
+
+  server.registerTool(
+    'get_issue_schema',
+    {
+      title: 'Get Issue Schema',
+      description: `Return what is valid for issues on this MantisBT server, in one response:
+
+- fields: all field names valid for the "select" parameter of get_issue, list_issues and search_issues. Discovered from a sample issue (reflects the server's active configuration) plus fields MantisBT omits when empty (notes, attachments, relationships, …); cached with the metadata TTL. fields_source tells where they came from: "cache", "live" or "static".
+- enums: ID, name and (if available) localized label for severity, status, priority, resolution and reproducibility. "name" or "id" is what create_issue / update_issue accept; "canonical_name" appears on localized installations.
+
+Call it before building a "select" string or before setting enum fields.`,
+      inputSchema: z.object({
+        project_id: z.coerce.number().int().positive().optional().describe('Optional project ID to scope the sample issue used for field discovery'),
+      }),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async ({ project_id }) => {
+      try {
+        const [{ fields, source }, enums] = await Promise.all([
+          loadIssueFields(project_id),
+          fetchIssueEnumsWithCache(client),
+        ]);
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ fields, fields_source: source, enums }, null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);

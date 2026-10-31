@@ -10,6 +10,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { MantisClient } from '../../src/client.js';
 import { MetadataCache, type CachedMetadata } from '../../src/cache.js';
 import { registerMetadataTools } from '../../src/tools/metadata.js';
+import { clearIssueEnumCache } from '../../src/tools/config.js';
 import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -505,5 +506,113 @@ describe('get_issue_fields – recorded fixtures', () => {
     expect(parsed.fields).toContain('attachments');
     expect(parsed.fields).toContain('notes');
     expect(parsed.fields).toContain('relationships');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// get_metadata – detail, refresh, search_index (#8498)
+// Replaces get_metadata_full, sync_metadata and get_search_index_status.
+// ---------------------------------------------------------------------------
+
+describe('get_metadata – detail, refresh, search_index', () => {
+  function mockFreshSync(): void {
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ projects: [{ id: 1, name: 'Synced' }, { id: 2, name: 'Second' }] })))
+      .mockResolvedValue(makeResponse(200, JSON.stringify({ users: [], versions: [], categories: [] })));
+  }
+
+  it('detail: "full" returns the raw cache as minified JSON', async () => {
+    vi.mocked(readFile).mockResolvedValue(makeValidMetadataCacheFile(makeSampleMetadata()) as any);
+
+    const result = await mockServer.callTool('get_metadata', { detail: 'full' }, { validate: true });
+
+    expect(result.content[0]!.text).not.toContain('\n');
+    const parsed = JSON.parse(result.content[0]!.text) as { projects: unknown[]; tags: unknown[] };
+    expect(Array.isArray(parsed.projects)).toBe(true);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('refresh: true syncs even when the cache is valid', async () => {
+    vi.mocked(readFile).mockResolvedValue(makeValidMetadataCacheFile(makeSampleMetadata()) as any);
+    mockFreshSync();
+
+    const result = await mockServer.callTool('get_metadata', { refresh: true }, { validate: true });
+
+    expect(result.isError).toBeUndefined();
+    expect(fetch).toHaveBeenCalled();
+    expect(writeFile).toHaveBeenCalled();
+    expect((JSON.parse(result.content[0]!.text) as { projects: number }).projects).toBe(2);
+  });
+
+  it('omits search_index when no search module is active', async () => {
+    vi.mocked(readFile).mockResolvedValue(makeValidMetadataCacheFile(makeSampleMetadata()) as any);
+
+    const result = await mockServer.callTool('get_metadata', {}, { validate: true });
+
+    expect(JSON.parse(result.content[0]!.text)).not.toHaveProperty('search_index');
+  });
+
+  it('adds search_index (summary and full) when the search module provides a status', async () => {
+    const server = new MockMcpServer();
+    const status = { summary: '5/10 (50 %)', indexed: 5, total: 10, percent: 50, last_synced_at: '2026-10-31T10:00:00Z' };
+    registerMetadataTools(server as never, client, cache, async () => status);
+    vi.mocked(readFile).mockResolvedValue(makeValidMetadataCacheFile(makeSampleMetadata()) as any);
+
+    for (const detail of ['summary', 'full']) {
+      const result = await server.callTool('get_metadata', { detail }, { validate: true });
+      expect((JSON.parse(result.content[0]!.text) as { search_index: unknown }).search_index).toEqual(status);
+    }
+  });
+
+  it('rejects an unknown detail value', async () => {
+    const result = await mockServer.callTool('get_metadata', { detail: 'raw' }, { validate: true });
+
+    expect(result.isError).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// get_issue_schema (#8498) — replaces get_issue_fields and get_issue_enums
+// ---------------------------------------------------------------------------
+
+describe('get_issue_schema', () => {
+  beforeEach(() => {
+    clearIssueEnumCache();
+  });
+
+  it('returns select fields and enum values in one response', async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/config')) {
+        return makeResponse(200, JSON.stringify({ configs: [{ option: 'status_enum_string', value: '10:new,80:resolved' }] }));
+      }
+      return makeResponse(200, JSON.stringify({ issues: [{ id: 1, summary: 's', status: {} }] }));
+    });
+
+    const result = await mockServer.callTool('get_issue_schema', { project_id: 7 }, { validate: true });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as { fields: string[]; fields_source: string; enums: Record<string, Array<{ id: number; name: string }>> };
+    expect(parsed.fields).toEqual(expect.arrayContaining(['id', 'summary', 'status', 'notes']));
+    expect(parsed.fields_source).toBe('live');
+    expect(parsed.enums['status']!.map(e => e.name)).toEqual(['new', 'resolved']);
+    const issuesUrl = vi.mocked(fetch).mock.calls.map(c => new URL(String(c[0]))).find(u => u.pathname.endsWith('/issues'))!;
+    expect(issuesUrl.searchParams.get('project_id')).toBe('7');
+  });
+
+  it('serves fields from the cache and still fetches the enums', async () => {
+    vi.mocked(readFile).mockResolvedValue(JSON.stringify({ timestamp: Date.now(), fields: ['id', 'summary'] }) as any);
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({ configs: [] })));
+
+    const result = await mockServer.callTool('get_issue_schema', {}, { validate: true });
+
+    const parsed = JSON.parse(result.content[0]!.text) as { fields: string[]; fields_source: string };
+    expect(parsed).toMatchObject({ fields: ['id', 'summary'], fields_source: 'cache' });
+    expect(vi.mocked(fetch)).toHaveBeenCalledOnce();
   });
 });

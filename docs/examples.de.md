@@ -131,6 +131,14 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 
 ---
 
+### Version und Schema
+
+> »Welche MantisBT-Version ist angebunden, und ist sie aktuell?«
+
+> »Welche Felder kann ich in einem select-Query verwenden, und welche Statuswerte gibt es?«
+
+---
+
 ### Triage und Auswertung
 
 > »Gib mir einen Überblick über alle kritischen und dringenden offenen Issues in allen Projekten.«
@@ -247,4 +255,4 @@ Wenn der Client keine Ressourcen unterstützt, Claude einfach das entsprechende 
 
 > »Welche Projekte sind verfügbar?« *(verwendet `list_projects`)*
 
-> »Welche Prioritätswerte sind gültig?« *(verwendet `get_issue_enums`)*
+> »Welche Prioritätswerte sind gültig?« *(verwendet `get_issue_schema`)*

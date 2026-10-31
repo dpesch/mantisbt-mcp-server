@@ -8,8 +8,7 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
   - [Connect to an installation without URL rewriting](#connect-to-an-installation-without-url-rewriting)
 - [Discovering your instance](#discovering-your-instance)
   - [Get all projects](#get-all-projects)
-  - [Discover valid enum values (severity, status, priority)](#discover-valid-enum-values-severity-status-priority)
-  - [Discover valid field names for `select`](#discover-valid-field-names-for-select)
+  - [Valid select fields and enum values](#valid-select-fields-and-enum-values)
 - [Issues](#issues)
   - [Fetch a single issue](#fetch-a-single-issue)
   - [Fetch multiple issues in one call](#fetch-multiple-issues-in-one-call)
@@ -62,10 +61,10 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
   - [Delete a project version](#delete-a-project-version)
 - [Metadata](#metadata)
   - [Get a metadata summary](#get-a-metadata-summary)
+  - [Refresh the metadata cache](#refresh-the-metadata-cache)
   - [Get the full metadata cache](#get-the-full-metadata-cache)
 - [Version & Diagnostics](#version--diagnostics)
-  - [Get MCP server version](#get-mcp-server-version)
-  - [Get MantisBT version](#get-mantis-version)
+  - [Get versions (MCP server and MantisBT)](#get-versions-mcp-server-and-mantisbt)
   - [Get the current user](#get-the-current-user)
 - [Resources](#resources)
   - [Read the current user profile](#read-the-current-user-profile)
@@ -113,7 +112,7 @@ Some MantisBT installations serve the REST API only through its front controller
 
 When `MANTIS_BASE_URL` ends with `/api/rest/index.php`, index.php routing is enabled automatically. An explicitly set `MANTIS_USE_INDEX_PHP` always wins over the detection — setting it to `false` alongside such a URL forces plain `/api/rest/` routing and logs a warning on stderr.
 
-**Verify:** call `get_mantis_version`. A successful response means the routing is correct.
+**Verify:** call `get_version`. A successful response means the routing is correct.
 
 ---
 
@@ -144,74 +143,19 @@ Returns the full list of projects accessible with your API key.
 
 ---
 
-### Discover valid enum values (severity, status, priority)
+### Valid select fields and enum values
 
-Returns the enum values configured on your specific MantisBT instance. Use this before creating or updating issues to know which values are valid.
+Returns the valid `select` field names and the enum values (severity, status, priority, resolution, reproducibility) for this MantisBT server in one call. Use this before building a `select` string or before setting enum fields on `create_issue` / `update_issue`.
 
-**Tool:** `get_issue_enums`
+**Tool:** `get_issue_schema`
 
-**Parameters:** _(none)_
+**Parameters:**
+- `project_id` — _(optional)_ restrict the field discovery sample to a specific project
 
 **Request:**
 
 ```json
 {}
-```
-
-**Response:**
-
-```json
-{
-  "priorities": [
-    { "id": 10, "name": "none" },
-    { "id": 20, "name": "low" },
-    { "id": 30, "name": "normal" },
-    { "id": 40, "name": "high" },
-    { "id": 50, "name": "urgent" },
-    { "id": 60, "name": "immediate" }
-  ],
-  "severities": [
-    { "id": 10, "name": "feature" },
-    { "id": 20, "name": "trivial" },
-    { "id": 50, "name": "major" },
-    { "id": 60, "name": "crash" }
-    // ...
-  ],
-  "statuses": [
-    { "id": 10, "name": "new" },
-    { "id": 50, "name": "assigned" },
-    { "id": 80, "name": "resolved" },
-    { "id": 90, "name": "closed" }
-    // ...
-  ],
-  "resolutions": [
-    { "id": 10, "name": "open" },
-    { "id": 20, "name": "fixed" },
-    { "id": 60, "name": "duplicate" }
-    // ...
-  ]
-}
-```
-
-> **Note:** On localized installations, `get_issue_enums()` returns a `name` in the local language and an optional `canonical_name` with the English original. `create_issue` accepts **both** — pass either the canonical English name (e.g. `minor`) or the localized name (e.g. `Unschönheit`). The server resolves the value automatically.
-
----
-
-### Discover valid field names for `select`
-
-Returns all field names that can be passed to the `select` parameter of `list_issues`.
-
-**Tool:** `get_issue_fields`
-
-**Parameters:**
-- `project_id` — _(optional)_ restrict to fields available for a specific project
-
-**Request:**
-
-```json
-{
-  "project_id": 3
-}
 ```
 
 **Response:**
@@ -225,9 +169,45 @@ Returns all field names that can be passed to the `select` parameter of `list_is
     "severity", "status", "summary", "tags", "target_version",
     "updated_at", "version", "view_state"
   ],
-  "source": "live"
+  "fields_source": "live",
+  "enums": {
+    "severity": [
+      { "id": 10, "name": "feature" },
+      { "id": 20, "name": "trivial" },
+      { "id": 50, "name": "major" },
+      { "id": 60, "name": "crash" }
+    ],
+    "status": [
+      { "id": 10, "name": "new" },
+      { "id": 50, "name": "assigned" },
+      { "id": 80, "name": "resolved" },
+      { "id": 90, "name": "closed" }
+    ],
+    "priority": [
+      { "id": 10, "name": "none" },
+      { "id": 20, "name": "low" },
+      { "id": 30, "name": "normal" },
+      { "id": 40, "name": "high" },
+      { "id": 50, "name": "urgent" },
+      { "id": 60, "name": "immediate" }
+    ],
+    "resolution": [
+      { "id": 10, "name": "open" },
+      { "id": 20, "name": "fixed" },
+      { "id": 60, "name": "duplicate" }
+    ],
+    "reproducibility": [
+      { "id": 10, "name": "always" },
+      { "id": 30, "name": "sometimes" },
+      { "id": 70, "name": "have not tried" }
+    ]
+  }
 }
 ```
+
+`fields_source` is `"cache"`, `"live"`, or `"static"`. On localized installations each enum entry may include a `label` (localized) and a `canonical_name` (standard English). `create_issue` accepts both — pass the canonical English name (e.g. `minor`) or the localized name; the server resolves it automatically.
+
+> **Deprecated:** `get_issue_fields` (fields only) and `get_issue_enums` (enums only) are superseded by `get_issue_schema` — they will be removed in 2.0.0. The resource `mantis://enums` stays.
 
 ---
 
@@ -419,7 +399,7 @@ Pass a comma-separated list of field names to receive only the fields you need. 
 }
 ```
 
-> **Note:** Use `get_issue_fields()` to see all available field names.
+> **Note:** Use `get_issue_schema()` to see all available field names.
 
 > **Note:** `view_url` is always present in all issue responses — it is injected by the MCP server and is not affected by the `select` parameter.
 
@@ -571,8 +551,8 @@ Creates a new issue in MantisBT.
 - `project_id` — numeric project ID
 - `category` — category name string
 - `description` — _(optional)_ detailed description
-- `priority` — _(optional)_ priority: canonical English name (`none`, `low`, `normal`, `high`, `urgent`, `immediate`) or localized label. Default: `"normal"`. Use `get_issue_enums()` to see all available values.
-- `severity` — _(optional)_ severity: canonical English name (`feature`, `trivial`, `text`, `tweak`, `minor`, `major`, `crash`, `block`) or localized label. Default: `"minor"`. Use `get_issue_enums()` to see all available values.
+- `priority` — _(optional)_ priority: canonical English name (`none`, `low`, `normal`, `high`, `urgent`, `immediate`) or localized label. Default: `"normal"`. Use `get_issue_schema()` to see all available values.
+- `severity` — _(optional)_ severity: canonical English name (`feature`, `trivial`, `text`, `tweak`, `minor`, `major`, `crash`, `block`) or localized label. Default: `"minor"`. Use `get_issue_schema()` to see all available values.
 - `handler` — _(optional)_ assignee username (resolved to ID automatically)
 - `handler_id` — _(optional)_ assignee numeric user ID (alternative to `handler`)
 
@@ -616,11 +596,11 @@ Creates a new issue in MantisBT.
 
 **Error: unknown severity or priority**
 
-The server first checks canonical English names, then falls back to a live `get_issue_enums` lookup. An error is only returned if the value matches neither:
+The server first checks canonical English names, then falls back to a live enum lookup. An error is only returned if the value matches neither:
 
-> Error: Invalid severity "xyz". Valid canonical names: feature, trivial, text, tweak, minor, major, crash, block. Call get_issue_enums to see localized labels.
+> Error: Invalid severity "xyz". Valid canonical names: feature, trivial, text, tweak, minor, major, crash, block. Call get_issue_schema to see localized labels.
 
-Use `get_issue_enums` to discover all accepted values — both canonical and localized names work.
+Use `get_issue_schema` to discover all accepted values — both canonical and localized names work.
 
 ---
 
@@ -662,7 +642,7 @@ Resolves and closes an issue. Always set **both** `status` and `resolution` — 
 }
 ```
 
-> **Note:** Resolution ID 20 is "fixed" in a default MantisBT installation. Use `get_issue_enums()` to confirm the correct ID for your instance.
+> **Note:** Resolution ID 20 is "fixed" in a default MantisBT installation. Use `get_issue_schema()` to confirm the correct ID for your instance.
 
 ---
 
@@ -717,7 +697,7 @@ Writes custom field values on create or update. The same `custom_fields` format 
 }
 ```
 
-> **Note:** Only the listed custom fields are changed — others stay untouched. Use `get_issue_fields()` or `get_metadata()` to discover available custom fields per project. Values are always strings.
+> **Note:** Only the listed custom fields are changed — others stay untouched. Use `get_issue_schema()` or `get_metadata()` to discover available custom fields per project. Values are always strings.
 
 ---
 
@@ -1565,7 +1545,7 @@ Only one server process syncs the shared index at a time. If another process (fo
 
 Returns the number of indexed issues, total issue count, and the timestamp of the last sync. `last_synced_at` is the newest `updated_at` the MantisBT server reported at that sync (server time), so it can lie before the actual time of the sync.
 
-**Tool:** `get_search_index_status`
+**Tool:** `get_metadata`
 
 **Parameters:** _(none)_
 
@@ -1575,17 +1555,26 @@ Returns the number of indexed issues, total issue count, and the timestamp of th
 {}
 ```
 
-**Response:**
+**Response (relevant excerpt):**
 
 ```json
 {
-  "summary": "312/312 (100 %)",
-  "indexed": 312,
-  "total": 312,
-  "percent": 100,
-  "last_synced_at": "2024-11-05T14:00:00+01:00"
+  "projects": 24,
+  "tags": 15,
+  "byProject": { "3": { "name": "Webshop", "users": 8, "versions": 12, "categories": 4 } },
+  "cached_at": "2026-03-27T09:00:00.000Z",
+  "ttl_seconds": 82800,
+  "search_index": {
+    "summary": "312/312 (100 %)",
+    "indexed": 312,
+    "total": 312,
+    "percent": 100,
+    "last_synced_at": "2024-11-05T14:00:00+01:00"
+  }
 }
 ```
+
+> **Deprecated:** `get_search_index_status` will be removed in 2.0.0 — use `get_metadata` (field `search_index`) as shown above.
 
 ---
 
@@ -2084,9 +2073,11 @@ Returns a compact overview of all cached metadata: total project and tag counts,
 
 **Tool:** `get_metadata`
 
-**Parameters:** _(none)_
+**Parameters:**
+- `detail` — _(optional)_ `"summary"` (default) for counts only; `"full"` for the complete raw cache
+- `refresh` — _(optional)_ `true` to re-fetch all metadata from MantisBT before answering; default `false`
 
-**Request:**
+**Request:** _(summary, from cache)_
 
 ```json
 {}
@@ -2107,36 +2098,75 @@ Returns a compact overview of all cached metadata: total project and tag counts,
 }
 ```
 
-> **Note:** For full lists use `list_projects`, `get_project` (with `include`), `list_tags`, or `get_metadata_full`.
+With `MANTIS_SEARCH_ENABLED=true` the response also contains a `search_index` block:
+
+```json
+{
+  "projects": 24,
+  "tags": 15,
+  "byProject": { "3": { "name": "Webshop", "users": 8, "versions": 12, "categories": 4 } },
+  "cached_at": "2026-03-27T09:00:00.000Z",
+  "ttl_seconds": 82800,
+  "search_index": {
+    "summary": "312/312 (100 %)",
+    "indexed": 312,
+    "total": 312,
+    "percent": 100,
+    "last_synced_at": "2026-03-27T08:55:00+01:00"
+  }
+}
+```
+
+> **Note:** For full lists use `list_projects`, `get_project` (with `include`), or `list_tags`.
+
+---
+
+### Refresh the metadata cache
+
+Forces a fresh fetch of all metadata from MantisBT before returning the summary.
+
+**Tool:** `get_metadata`
+
+**Parameters:**
+- `refresh` — `true`
+
+**Request:**
+
+```json
+{ "refresh": true }
+```
+
+**Response:** same shape as the summary above, with `cached_at` updated to now.
 
 ---
 
 ### Get the full metadata cache
 
-Returns the complete raw metadata cache as minified JSON. Contains all projects with their full field set, plus users, versions, and categories per project, and all tags. Use this when you need the complete data in a single call.
+Returns the complete raw metadata cache as minified JSON. The cache structure is `{ timestamp, projects, byProject: {"<id>": { users, versions, categories }}, tags }`.
 
-**Tool:** `get_metadata_full`
+**Tool:** `get_metadata`
 
-**Parameters:** _(none)_
+**Parameters:**
+- `detail` — `"full"`
 
 **Request:**
 
 ```json
-{}
+{ "detail": "full" }
 ```
 
 **Response:**
 
 ```json
 {
+  "timestamp": 1743066000000,
   "projects": [
-    {
-      "id": 3,
-      "name": "Webshop",
-      "status": { "id": 10, "name": "development" },
-      "enabled": true,
+    { "id": 3, "name": "Webshop", "status": { "id": 10, "name": "development" }, "enabled": true }
+  ],
+  "byProject": {
+    "3": {
       "users": [
-        { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } }
+        { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com" }
       ],
       "versions": [
         { "id": 21, "name": "2.4.0", "released": false, "obsolete": false }
@@ -2146,28 +2176,28 @@ Returns the complete raw metadata cache as minified JSON. Contains all projects 
         { "id": 2, "name": "UI" }
       ]
     }
-  ],
+  },
   "tags": [
     { "id": 1, "name": "regression" },
     { "id": 2, "name": "hotfix" }
-  ],
-  "cached_at": "2026-03-27T09:00:00.000Z"
+  ]
 }
 ```
 
-> **Tip:** `get_metadata` provides the same data as a compact summary (counts only). Use `get_metadata_full` when you need the actual arrays.
+> **Deprecated:** `get_metadata_full` will be removed in 2.0.0 — use `get_metadata` with `detail: "full"` as shown above.
 
 ---
 
 ## Version & Diagnostics
 
-### Get MCP server version
+### Get versions (MCP server and MantisBT)
 
-Returns the version of this mantisbt-mcp-server instance.
+Returns the version of this mantisbt-mcp-server and of the connected MantisBT installation in one response. With `check_latest: true` (default) the MantisBT version is compared against the latest release on GitHub (outbound HTTPS, up to 5 s). If MantisBT cannot be reached, `mantis` holds an `error` and the MCP server version is still returned.
 
-**Tool:** `get_mcp_version`
+**Tool:** `get_version`
 
-**Parameters:** _(none)_
+**Parameters:**
+- `check_latest` — _(optional)_ compare MantisBT against the latest GitHub release; default `true`
 
 **Request:**
 
@@ -2179,48 +2209,24 @@ Returns the version of this mantisbt-mcp-server instance.
 
 ```json
 {
-  "version": "1.5.8"
+  "mcp_server": { "version": "1.15.0" },
+  "mantis": {
+    "installed_version": "2.27.0",
+    "latest_version": "2.27.1",
+    "status": "update-available"
+  }
 }
 ```
 
----
+Possible values for `status`: `up-to-date`, `update-available`, `newer-than-release`, `unknown`. Set `check_latest: false` to skip the GitHub comparison.
 
-### Get MantisBT version
-
-Returns the version of the connected MantisBT installation and optionally compares it against the latest official release on GitHub.
-
-**Tool:** `get_mantis_version`
-
-**Parameters:**
-- `check_latest` — _(optional)_ whether to compare against the latest GitHub release; default `true`
-
-**Request:**
-
-```json
-{
-  "check_latest": true
-}
-```
-
-**Response:**
-
-```json
-{
-  "installed_version": "2.27.0",
-  "latest_version": "2.27.1",
-  "status": "update-available"
-}
-```
-
-Possible values for `status`: `up-to-date`, `update-available`, `newer-than-release`, `unknown`.
-
-> **Note:** The GitHub comparison requires an outbound HTTPS request. Set `check_latest` to `false` to skip it.
+> **Deprecated:** `get_mcp_version` and `get_mantis_version` will be removed in 2.0.0 — use `get_version` as shown above.
 
 ---
 
 ### Get the current user
 
-Returns the profile of the user associated with the configured API key. Useful to verify the connection and confirm which account is being used.
+Returns the profile of the user associated with the configured API key. Useful to verify the connection and confirm which account is being used. The `language` field tells you which MantisBT language is configured for this user — use it as a hint for the language to write issue texts and notes in, and expect localized enum labels in that language.
 
 **Tool:** `get_current_user`
 
@@ -2240,6 +2246,7 @@ Returns the profile of the user associated with the configured API key. Useful t
   "name": "jsmith",
   "real_name": "John Smith",
   "email": "jsmith@example.com",
+  "language": "english",
   "access_level": { "id": 55, "name": "developer" }
 }
 ```
@@ -2282,7 +2289,7 @@ Returns all MantisBT projects accessible with the configured API key.
 
 **Resource URI:** `mantis://projects`
 
-**Fetch behaviour:** Served from the MetadataCache (default TTL 24 h). Falls back to a live API call when the cache is empty. Run `sync_metadata` to force a refresh.
+**Fetch behaviour:** Served from the MetadataCache (default TTL 24 h). Falls back to a live API call when the cache is empty. Run `get_metadata` with `refresh: true` to force a refresh.
 
 **Response:**
 
@@ -2372,7 +2379,7 @@ Returns valid ID/name pairs for all issue enum fields (severity, priority, statu
 }
 ```
 
-> **Tip:** The `get_issue_enums` tool provides the same data for clients that do not support Resources.
+> **Tip:** The `get_issue_schema` tool provides enum values for clients that do not support Resources (and also returns the valid `select` fields).
 
 ---
 
@@ -2398,7 +2405,7 @@ Collects structured bug data and calls `create_issue`.
 - `actual` — actual (observed) behavior
 - `environment` — environment details (OS, browser, version, etc.)
 
-**What happens:** The prompt returns a message that instructs the LLM to call `get_issue_enums` (to resolve valid severity/priority values) and then `create_issue` with the provided data.
+**What happens:** The prompt returns a message that instructs the LLM to call `get_issue_schema` (to resolve valid severity/priority values) and then `create_issue` with the provided data.
 
 **Example call:**
 

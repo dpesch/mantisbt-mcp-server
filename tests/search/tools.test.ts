@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MantisClient } from '../../src/client.js';
-import { registerSearchTools } from '../../src/search/tools.js';
+import { registerSearchTools, getSearchIndexStatus } from '../../src/search/tools.js';
 import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
 import { makeMockStore, makeMockEmbedder } from '../helpers/search-mocks.js';
 import type { Embedder } from '../../src/search/embedder.js';
@@ -657,5 +657,26 @@ describe('string-coercion – search_issues highlight as string', () => {
     expect(result.isError).toBeUndefined();
     const parsed = JSON.parse(result.content[0]!.text) as Array<Record<string, unknown>>;
     expect(parsed[0]).toHaveProperty('highlights');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// get_search_index_status – deprecated in favour of get_metadata (#8498)
+// ---------------------------------------------------------------------------
+
+describe('get_search_index_status – deprecation', () => {
+  it('is marked deprecated and points to get_metadata', () => {
+    registerSearchTools(mockServer as never, client, makeMockStore({ itemCount: 0 }), embedder);
+
+    expect(mockServer.toolDescription('get_search_index_status')).toMatch(/^Deprecated: use get_metadata instead — get_search_index_status will be removed in 2\.0\.0\./);
+  });
+
+  it('returns the same status as getSearchIndexStatus (shared with get_metadata)', async () => {
+    const store = makeMockStore({ itemCount: 3 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    const result = await mockServer.callTool('get_search_index_status', {});
+
+    expect(JSON.parse(result.content[0]!.text)).toEqual(await getSearchIndexStatus(store));
   });
 });

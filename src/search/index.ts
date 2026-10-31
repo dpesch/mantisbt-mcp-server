@@ -3,7 +3,8 @@ import type { MantisClient } from '../client.js';
 import type { SearchConfig } from '../config.js';
 import { createVectorStore } from './store.js';
 import { Embedder } from './embedder.js';
-import { registerSearchTools } from './tools.js';
+import { registerSearchTools, getSearchIndexStatus } from './tools.js';
+import type { SearchIndexStatus } from '../types.js';
 import { SearchSyncService, SyncLockedError } from './sync.js';
 
 // ---------------------------------------------------------------------------
@@ -14,15 +15,13 @@ export async function initializeSearchModule(
   server: McpServer,
   client: MantisClient,
   config: SearchConfig,
-): Promise<void> {
-  if (!config.enabled) return;
-
+): Promise<() => Promise<SearchIndexStatus>> {
   const store = createVectorStore(config.backend, config.dir);
   const embedder = new Embedder(config.modelName, config.numThreads);
 
   registerSearchTools(server, client, store, embedder, config.dir);
 
-  // Pre-initialize lastKnownTotal so get_search_index_status shows a value
+  // Pre-initialize lastKnownTotal so the index status (get_metadata) shows a value
   // immediately on startup, even while the background sync is still running.
   const [startupCount, startupTotal] = await Promise.all([store.count(), store.getLastKnownTotal()]);
   if (startupTotal === null && startupCount > 0) {
@@ -42,4 +41,6 @@ export async function initializeSearchModule(
       err instanceof Error ? err.message : String(err),
     );
   });
+
+  return () => getSearchIndexStatus(store);
 }

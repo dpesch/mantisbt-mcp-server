@@ -78,18 +78,18 @@ async function createMcpServer(transport: 'stdio' | 'http'): Promise<McpServer> 
   registerProjectVersionTools(server, client, cache);
   registerUserTools(server, client);
   registerFilterTools(server, client);
+  // Optional: Semantic search module. Initialized before the metadata tools so
+  // get_metadata can report the index status.
+  const searchIndexStatus = startupConfig.search.enabled
+    ? await (await import('./search/index.js')).initializeSearchModule(server, client, startupConfig.search)
+    : undefined;
+
   registerConfigTools(server, client, cache);
-  registerMetadataTools(server, client, cache);
+  registerMetadataTools(server, client, cache, searchIndexStatus);
   registerTagTools(server, client);
   registerVersionTools(server, client, versionHint, version);
   registerPrompts(server);
   registerResources(server, client, cache, startupConfig.testEnvironment);
-
-  // Optional: Semantic search module
-  if (startupConfig.search.enabled) {
-    const { initializeSearchModule } = await import('./search/index.js');
-    await initializeSearchModule(server, client, startupConfig.search);
-  }
 
   return server;
 }

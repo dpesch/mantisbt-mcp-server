@@ -5,6 +5,7 @@ import { MetadataCache } from '../cache.js';
 import { ISSUE_ENUM_OPTIONS, MANTIS_CANONICAL_ENUM_NAMES } from '../constants.js';
 import { getVersionHint } from '../version-hint.js';
 import type { MantisEnumEntry } from '../types.js';
+import { deprecationNote } from '../deprecation.js';
 
 // MantisBT config API: enum values may be a pre-parsed array (2.x) or legacy "id:name,..." string
 type EnumEntry = { id: number; name: string; label?: string };
@@ -153,7 +154,9 @@ Common option names:
     'get_issue_enums',
     {
       title: 'Get Issue Enum Values',
-      description: `Return valid ID, name, and (if available) localized label for all issue enum fields.
+      description: `${deprecationNote('get_issue_enums', 'get_issue_schema')}
+
+Return valid ID, name, and (if available) localized label for all issue enum fields.
 
 Use this tool before creating or updating issues to look up the correct value
 for severity, status, priority, resolution, or reproducibility.
@@ -220,7 +223,9 @@ because there is no separate English original.`,
     'list_languages',
     {
       title: 'List Supported Languages',
-      description: 'List all languages supported by the MantisBT installation.',
+      description: `${deprecationNote('list_languages', 'get_current_user (field "language")')}
+
+Despite its name, MantisBT's GET /lang returns only the language of the current user ({ strings, language }), not a list of all languages.`,
       inputSchema: z.object({}),
       annotations: {
         readOnlyHint: true,
@@ -253,7 +258,7 @@ because there is no separate English original.`,
 
 The MantisBT REST API exposes a GET /tags endpoint on some installations.
 If that endpoint is not available, this tool falls back to the local metadata
-cache populated by sync_metadata.`,
+cache populated by get_metadata.`,
       inputSchema: z.object({
         page: z.coerce.number().int().positive().default(1).describe('Page number (default: 1)'),
         page_size: z.coerce.number().int().min(1).max(200).default(50).describe('Tags per page (default: 50)'),
@@ -288,7 +293,7 @@ cache populated by sync_metadata.`,
           return {
             content: [{
               type: 'text',
-              text: `Error: ${msg}\n\nThe GET /tags endpoint is not available in this MantisBT installation. No cached tags found either — run sync_metadata to populate the cache if your installation provides this endpoint.`,
+              text: `Error: ${msg}\n\nThe GET /tags endpoint is not available in this MantisBT installation. No cached tags found either — run get_metadata with refresh: true to populate the cache if your installation provides this endpoint.`,
             }],
             isError: true,
           };

@@ -8,8 +8,7 @@ Tool-orientierte Rezepte für den MantisBT MCP Server – jedes Rezept zeigt gen
   - [Installation ohne URL-Rewriting anbinden](#installation-ohne-url-rewriting-anbinden)
 - [Die eigene Instanz erkunden](#die-eigene-instanz-erkunden)
   - [Alle Projekte abrufen](#alle-projekte-abrufen)
-  - [Gültige Enum-Werte ermitteln (Schweregrad, Status, Priorität)](#gültige-enum-werte-ermitteln-schweregrad-status-priorität)
-  - [Gültige Feldnamen für `select` ermitteln](#gültige-feldnamen-für-select-ermitteln)
+  - [Gültige select-Felder und Enum-Werte ermitteln](#gültige-select-felder-und-enum-werte-ermitteln)
 - [Issues](#issues)
   - [Einzelnes Issue abrufen](#einzelnes-issue-abrufen)
   - [Mehrere Issues in einem Aufruf abrufen](#mehrere-issues-in-einem-aufruf-abrufen)
@@ -62,10 +61,10 @@ Tool-orientierte Rezepte für den MantisBT MCP Server – jedes Rezept zeigt gen
   - [Projektversion löschen](#projektversion-löschen)
 - [Metadaten](#metadaten)
   - [Metadaten-Zusammenfassung abrufen](#metadaten-zusammenfassung-abrufen)
+  - [Metadaten-Cache aktualisieren](#metadaten-cache-aktualisieren)
   - [Vollständigen Metadaten-Cache abrufen](#vollständigen-metadaten-cache-abrufen)
 - [Version & Diagnose](#version--diagnose)
-  - [MCP-Server-Version abrufen](#mcp-server-version-abrufen)
-  - [MantisBT-Version abrufen](#mantisbt-version-abrufen)
+  - [Versionen abrufen (MCP-Server und MantisBT)](#versionen-abrufen-mcp-server-und-mantisbt)
   - [Aktuellen Benutzer abrufen](#aktuellen-benutzer-abrufen)
 - [Ressourcen](#ressourcen)
   - [Eigenes Benutzerprofil lesen](#eigenes-benutzerprofil-lesen)
@@ -113,7 +112,7 @@ Manche MantisBT-Installationen liefern die REST-API ausschließlich über ihren 
 
 Endet `MANTIS_BASE_URL` auf `/api/rest/index.php`, wird das index.php-Routing automatisch aktiviert. Ein explizit gesetztes `MANTIS_USE_INDEX_PHP` hat immer Vorrang vor der Erkennung – steht es zusammen mit einer solchen URL auf `false`, wird das normale `/api/rest/`-Routing erzwungen und eine Warnung auf stderr ausgegeben.
 
-**Prüfen:** `get_mantis_version` aufrufen. Kommt eine Antwort zurück, stimmt das Routing.
+**Prüfen:** `get_version` aufrufen. Kommt eine Antwort zurück, stimmt das Routing.
 
 ---
 
@@ -144,74 +143,19 @@ Gibt die vollständige Liste der mit dem API-Key zugänglichen Projekte zurück.
 
 ---
 
-### Gültige Enum-Werte ermitteln (Schweregrad, Status, Priorität)
+### Gültige select-Felder und Enum-Werte ermitteln
 
-Gibt die auf der eigenen MantisBT-Instanz konfigurierten Enum-Werte zurück. Vor dem Erstellen oder Aktualisieren von Issues aufrufen, um gültige Werte zu kennen.
+Gibt die gültigen `select`-Feldnamen und die Enum-Werte (severity, status, priority, resolution, reproducibility) für diesen MantisBT-Server in einem Aufruf zurück. Vor dem Aufbau eines `select`-Strings oder dem Setzen von Enum-Feldern in `create_issue` / `update_issue` aufrufen.
 
-**Tool:** `get_issue_enums`
+**Tool:** `get_issue_schema`
 
-**Parameter:** _(keine)_
+**Parameter:**
+- `project_id` – _(optional)_ Feldermittlung auf ein bestimmtes Projekt einschränken
 
 **Request:**
 
 ```json
 {}
-```
-
-**Response:**
-
-```json
-{
-  "priorities": [
-    { "id": 10, "name": "none" },
-    { "id": 20, "name": "low" },
-    { "id": 30, "name": "normal" },
-    { "id": 40, "name": "high" },
-    { "id": 50, "name": "urgent" },
-    { "id": 60, "name": "immediate" }
-  ],
-  "severities": [
-    { "id": 10, "name": "feature" },
-    { "id": 20, "name": "trivial" },
-    { "id": 50, "name": "major" },
-    { "id": 60, "name": "crash" }
-    // ...
-  ],
-  "statuses": [
-    { "id": 10, "name": "new" },
-    { "id": 50, "name": "assigned" },
-    { "id": 80, "name": "resolved" },
-    { "id": 90, "name": "closed" }
-    // ...
-  ],
-  "resolutions": [
-    { "id": 10, "name": "open" },
-    { "id": 20, "name": "fixed" },
-    { "id": 60, "name": "duplicate" }
-    // ...
-  ]
-}
-```
-
-> **Hinweis:** Auf lokalisierten Instanzen liefert `get_issue_enums()` im Feld `name` den lokalisierten Begriff und optional im Feld `canonical_name` den englischen Originalnamen. `create_issue` akzeptiert **beides** – sowohl den kanonischen englischen Namen (z.B. `minor`) als auch den lokalisierten Namen (z.B. `Unschönheit`). Der Server löst den Wert automatisch auf.
-
----
-
-### Gültige Feldnamen für `select` ermitteln
-
-Gibt alle Feldnamen zurück, die dem `select`-Parameter von `list_issues` übergeben werden können.
-
-**Tool:** `get_issue_fields`
-
-**Parameter:**
-- `project_id` – _(optional)_ auf Felder eines bestimmten Projekts beschränken
-
-**Request:**
-
-```json
-{
-  "project_id": 3
-}
 ```
 
 **Response:**
@@ -225,9 +169,45 @@ Gibt alle Feldnamen zurück, die dem `select`-Parameter von `list_issues` überg
     "severity", "status", "summary", "tags", "target_version",
     "updated_at", "version", "view_state"
   ],
-  "source": "live"
+  "fields_source": "live",
+  "enums": {
+    "severity": [
+      { "id": 10, "name": "feature" },
+      { "id": 20, "name": "trivial" },
+      { "id": 50, "name": "major" },
+      { "id": 60, "name": "crash" }
+    ],
+    "status": [
+      { "id": 10, "name": "new" },
+      { "id": 50, "name": "assigned" },
+      { "id": 80, "name": "resolved" },
+      { "id": 90, "name": "closed" }
+    ],
+    "priority": [
+      { "id": 10, "name": "none" },
+      { "id": 20, "name": "low" },
+      { "id": 30, "name": "normal" },
+      { "id": 40, "name": "high" },
+      { "id": 50, "name": "urgent" },
+      { "id": 60, "name": "immediate" }
+    ],
+    "resolution": [
+      { "id": 10, "name": "open" },
+      { "id": 20, "name": "fixed" },
+      { "id": 60, "name": "duplicate" }
+    ],
+    "reproducibility": [
+      { "id": 10, "name": "always" },
+      { "id": 30, "name": "sometimes" },
+      { "id": 70, "name": "have not tried" }
+    ]
+  }
 }
 ```
+
+`fields_source` ist `"cache"`, `"live"` oder `"static"`. Auf lokalisierten Installationen kann jeder Enum-Eintrag ein `label` (lokalisiert) und einen `canonical_name` (englischer Standardname) enthalten. `create_issue` akzeptiert beides – kanonische englische Namen (z.B. `minor`) wie auch lokalisierte Namen; der Server löst den Wert automatisch auf.
+
+> **Veraltet:** `get_issue_fields` (nur Felder) und `get_issue_enums` (nur Enums) werden durch `get_issue_schema` abgelöst – sie werden in 2.0.0 entfernt. Die Ressource `mantis://enums` bleibt erhalten.
 
 ---
 
@@ -419,7 +399,7 @@ Eine kommagetrennte Liste von Feldnamen übergeben, um nur die benötigten Felde
 }
 ```
 
-> **Hinweis:** Mit `get_issue_fields()` lassen sich alle verfügbaren Feldnamen anzeigen.
+> **Hinweis:** Mit `get_issue_schema()` lassen sich alle verfügbaren Feldnamen anzeigen.
 
 > **Hinweis:** `view_url` ist in allen Issue-Responses immer vorhanden – es wird vom MCP-Server injiziert und wird durch den `select`-Parameter nicht beeinflusst.
 
@@ -571,8 +551,8 @@ Legt ein neues Issue in MantisBT an.
 - `project_id` – numerische Projekt-ID
 - `category` – Kategoriename als Zeichenkette
 - `description` – _(optional)_ ausführliche Beschreibung
-- `priority` – _(optional)_ Priorität: kanonischer englischer Name (`none`, `low`, `normal`, `high`, `urgent`, `immediate`) oder lokalisierter Begriff. Standard: `"normal"`. Alle verfügbaren Werte über `get_issue_enums()` ermitteln.
-- `severity` – _(optional)_ Schweregrad: kanonischer englischer Name (`feature`, `trivial`, `text`, `tweak`, `minor`, `major`, `crash`, `block`) oder lokalisierter Begriff. Standard: `"minor"`. Alle verfügbaren Werte über `get_issue_enums()` ermitteln.
+- `priority` – _(optional)_ Priorität: kanonischer englischer Name (`none`, `low`, `normal`, `high`, `urgent`, `immediate`) oder lokalisierter Begriff. Standard: `"normal"`. Alle verfügbaren Werte über `get_issue_schema()` ermitteln.
+- `severity` – _(optional)_ Schweregrad: kanonischer englischer Name (`feature`, `trivial`, `text`, `tweak`, `minor`, `major`, `crash`, `block`) oder lokalisierter Begriff. Standard: `"minor"`. Alle verfügbaren Werte über `get_issue_schema()` ermitteln.
 - `handler` – _(optional)_ Benutzername des Bearbeiters (wird automatisch in eine ID aufgelöst)
 - `handler_id` – _(optional)_ numerische Benutzer-ID des Bearbeiters (Alternative zu `handler`)
 
@@ -616,11 +596,11 @@ Legt ein neues Issue in MantisBT an.
 
 **Fehler: unbekannter Schweregrad oder unbekannte Priorität**
 
-Der Server prüft zuerst kanonische englische Namen und fällt dann auf einen Live-`get_issue_enums`-Lookup zurück. Ein Fehler wird nur zurückgegeben, wenn der Wert weder kanonisch noch lokalisiert erkannt wird:
+Der Server prüft zuerst kanonische englische Namen und fällt dann auf einen Live-Enum-Lookup zurück. Ein Fehler wird nur zurückgegeben, wenn der Wert weder kanonisch noch lokalisiert erkannt wird:
 
-> Error: Invalid severity "xyz". Valid canonical names: feature, trivial, text, tweak, minor, major, crash, block. Call get_issue_enums to see localized labels.
+> Error: Invalid severity "xyz". Valid canonical names: feature, trivial, text, tweak, minor, major, crash, block. Call get_issue_schema to see localized labels.
 
-Mit `get_issue_enums` lassen sich alle akzeptierten Werte ermitteln – sowohl kanonische als auch lokalisierte Namen funktionieren.
+Mit `get_issue_schema` lassen sich alle akzeptierten Werte ermitteln – sowohl kanonische als auch lokalisierte Namen funktionieren.
 
 ---
 
@@ -662,7 +642,7 @@ Löst ein Issue auf und schließt es. **Immer beide Felder** `status` und `resol
 }
 ```
 
-> **Hinweis:** Auflösungs-ID 20 entspricht in einer Standard-MantisBT-Installation »behoben«. Mit `get_issue_enums()` die korrekte ID für die eigene Instanz prüfen.
+> **Hinweis:** Auflösungs-ID 20 entspricht in einer Standard-MantisBT-Installation »behoben«. Mit `get_issue_schema()` die korrekte ID für die eigene Instanz prüfen.
 
 ---
 
@@ -717,7 +697,7 @@ Schreibt Custom-Field-Werte beim Anlegen oder Aktualisieren. Dasselbe `custom_fi
 }
 ```
 
-> **Hinweis:** Nur die aufgeführten Custom Fields werden geändert – alle anderen bleiben unangetastet. Verfügbare Felder pro Projekt mit `get_issue_fields()` oder `get_metadata()` ermitteln. Werte sind immer Strings.
+> **Hinweis:** Nur die aufgeführten Custom Fields werden geändert – alle anderen bleiben unangetastet. Verfügbare Felder pro Projekt mit `get_issue_schema()` oder `get_metadata()` ermitteln. Werte sind immer Strings.
 
 ---
 
@@ -1565,7 +1545,7 @@ Es synchronisiert immer nur ein Serverprozess den gemeinsamen Index. Läuft bere
 
 Gibt die Anzahl der indizierten Issues, die Gesamtanzahl der Issues und den Zeitstempel der letzten Synchronisation zurück. `last_synced_at` ist das jüngste `updated_at`, das der MantisBT-Server bei dieser Synchronisation gemeldet hat (Serverzeit), und kann daher vor dem tatsächlichen Zeitpunkt der Synchronisation liegen.
 
-**Tool:** `get_search_index_status`
+**Tool:** `get_metadata`
 
 **Parameter:** _(keine)_
 
@@ -1575,17 +1555,26 @@ Gibt die Anzahl der indizierten Issues, die Gesamtanzahl der Issues und den Zeit
 {}
 ```
 
-**Response:**
+**Response (relevanter Ausschnitt):**
 
 ```json
 {
-  "summary": "312/312 (100 %)",
-  "indexed": 312,
-  "total": 312,
-  "percent": 100,
-  "last_synced_at": "2024-11-05T14:00:00+01:00"
+  "projects": 24,
+  "tags": 15,
+  "byProject": { "3": { "name": "Webshop", "users": 8, "versions": 12, "categories": 4 } },
+  "cached_at": "2026-03-27T09:00:00.000Z",
+  "ttl_seconds": 82800,
+  "search_index": {
+    "summary": "312/312 (100 %)",
+    "indexed": 312,
+    "total": 312,
+    "percent": 100,
+    "last_synced_at": "2024-11-05T14:00:00+01:00"
+  }
 }
 ```
+
+> **Veraltet:** `get_search_index_status` wird in 2.0.0 entfernt – stattdessen `get_metadata` (Feld `search_index`) wie oben gezeigt verwenden.
 
 ---
 
@@ -2084,9 +2073,11 @@ Gibt eine kompakte Übersicht aller gecachten Metadaten zurück: Gesamtzahl der 
 
 **Tool:** `get_metadata`
 
-**Parameter:** _(keine)_
+**Parameter:**
+- `detail` – _(optional)_ `"summary"` (Standard) für Zählwerte; `"full"` für den vollständigen rohen Cache
+- `refresh` – _(optional)_ `true`, um alle Metadaten vor der Antwort von MantisBT neu zu laden; Standard `false`
 
-**Request:**
+**Request:** _(Zusammenfassung, aus Cache)_
 
 ```json
 {}
@@ -2107,36 +2098,75 @@ Gibt eine kompakte Übersicht aller gecachten Metadaten zurück: Gesamtzahl der 
 }
 ```
 
-> **Hinweis:** Für vollständige Listen `list_projects`, `get_project` (mit `include`), `list_tags` oder `get_metadata_full` verwenden.
+Mit `MANTIS_SEARCH_ENABLED=true` enthält die Antwort zusätzlich einen `search_index`-Block:
+
+```json
+{
+  "projects": 24,
+  "tags": 15,
+  "byProject": { "3": { "name": "Webshop", "users": 8, "versions": 12, "categories": 4 } },
+  "cached_at": "2026-03-27T09:00:00.000Z",
+  "ttl_seconds": 82800,
+  "search_index": {
+    "summary": "312/312 (100 %)",
+    "indexed": 312,
+    "total": 312,
+    "percent": 100,
+    "last_synced_at": "2026-03-27T08:55:00+01:00"
+  }
+}
+```
+
+> **Hinweis:** Für vollständige Listen `list_projects`, `get_project` (mit `include`) oder `list_tags` verwenden.
+
+---
+
+### Metadaten-Cache aktualisieren
+
+Erzwingt einen Neu-Abruf aller Metadaten von MantisBT, bevor die Zusammenfassung zurückgegeben wird.
+
+**Tool:** `get_metadata`
+
+**Parameter:**
+- `refresh` – `true`
+
+**Request:**
+
+```json
+{ "refresh": true }
+```
+
+**Response:** gleiche Struktur wie die Zusammenfassung oben, mit aktualisiertem `cached_at`.
 
 ---
 
 ### Vollständigen Metadaten-Cache abrufen
 
-Gibt den vollständigen rohen Metadaten-Cache als minifiziertes JSON zurück. Enthält alle Projekte mit vollständigen Feldern sowie Benutzer, Versionen und Kategorien je Projekt und alle Tags. Geeignet, wenn alle Daten in einem einzigen Aufruf benötigt werden.
+Gibt den vollständigen rohen Metadaten-Cache als minifiziertes JSON zurück. Die Cache-Struktur lautet `{ timestamp, projects, byProject: {"<id>": { users, versions, categories }}, tags }`.
 
-**Tool:** `get_metadata_full`
+**Tool:** `get_metadata`
 
-**Parameter:** _(keine)_
+**Parameter:**
+- `detail` – `"full"`
 
 **Request:**
 
 ```json
-{}
+{ "detail": "full" }
 ```
 
 **Response:**
 
 ```json
 {
+  "timestamp": 1743066000000,
   "projects": [
-    {
-      "id": 3,
-      "name": "Webshop",
-      "status": { "id": 10, "name": "development" },
-      "enabled": true,
+    { "id": 3, "name": "Webshop", "status": { "id": 10, "name": "development" }, "enabled": true }
+  ],
+  "byProject": {
+    "3": {
       "users": [
-        { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } }
+        { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com" }
       ],
       "versions": [
         { "id": 21, "name": "2.4.0", "released": false, "obsolete": false }
@@ -2146,28 +2176,28 @@ Gibt den vollständigen rohen Metadaten-Cache als minifiziertes JSON zurück. En
         { "id": 2, "name": "UI" }
       ]
     }
-  ],
+  },
   "tags": [
     { "id": 1, "name": "regression" },
     { "id": 2, "name": "hotfix" }
-  ],
-  "cached_at": "2026-03-27T09:00:00.000Z"
+  ]
 }
 ```
 
-> **Tipp:** `get_metadata` liefert dieselben Daten als kompakte Zusammenfassung (nur Zählwerte). `get_metadata_full` verwenden, wenn die eigentlichen Arrays benötigt werden.
+> **Veraltet:** `get_metadata_full` wird in 2.0.0 entfernt – stattdessen `get_metadata` mit `detail: "full"` wie oben gezeigt verwenden.
 
 ---
 
 ## Version & Diagnose
 
-### MCP-Server-Version abrufen
+### Versionen abrufen (MCP-Server und MantisBT)
 
-Gibt die Version dieser mantisbt-mcp-server-Instanz zurück.
+Gibt die Version dieses mantisbt-mcp-servers und der verbundenen MantisBT-Installation in einer Antwort zurück. Mit `check_latest: true` (Standard) wird die MantisBT-Version mit dem neuesten Release auf GitHub verglichen (ausgehende HTTPS-Verbindung, max. 5 s). Ist MantisBT nicht erreichbar, enthält `mantis` ein `error`-Feld; die MCP-Server-Version wird trotzdem zurückgegeben.
 
-**Tool:** `get_mcp_version`
+**Tool:** `get_version`
 
-**Parameter:** _(keine)_
+**Parameter:**
+- `check_latest` – _(optional)_ MantisBT gegen das neueste GitHub-Release vergleichen; Standard `true`
 
 **Request:**
 
@@ -2179,48 +2209,24 @@ Gibt die Version dieser mantisbt-mcp-server-Instanz zurück.
 
 ```json
 {
-  "version": "1.5.8"
+  "mcp_server": { "version": "1.15.0" },
+  "mantis": {
+    "installed_version": "2.27.0",
+    "latest_version": "2.27.1",
+    "status": "update-available"
+  }
 }
 ```
 
----
+Mögliche Werte für `status`: `up-to-date`, `update-available`, `newer-than-release`, `unknown`. Mit `check_latest: false` den GitHub-Vergleich überspringen.
 
-### MantisBT-Version abrufen
-
-Gibt die Version der verbundenen MantisBT-Installation zurück und vergleicht sie optional mit dem neuesten offiziellen Release auf GitHub.
-
-**Tool:** `get_mantis_version`
-
-**Parameter:**
-- `check_latest` – _(optional)_ ob gegen das neueste GitHub-Release verglichen werden soll; Standard `true`
-
-**Request:**
-
-```json
-{
-  "check_latest": true
-}
-```
-
-**Response:**
-
-```json
-{
-  "installed_version": "2.27.0",
-  "latest_version": "2.27.1",
-  "status": "update-available"
-}
-```
-
-Mögliche Werte für `status`: `up-to-date`, `update-available`, `newer-than-release`, `unknown`.
-
-> **Hinweis:** Der GitHub-Vergleich erfordert eine ausgehende HTTPS-Verbindung. Mit `check_latest: false` lässt er sich überspringen.
+> **Veraltet:** `get_mcp_version` und `get_mantis_version` werden in 2.0.0 entfernt – stattdessen `get_version` wie oben gezeigt verwenden.
 
 ---
 
 ### Aktuellen Benutzer abrufen
 
-Gibt das Profil des Benutzers zurück, der dem konfigurierten API-Key zugeordnet ist. Nützlich, um die Verbindung zu prüfen und das verwendete Konto zu bestätigen.
+Gibt das Profil des Benutzers zurück, der dem konfigurierten API-Key zugeordnet ist. Nützlich, um die Verbindung zu prüfen und das verwendete Konto zu bestätigen. Das Feld `language` gibt die MantisBT-Sprache des Benutzers an – als Hinweis, in welcher Sprache Issue-Texte und Notizen verfasst werden sollten und welche Sprache die lokalisierten Enum-Bezeichnungen haben.
 
 **Tool:** `get_current_user`
 
@@ -2240,6 +2246,7 @@ Gibt das Profil des Benutzers zurück, der dem konfigurierten API-Key zugeordnet
   "name": "jsmith",
   "real_name": "John Smith",
   "email": "jsmith@example.com",
+  "language": "german",
   "access_level": { "id": 55, "name": "developer" }
 }
 ```
@@ -2282,7 +2289,7 @@ Gibt alle MantisBT-Projekte zurück, auf die der konfigurierte API-Key Zugriff h
 
 **Ressource-URI:** `mantis://projects`
 
-**Abrufverhalten:** Wird aus dem MetadataCache bedient (Standard-TTL 24 h). Fällt auf einen Live-API-Aufruf zurück, wenn der Cache leer ist. `sync_metadata` aufrufen, um eine Aktualisierung zu erzwingen.
+**Abrufverhalten:** Wird aus dem MetadataCache bedient (Standard-TTL 24 h). Fällt auf einen Live-API-Aufruf zurück, wenn der Cache leer ist. `get_metadata` mit `refresh: true` aufrufen, um eine Aktualisierung zu erzwingen.
 
 **Response:**
 
@@ -2372,7 +2379,7 @@ Gibt gültige ID/Name-Paare für alle Issue-Enum-Felder zurück (Severity, Prior
 }
 ```
 
-> **Tipp:** Das Tool `get_issue_enums` liefert dieselben Daten für Clients ohne Ressourcen-Unterstützung.
+> **Tipp:** Das Tool `get_issue_schema` liefert Enum-Werte für Clients ohne Ressourcen-Unterstützung (und gibt zusätzlich die gültigen `select`-Felder zurück).
 
 ---
 
@@ -2398,7 +2405,7 @@ Sammelt strukturierte Bug-Daten und ruft `create_issue` auf.
 - `actual` – tatsächliches (beobachtetes) Verhalten
 - `environment` – Umgebungsangaben (Betriebssystem, Browser, Version usw.)
 
-**Ablauf:** Der Prompt liefert eine Nachricht, die den LLM anweist, zunächst `get_issue_enums` aufzurufen (um gültige Schweregrad- und Prioritätswerte zu ermitteln) und anschließend `create_issue` mit den übergebenen Daten auszuführen.
+**Ablauf:** Der Prompt liefert eine Nachricht, die den LLM anweist, zunächst `get_issue_schema` aufzurufen (um gültige Schweregrad- und Prioritätswerte zu ermitteln) und anschließend `create_issue` mit den übergebenen Daten auszuführen.
 
 **Beispielaufruf:**
 
