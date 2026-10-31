@@ -12,19 +12,8 @@ import { MantisClient } from './client.js';
 import { VersionHintService, setGlobalVersionHint } from './version-hint.js';
 import { MetadataCache } from './cache.js';
 
-import { registerIssueTools } from './tools/issues.js';
-import { registerNoteTools } from './tools/notes.js';
-import { registerFileTools } from './tools/files.js';
-import { registerRelationshipTools } from './tools/relationships.js';
-import { registerMonitorTools } from './tools/monitors.js';
-import { registerProjectTools } from './tools/projects.js';
-import { registerProjectVersionTools } from './tools/project-versions.js';
-import { registerUserTools } from './tools/users.js';
-import { registerFilterTools } from './tools/filters.js';
-import { registerConfigTools } from './tools/config.js';
-import { registerMetadataTools } from './tools/metadata.js';
-import { registerTagTools } from './tools/tags.js';
-import { registerVersionTools } from './tools/version.js';
+import { registerAllTools } from './tools/index.js';
+import { filterToolRegistration } from './toolsets.js';
 import { registerPrompts } from './prompts/index.js';
 import { registerResources } from './resources/index.js';
 
@@ -69,25 +58,26 @@ async function createMcpServer(transport: 'stdio' | 'http'): Promise<McpServer> 
     version,
   });
 
-  registerIssueTools(server, client, cache);
-  registerNoteTools(server, client);
-  registerFileTools(server, client, startupConfig.uploadDir, transport);
-  registerRelationshipTools(server, client);
-  registerMonitorTools(server, client);
-  registerProjectTools(server, client, cache);
-  registerProjectVersionTools(server, client, cache);
-  registerUserTools(server, client);
-  registerFilterTools(server, client);
-  // Optional: Semantic search module. Initialized before the metadata tools so
-  // get_metadata can report the index status.
-  const searchIndexStatus = startupConfig.search.enabled
-    ? await (await import('./search/index.js')).initializeSearchModule(server, client, startupConfig.search)
+  // Tools register through a filter for MANTIS_TOOLSETS / MANTIS_DISABLE_DESTRUCTIVE;
+  // prompts and resources use the server directly.
+  const tools = filterToolRegistration(server, startupConfig);
+
+  // Optional: Semantic search module — needs MANTIS_SEARCH_ENABLED=true and the
+  // "search" tool group (skipping it avoids loading the model and the index).
+  // Initialized first so get_metadata can report the index status.
+  const searchIndexStatus = startupConfig.search.enabled && startupConfig.toolsets.has('search')
+    ? await (await import('./search/index.js')).initializeSearchModule(tools, client, startupConfig.search)
     : undefined;
 
-  registerConfigTools(server, client, cache);
-  registerMetadataTools(server, client, cache, searchIndexStatus);
-  registerTagTools(server, client);
-  registerVersionTools(server, client, versionHint, version);
+  registerAllTools(tools, {
+    client,
+    cache,
+    versionHint,
+    version,
+    uploadDir: startupConfig.uploadDir,
+    transport,
+    searchIndexStatus,
+  });
   registerPrompts(server);
   registerResources(server, client, cache, startupConfig.testEnvironment);
 

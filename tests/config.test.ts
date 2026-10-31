@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('node:fs/promises');
 
 import { readFile } from 'node:fs/promises';
+import { TOOLSETS } from '../src/toolsets.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -355,6 +356,34 @@ describe('getStartupConfig()', () => {
     const config = await getStartupConfig();
 
     expect(config.cacheDir).toBe('/tmp/test-cache');
+  });
+
+  // #8500
+  it('enables every tool group and keeps destructive tools by default', async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+
+    const config = await (await freshGetStartupConfig())();
+
+    expect([...config.toolsets].sort()).toEqual([...TOOLSETS].sort());
+    expect(config.disableDestructive).toBe(false);
+  });
+
+  it('reads MANTIS_TOOLSETS and MANTIS_DISABLE_DESTRUCTIVE', async () => {
+    vi.stubEnv('MANTIS_TOOLSETS', 'issues, notes');
+    vi.stubEnv('MANTIS_DISABLE_DESTRUCTIVE', 'true');
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+
+    const config = await (await freshGetStartupConfig())();
+
+    expect(config.toolsets).toEqual(new Set(['issues', 'notes']));
+    expect(config.disableDestructive).toBe(true);
+  });
+
+  it('rejects an unknown MANTIS_TOOLSETS group at startup', async () => {
+    vi.stubEnv('MANTIS_TOOLSETS', 'issues,tickets');
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+
+    await expect((await freshGetStartupConfig())()).rejects.toThrow(/Unknown MANTIS_TOOLSETS group "tickets"/);
   });
 });
 

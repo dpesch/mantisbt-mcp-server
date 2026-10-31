@@ -6,6 +6,7 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
 
 - [Connection setup](#connection-setup)
   - [Connect to an installation without URL rewriting](#connect-to-an-installation-without-url-rewriting)
+  - [Offer only some tool groups](#offer-only-some-tool-groups)
 - [Discovering your instance](#discovering-your-instance)
   - [Get all projects](#get-all-projects)
   - [Valid select fields and enum values](#valid-select-fields-and-enum-values)
@@ -113,6 +114,41 @@ Some MantisBT installations serve the REST API only through its front controller
 When `MANTIS_BASE_URL` ends with `/api/rest/index.php`, index.php routing is enabled automatically. An explicitly set `MANTIS_USE_INDEX_PHP` always wins over the detection — setting it to `false` alongside such a URL forces plain `/api/rest/` routing and logs a warning on stderr.
 
 **Verify:** call `get_version`. A successful response means the routing is correct.
+
+---
+
+### Offer only some tool groups
+
+By default all 41 tools are active (search off). Restrict them with `MANTIS_TOOLSETS` to keep the model's context shorter and load only what is needed for the task. Use `MANTIS_DISABLE_DESTRUCTIVE=true` to hide every destructive tool regardless of the active groups.
+
+Valid group names: `issues`, `notes`, `links`, `files`, `projects`, `versions`, `meta`, `search`. An unknown name stops the server at startup with a message listing the valid ones. Deprecated tools always belong to the same group as their replacement. For the complete group-to-tool mapping see [Limit the offered tools in the README](../README.md#limit-the-offered-tools).
+
+**Example A — triage setup** (`issues`, `notes`, `meta`; no destructive operations):
+
+```json
+{
+  "env": {
+    "MANTIS_BASE_URL": "https://mantis.example.com",
+    "MANTIS_API_KEY": "your-api-token",
+    "MANTIS_TOOLSETS": "issues,notes,meta",
+    "MANTIS_DISABLE_DESTRUCTIVE": "true"
+  }
+}
+```
+
+**Example B — all groups, delete-protection only** (36 of the 41 default tools):
+
+```json
+{
+  "env": {
+    "MANTIS_BASE_URL": "https://mantis.example.com",
+    "MANTIS_API_KEY": "your-api-token",
+    "MANTIS_DISABLE_DESTRUCTIVE": "true"
+  }
+}
+```
+
+The `search` group additionally requires `MANTIS_SEARCH_ENABLED=true`. Without the `search` group in `MANTIS_TOOLSETS`, the search module — index, embedding model, background sync — is not started at all, even if `MANTIS_SEARCH_ENABLED=true` is set.
 
 ---
 

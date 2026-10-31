@@ -83,6 +83,69 @@ npm run build
 | `MANTIS_SEARCH_MODEL` | – | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | Embedding-Modell (wird beim ersten Start einmalig heruntergeladen, ~80 MB) |
 | `MANTIS_SEARCH_THREADS` | – | `1` | Anzahl der ONNX-Intra-Op-Threads für das Embedding-Modell. Standard ist 1, um CPU-Sättigung auf Mehrkernsystemen und in WSL zu verhindern. Nur erhöhen, wenn die Indexierungsgeschwindigkeit kritisch ist und der Host ausschließlich für diese Last vorgesehen ist. |
 | `MANTIS_UPLOAD_DIR` | – | – | Schränkt den `file_path` von `upload_file` auf dieses Verzeichnis ein (Pfad-Traversal via `../` wird blockiert). Im **stdio-Modus** ist `file_path` ohne diese Variable unbeschränkt. Im **HTTP-Modus** liest `file_path` aus dem Dateisystem des Servers und ist deshalb **deaktiviert, sofern diese Variable nicht gesetzt ist** – HTTP-Clients sollten stattdessen den Parameter `content` (Base64) verwenden. |
+| `MANTIS_TOOLSETS` | – | – (alle) | Kommagetrennte Liste der anzubietenden Tool-Gruppen: `issues`, `notes`, `links`, `files`, `projects`, `versions`, `meta`, `search` (Groß-/Kleinschreibung egal). Nicht gesetzt oder leer bedeutet alle Gruppen. Die Gruppe `search` erfordert zusätzlich `MANTIS_SEARCH_ENABLED=true`; ohne die Gruppe wird das Such-Modul gar nicht gestartet. Ein unbekannter Gruppenname stoppt den Server beim Start mit einer Meldung, die die gültigen Namen auflistet. Siehe [Angebotene Tools einschränken](#angebotene-tools-einschränken) und das [Cookbook](docs/cookbook.de.md#nur-bestimmte-tool-gruppen-anbieten). |
+| `MANTIS_DISABLE_DESTRUCTIVE` | – | `false` | Auf `true` setzen, um alle destruktiven Tools auszublenden – `delete_issue`, `delete_note`, `delete_version`, `remove_relationship`, `remove_monitor` – unabhängig von den aktiven Gruppen. Ausgeblendete Tools werden nicht aufgelistet und liefern »Tool … not found«, wenn sie aufgerufen werden. |
+
+### Angebotene Tools einschränken
+
+Zwei Umgebungsvariablen reduzieren die dem Modell angebotene Tool-Oberfläche – sinnvoll, um den Kontext des Modells kürzer zu halten und versehentliche destruktive Operationen zu verhindern:
+
+- **`MANTIS_TOOLSETS`** – nur die aufgelisteten Gruppen einbinden (kommagetrennt, Groß-/Kleinschreibung egal)
+- **`MANTIS_DISABLE_DESTRUCTIVE=true`** – zusätzlich `delete_issue`, `delete_note`, `delete_version`, `remove_relationship` und `remove_monitor` ausblenden, unabhängig von den aktiven Gruppen
+
+Ausgeblendete Tools werden nicht aufgelistet und liefern »Tool … not found«, wenn sie aufgerufen werden.
+
+| Gruppe | Tools |
+|---|---|
+| `issues` | `get_issue`, `list_issues`, `create_issue`, `update_issue`, `delete_issue`¹, `get_issues`†, `list_notes`†, `list_issue_files`†, `add_monitor`†, `remove_monitor`†¹ |
+| `notes` | `add_note`, `delete_note`¹ |
+| `links` | `add_relationship`, `remove_relationship`¹, `attach_tags`, `detach_tag`, `list_tags` |
+| `files` | `upload_file` |
+| `projects` | `list_projects`, `get_project`, `list_filters`, `get_project_categories`†, `get_project_users`†, `get_project_versions`†, `find_project_member`† |
+| `versions` | `create_version`, `update_version`, `delete_version`¹, `release_version`† |
+| `meta` | `get_metadata`, `get_issue_schema`, `get_config`, `get_version`, `get_current_user`, `get_metadata_full`†, `sync_metadata`†, `get_search_index_status`†, `get_issue_fields`†, `get_issue_enums`†, `get_mcp_version`†, `get_mantis_version`†, `list_languages`† |
+| `search` | `search_issues`, `rebuild_search_index` ² |
+
+¹ wird von `MANTIS_DISABLE_DESTRUCTIVE=true` ausgeblendet · † veraltet, wird in 2.0.0 entfernt · ² erfordert zusätzlich `MANTIS_SEARCH_ENABLED=true`; ohne die Gruppe `search` wird das Such-Modul gar nicht gestartet
+
+Veraltete Tools gehören immer zur gleichen Gruppe wie ihr Ersatz – eine Gruppe zu deaktivieren blendet sowohl den alten als auch den neuen Namen aus.
+
+**Beispiel A – Triage-Setup** (Issues, Notizen und Metadaten; keine destruktiven Operationen):
+
+```json
+{
+  "mcpServers": {
+    "mantisbt": {
+      "command": "npx",
+      "args": ["-y", "@dpesch/mantisbt-mcp-server"],
+      "env": {
+        "MANTIS_BASE_URL": "https://deine-mantis-instanz.example.com/api/rest",
+        "MANTIS_API_KEY": "dein-api-token",
+        "MANTIS_TOOLSETS": "issues,notes,meta",
+        "MANTIS_DISABLE_DESTRUCTIVE": "true"
+      }
+    }
+  }
+}
+```
+
+**Beispiel B – alle Gruppen, nur Löschschutz** (36 von 41 Standard-Tools):
+
+```json
+{
+  "mcpServers": {
+    "mantisbt": {
+      "command": "npx",
+      "args": ["-y", "@dpesch/mantisbt-mcp-server"],
+      "env": {
+        "MANTIS_BASE_URL": "https://deine-mantis-instanz.example.com/api/rest",
+        "MANTIS_API_KEY": "dein-api-token",
+        "MANTIS_DISABLE_DESTRUCTIVE": "true"
+      }
+    }
+  }
+}
+```
 
 ## Verfügbare Tools
 

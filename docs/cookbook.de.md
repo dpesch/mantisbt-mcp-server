@@ -6,6 +6,7 @@ Tool-orientierte Rezepte für den MantisBT MCP Server – jedes Rezept zeigt gen
 
 - [Verbindung einrichten](#verbindung-einrichten)
   - [Installation ohne URL-Rewriting anbinden](#installation-ohne-url-rewriting-anbinden)
+  - [Nur bestimmte Tool-Gruppen anbieten](#nur-bestimmte-tool-gruppen-anbieten)
 - [Die eigene Instanz erkunden](#die-eigene-instanz-erkunden)
   - [Alle Projekte abrufen](#alle-projekte-abrufen)
   - [Gültige select-Felder und Enum-Werte ermitteln](#gültige-select-felder-und-enum-werte-ermitteln)
@@ -113,6 +114,41 @@ Manche MantisBT-Installationen liefern die REST-API ausschließlich über ihren 
 Endet `MANTIS_BASE_URL` auf `/api/rest/index.php`, wird das index.php-Routing automatisch aktiviert. Ein explizit gesetztes `MANTIS_USE_INDEX_PHP` hat immer Vorrang vor der Erkennung – steht es zusammen mit einer solchen URL auf `false`, wird das normale `/api/rest/`-Routing erzwungen und eine Warnung auf stderr ausgegeben.
 
 **Prüfen:** `get_version` aufrufen. Kommt eine Antwort zurück, stimmt das Routing.
+
+---
+
+### Nur bestimmte Tool-Gruppen anbieten
+
+Standardmäßig sind alle 41 Tools aktiv (Suche deaktiviert). Mit `MANTIS_TOOLSETS` lassen sich nur die benötigten Gruppen laden – das hält den Kontext des Modells kürzer. Mit `MANTIS_DISABLE_DESTRUCTIVE=true` werden alle destruktiven Tools ausgeblendet, unabhängig von den aktiven Gruppen.
+
+Gültige Gruppennamen: `issues`, `notes`, `links`, `files`, `projects`, `versions`, `meta`, `search`. Ein unbekannter Name stoppt den Server beim Start mit einer Meldung, die die gültigen Namen auflistet. Veraltete Tools gehören immer zur gleichen Gruppe wie ihr Ersatz. Die vollständige Zuordnung von Gruppe zu Tools findet sich unter [Angebotene Tools einschränken im README](../README.de.md#angebotene-tools-einschränken).
+
+**Beispiel A – Triage-Setup** (`issues`, `notes`, `meta`; keine destruktiven Operationen):
+
+```json
+{
+  "env": {
+    "MANTIS_BASE_URL": "https://mantis.example.com",
+    "MANTIS_API_KEY": "dein-api-token",
+    "MANTIS_TOOLSETS": "issues,notes,meta",
+    "MANTIS_DISABLE_DESTRUCTIVE": "true"
+  }
+}
+```
+
+**Beispiel B – alle Gruppen, nur Löschschutz** (36 von 41 Standard-Tools):
+
+```json
+{
+  "env": {
+    "MANTIS_BASE_URL": "https://mantis.example.com",
+    "MANTIS_API_KEY": "dein-api-token",
+    "MANTIS_DISABLE_DESTRUCTIVE": "true"
+  }
+}
+```
+
+Die Gruppe `search` erfordert zusätzlich `MANTIS_SEARCH_ENABLED=true`. Fehlt `search` in `MANTIS_TOOLSETS`, wird das Such-Modul – Index, Embedding-Modell, Hintergrund-Sync – gar nicht gestartet, auch wenn `MANTIS_SEARCH_ENABLED=true` gesetzt ist.
 
 ---
 

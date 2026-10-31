@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeBaseUrl, usesIndexPhpEntryPoint } from './client.js';
+import { parseToolsets, type Toolset } from './toolsets.js';
 
 // ---------------------------------------------------------------------------
 // Config shape
@@ -40,6 +41,10 @@ export interface StartupConfig {
   httpToken?: string;
   search: SearchConfig;
   testEnvironment: boolean;
+  /** Active tool groups (MANTIS_TOOLSETS); all groups when unset. */
+  toolsets: ReadonlySet<Toolset>;
+  /** Hide tools with destructiveHint (MANTIS_DISABLE_DESTRUCTIVE=true). */
+  disableDestructive: boolean;
 }
 
 export type MantisConfig = ConnectionConfig & StartupConfig;
@@ -117,6 +122,8 @@ function readNonCredentialConfig(): StartupConfig {
       numThreads: searchNumThreads,
     },
     testEnvironment: process.env.MCP_TEST_ENVIRONMENT === 'true',
+    toolsets: parseToolsets(process.env.MANTIS_TOOLSETS),
+    disableDestructive: process.env.MANTIS_DISABLE_DESTRUCTIVE === 'true',
   };
 }
 
