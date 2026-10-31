@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { coerceBool } from '../coerce.js';
 import { MantisClient } from '../client.js';
 import { MetadataCache, type CachedMetadata, type CachedProjectMeta } from '../cache.js';
 import type { MantisProject, MantisIdName, MantisUser, MantisVersion, MantisCategory, MantisTag, MantisPaginatedIssues } from '../types.js';
@@ -8,9 +9,6 @@ import { ALL_PROJECTS_PREFIX } from '../constants.js';
 import { deprecationNote } from '../deprecation.js';
 import type { SearchIndexStatus } from '../types.js';
 import { fetchIssueEnumsWithCache } from './config.js';
-
-const coerceBool = (val: unknown) =>
-  val === 'true' ? true : val === 'false' ? false : val;
 
 // Fields MantisBT strips from issue responses when the array is empty.
 // They are always valid 'select' values even if absent in a sample issue.

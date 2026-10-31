@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { coerceBool } from '../coerce.js';
 import { MantisClient } from '../client.js';
 import type { MantisProject, MantisUser, MantisVersion, MantisCategory } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
@@ -13,9 +14,6 @@ function errorText(msg: string): string {
   const hint = vh?.getUpdateHint();
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
-
-const coerceBool = (val: unknown) =>
-  val === 'true' ? true : val === 'false' ? false : val;
 
 /** Case-insensitive substring match on login name, real name and email. */
 const matchMembers = (users: MantisUser[], query: string): MantisUser[] => {

@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { coerceBool } from '../coerce.js';
 import { MantisClient, buildIssueViewUrl } from '../client.js';
 import { enrichIssue } from '../issue-enrich.js';
 import { MetadataCache } from '../cache.js';
@@ -427,9 +428,6 @@ For the handler, prefer the username field (resolved server-side) over handler_i
   // ---------------------------------------------------------------------------
   // update_issue
   // ---------------------------------------------------------------------------
-
-  const coerceBool = (val: unknown) =>
-    val === 'true' ? true : val === 'false' ? false : val;
 
   /** PATCHes the issue fields (enum names resolved to IDs) and returns the enriched issue. */
   async function patchIssueFields(id: number, fields: Record<string, unknown>): Promise<MantisIssue> {

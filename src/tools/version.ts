@@ -1,11 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { coerceBool } from '../coerce.js';
 import { MantisClient } from '../client.js';
 import { VersionHintService, parseVersion, compareVersions } from '../version-hint.js';
 import { deprecationNote } from '../deprecation.js';
-
-const coerceBool = (val: unknown) =>
-  val === 'true' ? true : val === 'false' ? false : val;
 
 export function registerVersionTools(server: McpServer, client: MantisClient, versionHint: VersionHintService, mcpVersion: string): void {
 

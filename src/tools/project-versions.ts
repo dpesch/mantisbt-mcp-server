@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { coerceBool } from '../coerce.js';
 import { MantisClient } from '../client.js';
 import type { MantisVersion } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
@@ -12,9 +13,6 @@ function errorText(msg: string): string {
   const hint = vh?.getUpdateHint();
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
-
-const coerceBool = (val: unknown) =>
-  val === 'true' ? true : val === 'false' ? false : val;
 
 /** Drops undefined values so PATCH only touches the fields the caller set. */
 function definedFields(fields: Record<string, unknown>): Record<string, unknown> {

@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { coerceBool } from '../coerce.js';
 import { buildIssueViewUrl, type MantisClient } from '../client.js';
 import type { VectorStore } from './store.js';
 import type { SearchIndexStatus } from '../types.js';
@@ -37,9 +38,6 @@ function errorText(msg: string): string {
 // ---------------------------------------------------------------------------
 // registerSearchTools
 // ---------------------------------------------------------------------------
-
-const coerceBool = (val: unknown) =>
-  val === 'true' ? true : val === 'false' ? false : val;
 
 /** Fill level of the search index (shared by get_metadata and get_search_index_status). */
 export async function getSearchIndexStatus(store: VectorStore): Promise<SearchIndexStatus> {
