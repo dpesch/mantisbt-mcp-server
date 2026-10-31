@@ -155,7 +155,7 @@ Veraltete Tools gehören immer zur gleichen Gruppe wie ihr Ersatz – eine Grupp
 |---|---|
 | `get_issue` | Ein Issue per `id` oder mehrere per `ids` (1–50) in einem Aufruf abrufen – genau eines von beiden angeben; mit `ids` lautet die Antwort `{ issues, requested, found, failed }`, nicht zugängliche IDs liefern `null` an ihrer Position; optionales `select` zur Feldauswahl |
 | `get_issues` | **Veraltet:** stattdessen `get_issue` mit `ids` verwenden – wird in 2.0.0 entfernt |
-| `list_issues` | Issues nach Projekt, Status, Autor u.v.m. filtern; optionales `select` für Feldprojektion und `status` für clientseitige Statusfilterung – kanonische englische Statusnamen (z.B. `"new"`, `"resolved"`) werden per ID abgeglichen und funktionieren damit sprachunabhängig auf lokalisierten Installationen |
+| `list_issues` | Issues nach Projekt, Status, Autor u.v.m. filtern; optionales `select` für Feldprojektion und `status` für clientseitige Statusfilterung – kanonische englische Statusnamen (z.B. `"new"`, `"resolved"`) werden per ID abgeglichen und funktionieren damit sprachunabhängig auf lokalisierten Installationen; `group_by` (`"status"`, `"handler"`, `"priority"`, `"category"`) liefert statt einer Issue-Liste Zählwerte pro Gruppe – alle Filter greifen weiterhin, `page`, `page_size` und `select` werden ignoriert |
 | `create_issue` | Neues Issue anlegen; `severity` und `priority` müssen kanonische englische Namen sein (z.B. `minor`, `major`, `normal`, `high`) – `get_issue_schema` aufrufen, um alle gültigen Werte und deren lokalisierte Bezeichnungen zu sehen; optionaler `handler`-Parameter akzeptiert einen Benutzernamen als Alternative zu `handler_id` (wird gegen die Projektmitglieder aufgelöst); optionales `custom_fields` zum Setzen benutzerdefinierter Felder |
 | `update_issue` | Bestehendes Issue bearbeiten; Enum-Felder (`status`, `priority`, `severity`, `resolution`, `reproducibility`) akzeptieren kanonische englische Namen, lokalisierte Namen oder numerische IDs – der Server löst Namen automatisch zu IDs auf; unterstützt `custom_fields` sowie einen optionalen `note`-Parameter, der im selben Aufruf eine Notiz anhängt; `fields` darf entfallen, wenn nur `add_monitors`, `remove_monitors` oder `note` angegeben werden; mit `add_monitors` / `remove_monitors` (Arrays von Login-Namen) können Beobachter hinzugefügt oder entfernt werden – die Antwort enthält einen `monitors`-Schlüssel mit der aktuellen und der geänderten Beobachterliste; mit `fields.notes` lassen sich bestehende Notizen per ID bearbeiten (Notiz-ID aus `get_issue`) |
 | `delete_issue` | Issue löschen |
@@ -264,6 +264,28 @@ npm install sqlite-vec better-sqlite3
 | `get_mantis_version` | **Veraltet:** stattdessen `get_version` verwenden – wird in 2.0.0 entfernt |
 | `get_mcp_version` | **Veraltet:** stattdessen `get_version` verwenden – wird in 2.0.0 entfernt |
 
+## Token-Verbrauch
+
+Der Server übernimmt das Zählen und die Feldprojektion selbst – das Modell erhält eine kompakte Zusammenfassung, statt rohe Issue-Listen zu lesen. Gemessen am 2026-10-31 an einer MantisBT-2.28-Installation (604 Issues, fünf Issues mit langen Beschreibungen und Notizen):
+
+| Aufgabe | Vorher | Tokens | Nachher | Tokens | Ersparnis |
+|---|---|---:|---|---:|---:|
+| Statusübersicht eines Projekts (604 Issues) | `list_issues`, alle Seiten | 1.274.398 | `list_issues` + `group_by: "status"` | 165 | 99,9 % |
+| Offene Issues je Bearbeiter | `list_issues` Status `"open"` + `select`, alle Seiten ¹ | 2.686 | `list_issues` + `group_by: "handler"` | 108 | 95,9 % |
+| 5 Issues mit ausgewählten Feldern | `get_issue` ids, ohne `select` | 16.272 | `get_issue` ids + `select` | 623 | 96,1 % |
+
+¹ `list_issues` durchsucht bei aktiven clientseitigen Filtern höchstens 500 Issues – der »Vorher«-Wert ist daher zu niedrig angesetzt.
+
+Tokens geschätzt als Zeichen / 4. Zur Reproduktion an der eigenen Instanz (erfordert einen Git-Checkout, nicht per npx verfügbar):
+
+```bash
+MANTIS_BASE_URL=… MANTIS_API_KEY=… \
+  BENCHMARK_PROJECT_ID=12 BENCHMARK_ISSUE_IDS=101,102,103,104,105 \
+  npm run benchmark
+```
+
+Anmeldedaten können auch aus `.env.local` kommen.
+
 ## Verfügbare Ressourcen
 
 MCP-Ressourcen sind URI-adressierbare, schreibgeschützte Daten, die Clients direkt abrufen können, ohne ein Tool aufzurufen. Sie sind das dritte MCP-Primitiv neben Tools und Prompts. Hinweis: Ressourcen werden von MCP-Clients weniger breit unterstützt als Tools – bitte die Dokumentation des jeweiligen Clients prüfen.
@@ -318,6 +340,7 @@ npm run dev          # Watch-Modus für Entwicklung
 npm test             # Tests ausführen (vitest)
 npm run test:watch   # Tests im Watch-Modus
 npm run test:coverage # Coverage-Report
+npm run benchmark    # Token-Benchmark gegen eine Live-MantisBT-Instanz (siehe Token-Verbrauch oben)
 ```
 
 ## Lizenz

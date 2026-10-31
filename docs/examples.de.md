@@ -141,6 +141,10 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 
 ### Triage und Auswertung
 
+> »Gib mir eine Statusübersicht von Projekt 12 – wie viele Issues gibt es je Status?«
+
+> »Wie viele offene Issues hat jede Person in Projekt 12?«
+
 > »Gib mir einen Überblick über alle kritischen und dringenden offenen Issues in allen Projekten.«
 
 > »Welche Issues im Backend-Projekt sind seit mehr als 30 Tagen ohne Aktivität offen?«

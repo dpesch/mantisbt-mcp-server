@@ -141,6 +141,10 @@ Practical examples of how to interact with MantisBT through Claude once the MCP 
 
 ### Triage and reporting
 
+> "Give me a status overview of project 12 — how many issues are in each status?"
+
+> "How many open issues does each person have in project 12?"
+
 > "Give me an overview of all critical and urgent open issues across all projects."
 
 > "Which issues in the Backend project have been open for more than 30 days without any activity?"

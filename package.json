@@ -41,6 +41,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:record": "tsx scripts/record-fixtures.ts",
+    "benchmark": "tsx scripts/benchmark-tokens.ts",
     "init": "node scripts/init.mjs"
   },
   "dependencies": {

@@ -1862,3 +1862,131 @@ describe('list_issues – combined date window', () => {
     expect(parsed.issues.map(i => i.id)).toEqual([1]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// list_issues – group_by (#8492)
+// Counts per group instead of an issue list; scans all pages server-side.
+// ---------------------------------------------------------------------------
+
+describe('list_issues – group_by', () => {
+  const NEW = { id: 10, name: 'new', label: 'neu' };
+  const RESOLVED = { id: 80, name: 'resolved', label: 'erledigt' };
+  const DOM = { id: 2, name: 'dom' };
+  const ANNA = { id: 7, name: 'anna' };
+
+  /** Serves the given issues in API pages of the requested page_size. */
+  function serveIssues(issues: Array<Record<string, unknown>>): void {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = new URL(String(input));
+      const size = Number(url.searchParams.get('page_size'));
+      const page = Number(url.searchParams.get('page'));
+      return makeResponse(200, JSON.stringify({ issues: issues.slice((page - 1) * size, page * size) }));
+    });
+  }
+  const parse = (r: { content: Array<{ text: string }> }) =>
+    JSON.parse(r.content[0]!.text) as { group_by: string; total: number; truncated?: boolean; groups: Array<{ id: number | null; name: string; label?: string; count: number }> };
+
+  it('counts issues per status, sorted by count, with one narrow request per 1000 issues', async () => {
+    serveIssues([
+      { id: 1, status: NEW }, { id: 2, status: RESOLVED }, { id: 3, status: RESOLVED },
+    ]);
+
+    const result = await mockServer.callTool('list_issues', { project_id: 57, group_by: 'status' }, { validate: true });
+
+    expect(result.isError).toBeUndefined();
+    expect(parse(result)).toEqual({
+      group_by: 'status',
+      total: 3,
+      groups: [
+        { id: 80, name: 'resolved', label: 'erledigt', count: 2 },
+        { id: 10, name: 'new', label: 'neu', count: 1 },
+      ],
+    });
+    expect(vi.mocked(fetch)).toHaveBeenCalledOnce();
+    const url = new URL(fetchCall(0).url);
+    expect(url.searchParams.get('page_size')).toBe('1000');
+    expect(url.searchParams.get('project_id')).toBe('57');
+    expect(url.searchParams.get('select')!.split(',')).toEqual(expect.arrayContaining(['id', 'status']));
+  });
+
+  it('groups by handler and puts issues without handler under "(unassigned)"', async () => {
+    serveIssues([{ id: 1, handler: DOM }, { id: 2, handler: DOM }, { id: 3 }]);
+
+    const result = await mockServer.callTool('list_issues', { group_by: 'handler' }, { validate: true });
+
+    expect(parse(result).groups).toEqual([
+      { id: 2, name: 'dom', count: 2 },
+      { id: null, name: '(unassigned)', count: 1 },
+    ]);
+  });
+
+  it('applies the client-side filters before counting', async () => {
+    serveIssues([
+      { id: 1, status: NEW, handler: DOM }, { id: 2, status: RESOLVED, handler: DOM },
+      { id: 3, status: NEW, handler: ANNA },
+    ]);
+
+    const result = await mockServer.callTool('list_issues', { group_by: 'status', assigned_to: 2, status: 'open' }, { validate: true });
+
+    expect(parse(result)).toMatchObject({ total: 1, groups: [{ name: 'new', count: 1 }] });
+    const select = new URL(fetchCall(0).url).searchParams.get('select')!.split(',');
+    expect(select).toEqual(expect.arrayContaining(['status', 'handler']));
+  });
+
+  it('scans every page until a short one', async () => {
+    serveIssues(Array.from({ length: 1003 }, (_, i) => ({ id: i + 1, priority: { id: 30, name: 'normal' } })));
+
+    const result = await mockServer.callTool('list_issues', { group_by: 'priority' }, { validate: true });
+
+    expect(parse(result)).toMatchObject({ total: 1003, groups: [{ name: 'normal', count: 1003 }] });
+    expect(parse(result)).not.toHaveProperty('truncated');
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports truncated instead of silently counting too few when the scan cap is hit', async () => {
+    vi.mocked(fetch).mockImplementation(async () =>
+      makeResponse(200, JSON.stringify({ issues: Array.from({ length: 1000 }, (_, i) => ({ id: i, category: { id: 1, name: 'API' } })) })));
+
+    const result = await mockServer.callTool('list_issues', { group_by: 'category' }, { validate: true });
+
+    expect(parse(result)).toMatchObject({ truncated: true, total: 50_000, groups: [{ name: 'API', count: 50_000 }] });
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(50);
+  });
+
+  it('rejects an unknown group_by value', async () => {
+    const result = await mockServer.callTool('list_issues', { group_by: 'reporter' }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// list_issues – filtered listing reports its scan limit (#8492)
+// ---------------------------------------------------------------------------
+
+describe('list_issues – truncated', () => {
+  const page = (statusId: number) => makeResponse(200, JSON.stringify({
+    issues: Array.from({ length: 50 }, (_, i) => ({ id: i + 1, status: { id: statusId, name: statusId === 10 ? 'new' : 'closed' } })),
+  }));
+
+  it('says truncated when the 500-issue scan limit ends the search early', async () => {
+    vi.mocked(fetch).mockImplementation(async () => page(90));
+
+    const result = await mockServer.callTool('list_issues', { status: 'new' }, { validate: true });
+
+    expect(JSON.parse(result.content[0]!.text)).toEqual({ issues: [], truncated: true });
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(10);
+  });
+
+  it('does not say truncated when enough matches were found', async () => {
+    vi.mocked(fetch).mockImplementation(async () => page(10));
+
+    const result = await mockServer.callTool('list_issues', { status: 'new', page_size: 20 }, { validate: true });
+
+    const parsed = JSON.parse(result.content[0]!.text) as { issues: unknown[]; truncated?: boolean };
+    expect(parsed.issues).toHaveLength(20);
+    expect(parsed).not.toHaveProperty('truncated');
+    expect(vi.mocked(fetch)).toHaveBeenCalledOnce();
+  });
+});

@@ -155,7 +155,7 @@ Deprecated tools always belong to the same group as their replacement — disabl
 |---|---|
 | `get_issue` | Retrieve an issue by `id`, or several by `ids` (1–50) in one call — pass exactly one; with `ids` returns `{ issues, requested, found, failed }`, missing or inaccessible IDs give `null` at their position; optional `select` for field projection |
 | `get_issues` | **Deprecated:** use `get_issue` with `ids` instead — will be removed in 2.0.0 |
-| `list_issues` | Filter issues by project, status, author, and more; optional `select` for field projection and `status` for client-side status filtering — canonical English status names (e.g. `"new"`, `"resolved"`) are matched by ID, making the filter language-independent on localized installations |
+| `list_issues` | Filter issues by project, status, author, and more; optional `select` for field projection and `status` for client-side status filtering — canonical English status names (e.g. `"new"`, `"resolved"`) are matched by ID, making the filter language-independent on localized installations; `group_by` (`"status"`, `"handler"`, `"priority"`, `"category"`) returns counts per group instead of an issue list — all filters still apply, `page`, `page_size`, and `select` are ignored |
 | `create_issue` | Create a new issue; `severity` and `priority` must be canonical English names (e.g. `minor`, `major`, `normal`, `high`) — call `get_issue_schema` to see all valid values and their localized labels; optional `handler` parameter accepts a username as alternative to `handler_id` (resolved against project members); optional `custom_fields` to set custom field values |
 | `update_issue` | Update an existing issue; enum fields (`status`, `priority`, `severity`, `resolution`, `reproducibility`) accept canonical English names, localized names, or numeric IDs — the server resolves names to IDs automatically; supports `custom_fields` and an optional `note` parameter that appends a note in the same call; `fields` may be omitted when only `add_monitors`, `remove_monitors`, or `note` are given; use `add_monitors` / `remove_monitors` (arrays of login names) to add or remove watchers — the response includes a `monitors` key with the current and changed monitor lists; use `fields.notes` to edit existing notes by ID (note ID from `get_issue`) |
 | `delete_issue` | Delete an issue |
@@ -264,6 +264,28 @@ npm install sqlite-vec better-sqlite3
 | `get_mantis_version` | **Deprecated:** use `get_version` instead — will be removed in 2.0.0 |
 | `get_mcp_version` | **Deprecated:** use `get_version` instead — will be removed in 2.0.0 |
 
+## Token usage
+
+The server handles counting and field projection itself — the model receives a compact summary instead of reading raw issue lists. Measured on 2026-10-31 against a MantisBT 2.28 installation (604 issues, five issues with long descriptions/notes):
+
+| Task | Before | Tokens | After | Tokens | Saved |
+|---|---|---:|---|---:|---:|
+| Status overview of a project (604 issues) | `list_issues`, all pages | 1,274,398 | `list_issues` + `group_by: "status"` | 165 | 99.9 % |
+| Open issues per handler | `list_issues` status `"open"` + `select`, all pages ¹ | 2,686 | `list_issues` + `group_by: "handler"` | 108 | 95.9 % |
+| 5 issues with selected fields | `get_issue` ids, no `select` | 16,272 | `get_issue` ids + `select` | 623 | 96.1 % |
+
+¹ `list_issues` scans at most 500 issues when client-side filters are active, so this "before" value is understated.
+
+Tokens estimated as characters / 4. To reproduce against your own instance (requires a git checkout, not available via npx):
+
+```bash
+MANTIS_BASE_URL=… MANTIS_API_KEY=… \
+  BENCHMARK_PROJECT_ID=12 BENCHMARK_ISSUE_IDS=101,102,103,104,105 \
+  npm run benchmark
+```
+
+Credentials may also come from `.env.local`.
+
 ## Available resources
 
 MCP Resources are URI-addressable, read-only data that clients can fetch directly without calling a tool. They are the third MCP primitive alongside Tools and Prompts. Note that Resource support is less widely implemented in MCP clients than Tools — check your client's documentation.
@@ -318,6 +340,7 @@ npm run dev          # Watch mode for development
 npm test             # Run tests (vitest)
 npm run test:watch   # Run tests in watch mode
 npm run test:coverage # Coverage report
+npm run benchmark    # Token benchmark against a live MantisBT (see Token usage above)
 ```
 
 ## License

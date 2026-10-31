@@ -4,7 +4,7 @@ import { coerceBool } from '../coerce.js';
 import { MantisClient, buildIssueViewUrl } from '../client.js';
 import { enrichIssue } from '../issue-enrich.js';
 import { MetadataCache } from '../cache.js';
-import type { MantisIssue, MantisUser, MantisPaginatedIssues } from '../types.js';
+import type { MantisIdName, MantisIssue, MantisUser, MantisPaginatedIssues } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
 import { MANTIS_CANONICAL_ENUM_NAMES, MANTIS_RESOLVED_STATUS_ID, resolveEnumId } from '../constants.js';
 import { dateFilterSchema, matchesDateFilter, hasDateFilter, type DateFilter } from '../date-filter.js';
@@ -33,6 +33,76 @@ const customFieldEntry = z.object({
 });
 
 const GET_ISSUES_CONCURRENCY = 5;
+
+const GROUP_BY_FIELDS = ['status', 'handler', 'priority', 'category'] as const;
+type GroupByField = typeof GROUP_BY_FIELDS[number];
+
+// group_by scans every matching issue. MantisBT 2.28 does not cap page_size
+// and returns no total count; 1000 issues per page with a narrow select
+// scanned 7,700 issues in about 1 s. The cap guards against huge instances.
+const GROUP_BY_PAGE_SIZE = 1000;
+const GROUP_BY_MAX_PAGES = 50;
+
+interface IssueFilterOptions {
+  status?: string;
+  assigned_to?: number;
+  reporter_id?: number;
+  dateFilter: DateFilter;
+}
+
+/**
+ * The client-side filters of list_issues (the MantisBT REST API does not apply
+ * them server-side), shared by the paged listing and group_by.
+ */
+function makeIssueFilter({ status, assigned_to, reporter_id, dateFilter }: IssueFilterOptions) {
+  const statusLower = status?.toLowerCase();
+  const statusId = status ? resolveEnumId('status', status) : undefined;
+  // Pre-parse once — avoids repeated new Date() inside the scan loop
+  const updatedAfterMs = dateFilter.updated_after ? new Date(dateFilter.updated_after).getTime() : undefined;
+
+  const matchesStatus = (issue: MantisIssue): boolean => {
+    if (!statusLower) return true;
+    if (!issue.status) return false;
+    if (statusLower === 'open') return (issue.status.id ?? 0) < MANTIS_RESOLVED_STATUS_ID;
+    if (statusId !== undefined) return issue.status.id === statusId;
+    return issue.status.name?.toLowerCase() === statusLower;
+  };
+
+  /** Fields the filters read — needed in a narrow select. */
+  const fields = [
+    ...(status !== undefined ? ['status'] : []),
+    ...(assigned_to !== undefined ? ['handler'] : []),
+    ...(reporter_id !== undefined ? ['reporter'] : []),
+    ...(dateFilter.updated_after || dateFilter.updated_before ? ['updated_at'] : []),
+    ...(dateFilter.created_after || dateFilter.created_before ? ['created_at'] : []),
+  ];
+
+  return {
+    /** True when any client-side filter is set (every filter reads a field). */
+    active: fields.length > 0,
+    fields,
+    matches: (issue: MantisIssue): boolean =>
+      matchesStatus(issue)
+      && (assigned_to === undefined || issue.handler?.id === assigned_to)
+      && (reporter_id === undefined || issue.reporter?.id === reporter_id)
+      && matchesDateFilter(issue, dateFilter),
+    /**
+     * MantisBT returns issues newest-first: once one is at or before
+     * updated_after, every following page is older too.
+     */
+    olderThanUpdatedAfter: (issue: MantisIssue): boolean =>
+      updatedAfterMs !== undefined && issue.updated_at !== undefined && new Date(issue.updated_at).getTime() <= updatedAfterMs,
+  };
+}
+
+type IssueFilter = ReturnType<typeof makeIssueFilter>;
+
+interface IssueGroup {
+  id: number | null;
+  name: string;
+  label?: string;
+  count: number;
+}
 
 // Worker-pool: runs `fn` over all `items` with at most `concurrency` in-flight at once.
 // nextIndex is only incremented inside microtasks, so the ++ is safe without a lock.
@@ -82,6 +152,69 @@ async function resolveEnum(
 }
 
 export function registerIssueTools(server: McpServer, client: MantisClient, cache: MetadataCache): void {
+
+  /**
+   * Pages through GET /issues and hands every issue matching the client-side
+   * filter to onMatch (return false to stop). Ends on a short page, or after
+   * the current page once MantisBT's newest-first order shows the rest is
+   * older than updated_after. Returns truncated when maxPages ended the scan
+   * before either happened.
+   */
+  async function scanMatchingIssues(
+    params: Record<string, string | number | boolean | undefined>,
+    filter: IssueFilter,
+    pageSize: number,
+    maxPages: number,
+    onMatch: (issue: MantisIssue) => boolean | void,
+  ): Promise<{ truncated: boolean }> {
+    for (let page = 1; page <= maxPages; page++) {
+      const issues = (await client.get<MantisPaginatedIssues>('issues', { ...params, page, page_size: pageSize })).issues ?? [];
+      let stopAfterBatch = false;
+      for (const issue of issues) {
+        if (filter.matches(issue)) {
+          if (onMatch(issue) === false) return { truncated: false };
+        } else if (filter.olderThanUpdatedAfter(issue)) {
+          stopAfterBatch = true; // finish the batch — items within it may still be newer
+        }
+      }
+      if (issues.length < pageSize || stopAfterBatch) return { truncated: false };
+    }
+    return { truncated: true };
+  }
+
+  /**
+   * Counts all matching issues per group (list_issues group_by), fetching only
+   * the fields grouping and filters need.
+   */
+  async function groupIssues(
+    groupBy: GroupByField,
+    params: Record<string, string | number | undefined>,
+    filter: IssueFilter,
+  ): Promise<{ group_by: GroupByField; total: number; truncated?: true; groups: IssueGroup[] }> {
+    const select = [...new Set(['id', groupBy, ...filter.fields])].join(',');
+    const groups = new Map<number | null, IssueGroup>();
+    let total = 0;
+
+    const { truncated } = await scanMatchingIssues({ ...params, select }, filter, GROUP_BY_PAGE_SIZE, GROUP_BY_MAX_PAGES, issue => {
+      const ref: Partial<MantisIdName> | undefined = issue[groupBy];
+      const key = ref?.id ?? null;
+      let group = groups.get(key);
+      if (!group) {
+        group = {
+          id: key,
+          name: ref?.name ?? (groupBy === 'handler' ? '(unassigned)' : '(none)'),
+          ...(ref?.label !== undefined && { label: ref.label }),
+          count: 0,
+        };
+        groups.set(key, group);
+      }
+      group.count++;
+      total++;
+    });
+
+    const sorted = [...groups.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    return { group_by: groupBy, total, ...(truncated && { truncated: true as const }), groups: sorted };
+  }
 
   /**
    * Fetches and enriches one issue. The requested ID is passed to enrichIssue
@@ -188,7 +321,7 @@ Use "select" to fetch only some fields, e.g. select: "notes" for just the notes 
     'list_issues',
     {
       title: 'List Issues',
-      description: 'List MantisBT issues with optional filtering. Returns a paginated list of issues. Use the "select" parameter to limit returned fields and reduce response size significantly.\n\nNote: "assigned_to", "reporter_id", "status", and date filters are applied client-side (the MantisBT REST API does not support these as server-side filters). When any of these filters are active the tool automatically fetches multiple pages internally until enough matching results are found (up to 500 issues scanned). The "page" and "page_size" parameters refer to the resulting filtered list.\n\nTip for date queries: fetching with select="id,updated_at,created_at" plus a date filter is very compact and efficient.',
+      description: 'List MantisBT issues with optional filtering. Returns a paginated list of issues. Use the "select" parameter to limit returned fields and reduce response size significantly.\n\nNote: "assigned_to", "reporter_id", "status", and date filters are applied client-side (the MantisBT REST API does not support these as server-side filters). When any of these filters are active the tool automatically fetches multiple pages internally until enough matching results are found (up to 500 issues scanned); if that limit ends the search before the page is full, the response contains "truncated": true. The "page" and "page_size" parameters refer to the resulting filtered list.\n\nTip for date queries: fetching with select="id,updated_at,created_at" plus a date filter is very compact and efficient.\n\nFor overviews use "group_by" ("status", "handler", "priority" or "category"): the server counts all matching issues itself and returns { group_by, total, groups: [{ id, name, label?, count }] } instead of an issue list — far fewer tokens than listing issues and counting them. All filters still apply. If the scan stops at its limit (' + (GROUP_BY_PAGE_SIZE * GROUP_BY_MAX_PAGES).toLocaleString('en-US') + ' issues), the response contains "truncated": true.',
       inputSchema: z.object({
         project_id: z.coerce.number().int().positive().optional().describe('Filter by project ID'),
         page: z.coerce.number().int().positive().default(1).describe('Page number (default: 1)'),
@@ -200,6 +333,7 @@ Use "select" to fetch only some fields, e.g. select: "notes" for just the notes 
         direction: z.enum(['ASC', 'DESC']).optional().describe('Sort direction'),
         select: z.string().optional().describe('Comma-separated list of fields to include in the response (server-side projection). Significantly reduces response size. Example: "id,summary,status,priority,handler,updated_at"'),
         status: z.string().optional().describe('Filter issues by status name (e.g. "new", "feedback", "acknowledged", "confirmed", "assigned", "resolved", "closed") or use "open" as shorthand for all statuses with id < 80 (i.e. not yet resolved or closed). Applied client-side after fetching — when combined with pagination, a page may contain fewer results than page_size.'),
+        group_by: z.enum(GROUP_BY_FIELDS).optional().describe('Return counts per group instead of issues: "status", "handler", "priority" or "category". All matching issues are counted (page, page_size and select are ignored).'),
         ...dateFilterSchema,
       }),
       annotations: {
@@ -208,7 +342,7 @@ Use "select" to fetch only some fields, e.g. select: "notes" for just the notes 
         idempotentHint: true,
       },
     },
-    async ({ project_id, page, page_size, assigned_to, reporter_id, filter_id, sort, direction, select, status, updated_after, updated_before, created_after, created_before }) => {
+    async ({ project_id, page, page_size, assigned_to, reporter_id, filter_id, sort, direction, select, status, group_by, updated_after, updated_before, created_after, created_before }) => {
       try {
         const baseParams: Record<string, string | number | boolean | undefined> = {
           project_id,
@@ -221,11 +355,16 @@ Use "select" to fetch only some fields, e.g. select: "notes" for just the notes 
         };
 
         const dateFilter: DateFilter = { updated_after, updated_before, created_after, created_before };
-        const needsClientFilter = status !== undefined || assigned_to !== undefined || reporter_id !== undefined || hasDateFilter(dateFilter);
+        const filter = makeIssueFilter({ status, assigned_to, reporter_id, dateFilter });
+
+        if (group_by) {
+          const grouped = await groupIssues(group_by, { project_id, assigned_to, reporter_id, filter_id }, filter);
+          return { content: [{ type: 'text', text: JSON.stringify(grouped, null, 2) }] };
+        }
 
         const baseUrl = await client.getBaseUrl();
 
-        if (!needsClientFilter) {
+        if (!filter.active) {
           // No client-side filtering — single API call, pass pagination as-is
           const result = await client.get<MantisPaginatedIssues>('issues', { ...baseParams, page, page_size });
           const enriched = { ...result, issues: result.issues?.map(i => enrichIssue(i, baseUrl)) };
@@ -241,61 +380,18 @@ Use "select" to fetch only some fields, e.g. select: "notes" for just the notes 
         const neededTotal = page * page_size; // need this many matches to serve page N
 
         const matching: MantisIssue[] = [];
-        let serverPage = 1;
-        let hasMore = true;
-
-        const statusLower = status?.toLowerCase();
-        const statusId = status ? resolveEnumId('status', status) : undefined;
-        // Pre-parse date thresholds once — avoids repeated new Date() inside the scan loop
-        const updatedAfterMs = updated_after ? new Date(updated_after).getTime() : undefined;
-
-        while (matching.length < neededTotal && serverPage <= MAX_API_PAGES && hasMore) {
-          const batch = await client.get<MantisPaginatedIssues>('issues', {
-            ...baseParams,
-            page: serverPage,
-            page_size: API_PAGE_SIZE,
-          });
-
-          const issues = batch.issues ?? [];
-          hasMore = issues.length === API_PAGE_SIZE;
-
-          let stopAfterBatch = false;
-          for (const issue of issues) {
-            if (statusLower) {
-              if (!issue.status) continue;
-              if (statusLower === 'open') {
-                if ((issue.status.id ?? 0) >= MANTIS_RESOLVED_STATUS_ID) continue;
-              } else if (statusId !== undefined) {
-                if (issue.status.id !== statusId) continue;
-              } else if (issue.status.name?.toLowerCase() !== statusLower) {
-                continue;
-              }
-            }
-            if (assigned_to !== undefined && issue.handler?.id !== assigned_to) continue;
-            if (reporter_id !== undefined && issue.reporter?.id !== reporter_id) continue;
-            if (!matchesDateFilter(issue, dateFilter)) {
-              // MantisBT returns results newest-first. Once updated_at drops below
-              // updated_after, all subsequent pages are guaranteed to be older too.
-              // Finish the current batch first (items within it may still be newer),
-              // then stop fetching further pages.
-              if (updatedAfterMs && issue.updated_at && new Date(issue.updated_at).getTime() <= updatedAfterMs) {
-                stopAfterBatch = true;
-              }
-              continue;
-            }
-            matching.push(issue);
-          }
-
-          if (stopAfterBatch) break;
-          serverPage++;
-        }
+        const { truncated } = await scanMatchingIssues(baseParams, filter, API_PAGE_SIZE, MAX_API_PAGES, issue => {
+          matching.push(issue);
+          return matching.length < neededTotal;
+        });
 
         const start = (page - 1) * page_size;
         const pageIssues = matching.slice(start, start + page_size).map(i => enrichIssue(i, baseUrl));
+        // truncated: the scan limit ended the search before enough matches were found.
         return {
           content: [{
             type: 'text',
-            text: JSON.stringify({ issues: pageIssues }, null, 2),
+            text: JSON.stringify({ issues: pageIssues, ...(truncated && { truncated: true }) }, null, 2),
           }],
         };
       } catch (error) {

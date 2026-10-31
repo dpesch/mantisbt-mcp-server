@@ -18,6 +18,7 @@ Tool-orientierte Rezepte für den MantisBT MCP Server – jedes Rezept zeigt gen
   - [Nach Status filtern](#nach-status-filtern)
   - [Nach Bearbeiter oder Melder filtern](#nach-bearbeiter-oder-melder-filtern)
   - [Gespeicherten Filter anwenden](#gespeicherten-filter-anwenden)
+  - [Issues je Status, Bearbeiter, Priorität oder Kategorie zählen](#issues-je-status-bearbeiter-priorität-oder-kategorie-zählen)
   - [Issue erstellen](#issue-erstellen)
   - [Issue schließen (Status + Auflösung)](#issue-schließen-status--auflösung)
   - [Issue auflösen mit Begründungs-Notiz (ein Aufruf)](#issue-auflösen-mit-begründungs-notiz-ein-aufruf)
@@ -573,6 +574,71 @@ Einen in MantisBT vorgespeicherten Filter anhand seiner ID verwenden. Dies ist d
   ]
 }
 ```
+
+---
+
+### Issues je Status, Bearbeiter, Priorität oder Kategorie zählen
+
+Gibt die Anzahl der passenden Issues gruppiert nach einem einzelnen Feld zurück, anstatt einzelne Issues aufzulisten – deutlich weniger Tokens als das Lesen aller Seiten.
+
+**Tool:** `list_issues`
+
+**Parameter:**
+- `project_id` – _(optional)_ numerische Projekt-ID
+- `group_by` – `"status"`, `"handler"`, `"priority"` oder `"category"`
+- `status`, `assigned_to`, `reporter_id`, Datumsfilter – _(optional)_ alle Filter greifen weiterhin; `page`, `page_size` und `select` werden ignoriert
+
+**Request:**
+
+```json
+{
+  "project_id": 3,
+  "group_by": "status"
+}
+```
+
+**Response:**
+
+```json
+{
+  "group_by": "status",
+  "total": 604,
+  "groups": [
+    { "id": 80, "name": "resolved", "label": "erledigt", "count": 412 },
+    { "id": 50, "name": "assigned", "label": "zugewiesen", "count": 98 },
+    { "id": 40, "name": "confirmed", "label": "bestätigt", "count": 57 },
+    { "id": 20, "name": "feedback", "label": "Rückmeldung", "count": 37 }
+  ]
+}
+```
+
+Die Gruppen sind absteigend nach Anzahl, danach aufsteigend nach Name sortiert. Das Feld `label` enthält den lokalisierten Anzeigenamen und entfällt bei Gruppen ohne Label (z.B. Bearbeiter).
+
+**Request (Bearbeiter, nur offene Issues):**
+
+```json
+{
+  "project_id": 3,
+  "group_by": "handler",
+  "status": "open"
+}
+```
+
+**Response:**
+
+```json
+{
+  "group_by": "handler",
+  "total": 185,
+  "groups": [
+    { "id": 7, "name": "jdoe", "count": 72 },
+    { "id": 4, "name": "jsmith", "count": 68 },
+    { "id": null, "name": "(unassigned)", "count": 45 }
+  ]
+}
+```
+
+> **Hinweis:** Der Server durchsucht alle passenden Issues bis zu einem Limit von 50.000. Wird das Limit erreicht, enthält die Antwort `"truncated": true` und die Zählwerte sind unvollständig. Das ist ein deutlich größerer Scan als das 500-Issue-Limit der clientseitigen Filter in `list_issues`.
 
 ---
 

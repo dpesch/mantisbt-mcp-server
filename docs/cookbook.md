@@ -18,6 +18,7 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
   - [Filter by status](#filter-by-status)
   - [Filter by assignee or reporter](#filter-by-assignee-or-reporter)
   - [Apply a saved filter](#apply-a-saved-filter)
+  - [Count issues per status, handler, priority or category](#count-issues-per-status-handler-priority-or-category)
   - [Create an issue](#create-an-issue)
   - [Close an issue (status + resolution)](#close-an-issue-status--resolution)
   - [Resolve an issue with a reason note (single call)](#resolve-an-issue-with-a-reason-note-single-call)
@@ -573,6 +574,71 @@ Use a pre-saved MantisBT filter by its ID. This is the recommended approach for 
   ]
 }
 ```
+
+---
+
+### Count issues per status, handler, priority or category
+
+Returns the number of matching issues grouped by a single field instead of listing individual issues — far fewer tokens than reading all pages.
+
+**Tool:** `list_issues`
+
+**Parameters:**
+- `project_id` — _(optional)_ numeric project ID
+- `group_by` — `"status"`, `"handler"`, `"priority"`, or `"category"`
+- `status`, `assigned_to`, `reporter_id`, date filters — _(optional)_ all filters still apply; `page`, `page_size`, and `select` are ignored
+
+**Request:**
+
+```json
+{
+  "project_id": 3,
+  "group_by": "status"
+}
+```
+
+**Response:**
+
+```json
+{
+  "group_by": "status",
+  "total": 604,
+  "groups": [
+    { "id": 80, "name": "resolved", "label": "resolved", "count": 412 },
+    { "id": 50, "name": "assigned", "label": "assigned", "count": 98 },
+    { "id": 40, "name": "confirmed", "label": "confirmed", "count": 57 },
+    { "id": 20, "name": "feedback", "label": "feedback", "count": 37 }
+  ]
+}
+```
+
+Groups are sorted by count descending, then by name ascending. The `label` field contains the localized display name and is omitted for groups that have no label (e.g. handler).
+
+**Request (handler, open issues only):**
+
+```json
+{
+  "project_id": 3,
+  "group_by": "handler",
+  "status": "open"
+}
+```
+
+**Response:**
+
+```json
+{
+  "group_by": "handler",
+  "total": 185,
+  "groups": [
+    { "id": 7, "name": "jdoe", "count": 72 },
+    { "id": 4, "name": "jsmith", "count": 68 },
+    { "id": null, "name": "(unassigned)", "count": 45 }
+  ]
+}
+```
+
+> **Note:** The server scans all matching issues up to a limit of 50,000. If the limit is reached, the response contains `"truncated": true` and the counts are incomplete. This is a much larger scan than the 500-issue limit of client-side filters in `list_issues`.
 
 ---
 
