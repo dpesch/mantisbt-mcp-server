@@ -1269,7 +1269,7 @@ Abonniert einen Benutzer für Benachrichtigungen zu einem Issue.
 
 **Parameter:**
 - `issue_id` – numerische Issue-ID
-- `username` – Benutzername als Zeichenkette
+- `username` – MantisBT-Login-Name
 
 **Request:**
 
@@ -1283,8 +1283,13 @@ Abonniert einen Benutzer für Benachrichtigungen zu einem Issue.
 **Response:**
 
 ```json
-{ "success": true }
+{
+  "success": true,
+  "monitors": ["asmith", "jsmith"]
+}
 ```
+
+`monitors` listet alle Benutzer, die das Issue jetzt beobachten. Ist der Benutzer bereits Beobachter, ändert sich nichts, und der Aufruf gelingt trotzdem. Andere Benutzer hinzuzufügen erfordert die Zugriffsstufe `monitor_add_others_bug_threshold`.
 
 ---
 

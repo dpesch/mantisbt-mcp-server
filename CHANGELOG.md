@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `add_monitor` always subscribed the owner of the API key instead of the given user. It sent `{ name }`, but MantisBT reads only a `users` array and falls back to the logged-in user when it is missing. The tool now sends `{ users: [{ name }] }` and checks the returned monitor list; the response is now `{ success, monitors }` instead of the full issue object.
 - `remove_monitor` always failed with a 404: it called `DELETE /issues/{id}/monitors/{username}`, a route MantisBT (up to 2.28) does not have. The tool now reads the issue's monitors and sends `PATCH /issues/{id}` with the list minus the user — MantisBT treats `monitors` as the complete list. If the user is not a monitor, the call succeeds without changes (`removed: false`). Because MantisBT silently skips monitors the caller may not remove, the tool checks the result and returns an error if the user is still listed (removing other users requires `monitor_delete_others_bug_threshold`). The response now also lists the remaining monitors.
 
 ---

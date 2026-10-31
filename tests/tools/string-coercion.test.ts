@@ -163,7 +163,9 @@ describe('string-coercion – list_issue_files', () => {
 
 describe('string-coercion – add_monitor', () => {
   it('accepts issue_id as string', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, ''));
+    vi.mocked(fetch).mockResolvedValue(
+      makeResponse(201, JSON.stringify({ issues: [{ id: 1940, monitors: [{ id: 7, name: 'jdoe' }] }] })),
+    );
 
     const result = await mockServer.callTool(
       'add_monitor',

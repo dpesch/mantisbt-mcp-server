@@ -22,6 +22,25 @@ afterEach(() => {
 });
 
 // ---------------------------------------------------------------------------
+// Shared fixtures
+// ---------------------------------------------------------------------------
+
+type Monitor = { id: number; name: string };
+
+const JDOE: Monitor = { id: 7, name: 'jdoe' };
+const ASMITH: Monitor = { id: 9, name: 'asmith' };
+const AGENT: Monitor = { id: 51, name: 'agent' };
+
+/** Issue payload as returned by GET/PATCH /issues/{id} (200) and POST /issues/{id}/monitors (201). */
+function issueResponse(monitors: Monitor[], status = 200): Response {
+  return makeResponse(status, JSON.stringify({ issues: [{ id: 42, monitors }] }));
+}
+
+function parsed<T>(result: { content: Array<{ text: string }> }): T {
+  return JSON.parse(result.content[0]!.text) as T;
+}
+
+// ---------------------------------------------------------------------------
 // add_monitor
 // ---------------------------------------------------------------------------
 
@@ -30,23 +49,53 @@ describe('add_monitor', () => {
     expect(mockServer.hasToolRegistered('add_monitor')).toBe(true);
   });
 
+  // MantisBT reads only payload.users; without it, MonitorAddCommand adds the
+  // logged-in user (the API-key owner) instead (see Mantis #8506).
+
   it('posts to the correct endpoint', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, ''));
+    vi.mocked(fetch).mockResolvedValue(issueResponse([JDOE], 201));
 
     await mockServer.callTool('add_monitor', { issue_id: 42, username: 'jdoe' });
 
-    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
-    expect(calledUrl).toContain('issues/42/monitors');
+    const call = vi.mocked(fetch).mock.calls[0]!;
+    expect(call[0] as string).toContain('issues/42/monitors');
+    expect((call[1] as RequestInit).method).toBe('POST');
   });
 
-  it('sends the username in the request body', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(200, ''));
+  it('sends the user in the "users" array MantisBT expects', async () => {
+    vi.mocked(fetch).mockResolvedValue(issueResponse([JDOE], 201));
 
     await mockServer.callTool('add_monitor', { issue_id: 42, username: 'jdoe' });
 
     const options = vi.mocked(fetch).mock.calls[0]![1] as RequestInit;
-    const body = JSON.parse(options.body as string) as { name: string };
-    expect(body.name).toBe('jdoe');
+    expect(JSON.parse(options.body as string)).toEqual({ users: [{ name: 'jdoe' }] });
+  });
+
+  it('returns success with the monitors from the POST response, without an extra request', async () => {
+    vi.mocked(fetch).mockResolvedValue(issueResponse([AGENT, JDOE], 201));
+
+    const result = await mockServer.callTool('add_monitor', { issue_id: 42, username: 'jdoe' });
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    expect(result.isError).toBeUndefined();
+    expect(parsed(result)).toEqual({ success: true, monitors: ['agent', 'jdoe'] });
+  });
+
+  it('matches the username case-insensitively when checking the result', async () => {
+    vi.mocked(fetch).mockResolvedValue(issueResponse([JDOE], 201));
+
+    const result = await mockServer.callTool('add_monitor', { issue_id: 42, username: 'JDoe' });
+
+    expect(result.isError).toBeUndefined();
+  });
+
+  it('returns isError when the user is not a monitor afterwards', async () => {
+    vi.mocked(fetch).mockResolvedValue(issueResponse([AGENT], 201));
+
+    const result = await mockServer.callTool('add_monitor', { issue_id: 42, username: 'jdoe' });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('jdoe');
   });
 
   it('returns isError on API error', async () => {
@@ -67,17 +116,7 @@ describe('add_monitor', () => {
 // "monitors" as the complete list, so removing means sending the list without
 // the user (verified live against MantisBT 2.28.4, see Mantis #8496).
 
-const JDOE = { id: 7, name: 'jdoe' };
-const ASMITH = { id: 9, name: 'asmith' };
-
-function issueResponse(monitors: Array<{ id: number; name: string }>): Response {
-  return makeResponse(200, JSON.stringify({ issues: [{ id: 42, monitors }] }));
-}
-
-function mockGetThenPatch(
-  before: Array<{ id: number; name: string }>,
-  after: Array<{ id: number; name: string }>,
-): void {
+function mockGetThenPatch(before: Monitor[], after: Monitor[]): void {
   vi.mocked(fetch)
     .mockResolvedValueOnce(issueResponse(before))
     .mockResolvedValueOnce(issueResponse(after));
@@ -86,10 +125,6 @@ function mockGetThenPatch(
 function patchBody(): unknown {
   const options = vi.mocked(fetch).mock.calls[1]![1] as RequestInit;
   return JSON.parse(options.body as string);
-}
-
-function parsed<T>(result: { content: Array<{ text: string }> }): T {
-  return JSON.parse(result.content[0]!.text) as T;
 }
 
 describe('remove_monitor', () => {

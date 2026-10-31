@@ -1269,7 +1269,7 @@ Subscribes a user to notifications for an issue.
 
 **Parameters:**
 - `issue_id` — numeric issue ID
-- `username` — username string
+- `username` — MantisBT login name
 
 **Request:**
 
@@ -1283,8 +1283,13 @@ Subscribes a user to notifications for an issue.
 **Response:**
 
 ```json
-{ "success": true }
+{
+  "success": true,
+  "monitors": ["asmith", "jsmith"]
+}
 ```
+
+`monitors` lists all users now watching the issue. Adding a user who already watches it changes nothing and still succeeds. Adding another user requires the `monitor_add_others_bug_threshold` access level.
 
 ---
 
