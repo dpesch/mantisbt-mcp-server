@@ -9,6 +9,25 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [1.15.0] – 2026-10-31
+
+### Deprecated
+
+- `add_monitor` — use `update_issue` with `add_monitors` instead; `add_monitor` will be removed in 2.0.0.
+- `remove_monitor` — use `update_issue` with `remove_monitors` instead; `remove_monitor` will be removed in 2.0.0.
+- `get_issues` — use `get_issue` with `ids` instead; `get_issues` will be removed in 2.0.0.
+- `list_notes` — use `get_issue` with `select: "notes"` instead; `list_notes` will be removed in 2.0.0.
+- `list_issue_files` — use `get_issue` with `select: "attachments"` instead; `list_issue_files` will be removed in 2.0.0.
+- `get_project_categories`, `get_project_users`, `get_project_versions` — use `get_project` with `include: ["categories"]`, `["users"]` or `["versions"]` instead; they will be removed in 2.0.0.
+- `find_project_member` — use `get_project` with `member_query` instead; `find_project_member` will be removed in 2.0.0. Unlike `find_project_member`, `get_project` has no `limit` and returns all matching users.
+- `get_metadata_full` — use `get_metadata` with `detail: "full"` instead; `sync_metadata` — use `get_metadata` with `refresh: true`; `get_search_index_status` — use `get_metadata` (field `search_index`). All three will be removed in 2.0.0.
+- `get_mcp_version`, `get_mantis_version` — use `get_version` instead; they will be removed in 2.0.0.
+- `get_issue_fields`, `get_issue_enums` — use `get_issue_schema` instead; they will be removed in 2.0.0. The resource `mantis://enums` stays.
+- `list_languages` — use `get_current_user` (field `language`) instead; `list_languages` will be removed in 2.0.0. Despite its name it never listed languages: MantisBT's `GET /lang` returns only the current user's language.
+- `release_version` — use `update_version` with `released: true`, `timestamp`, and optionally `next_version` instead; `release_version` will be removed in 2.0.0.
+
 ### Added
 
 - `update_issue` accepts two new optional parameters `add_monitors` and `remove_monitors` (arrays of MantisBT login names, case-insensitive). `fields` may now be omitted when only monitor changes or a note are given. The response contains a `monitors` key with `added?`, `removed?`, `not_monitoring?`, and `current`. The steps run in order — fields, monitors, note. Once one of them succeeded, a later failure is reported inline (`monitors_error`, `note_error`) instead of failing the call, so changes that went through are not retried; only when every requested step failed does the call return an error. A user in both lists is rejected; a call with nothing to change is rejected. `dry_run` additionally shows `would_add_monitors` / `would_remove_monitors`.
@@ -26,21 +45,6 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - New env var `MANTIS_DISABLE_DESTRUCTIVE=true`: hides every tool marked as destructive — `delete_issue`, `delete_note`, `delete_version`, `remove_relationship`, `remove_monitor` — regardless of the groups.
 - `get_current_user` now describes its fields and points out `language` — the user's MantisBT language, as a hint for the language of issue texts and notes.
 - `update_version` accepts a new optional `next_version` parameter (only allowed together with `released: true`): creates a follow-up version in the same call. With `next_version` the response is `{ version: <updated>, next_version: <created> }` — or `{ version, next_version_error: <message> }` when creating the follow-up fails (the update itself stays in effect). Without `next_version` the response is unchanged (the updated version object).
-
-### Deprecated
-
-- `add_monitor` — use `update_issue` with `add_monitors` instead; `add_monitor` will be removed in 2.0.0.
-- `remove_monitor` — use `update_issue` with `remove_monitors` instead; `remove_monitor` will be removed in 2.0.0.
-- `get_issues` — use `get_issue` with `ids` instead; `get_issues` will be removed in 2.0.0.
-- `list_notes` — use `get_issue` with `select: "notes"` instead; `list_notes` will be removed in 2.0.0.
-- `list_issue_files` — use `get_issue` with `select: "attachments"` instead; `list_issue_files` will be removed in 2.0.0.
-- `get_project_categories`, `get_project_users`, `get_project_versions` — use `get_project` with `include: ["categories"]`, `["users"]` or `["versions"]` instead; they will be removed in 2.0.0.
-- `find_project_member` — use `get_project` with `member_query` instead; `find_project_member` will be removed in 2.0.0. Unlike `find_project_member`, `get_project` has no `limit` and returns all matching users.
-- `get_metadata_full` — use `get_metadata` with `detail: "full"` instead; `sync_metadata` — use `get_metadata` with `refresh: true`; `get_search_index_status` — use `get_metadata` (field `search_index`). All three will be removed in 2.0.0.
-- `get_mcp_version`, `get_mantis_version` — use `get_version` instead; they will be removed in 2.0.0.
-- `get_issue_fields`, `get_issue_enums` — use `get_issue_schema` instead; they will be removed in 2.0.0. The resource `mantis://enums` stays.
-- `list_languages` — use `get_current_user` (field `language`) instead; `list_languages` will be removed in 2.0.0. Despite its name it never listed languages: MantisBT's `GET /lang` returns only the current user's language.
-- `release_version` — use `update_version` with `released: true`, `timestamp`, and optionally `next_version` instead; `release_version` will be removed in 2.0.0.
 
 ### Fixed
 
