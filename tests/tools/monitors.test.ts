@@ -63,37 +63,130 @@ describe('add_monitor', () => {
 // remove_monitor
 // ---------------------------------------------------------------------------
 
+// MantisBT 2.28 has no DELETE route for monitors. PATCH /issues/{id} treats
+// "monitors" as the complete list, so removing means sending the list without
+// the user (verified live against MantisBT 2.28.4, see Mantis #8496).
+
+const JDOE = { id: 7, name: 'jdoe' };
+const ASMITH = { id: 9, name: 'asmith' };
+
+function issueResponse(monitors: Array<{ id: number; name: string }>): Response {
+  return makeResponse(200, JSON.stringify({ issues: [{ id: 42, monitors }] }));
+}
+
+function mockGetThenPatch(
+  before: Array<{ id: number; name: string }>,
+  after: Array<{ id: number; name: string }>,
+): void {
+  vi.mocked(fetch)
+    .mockResolvedValueOnce(issueResponse(before))
+    .mockResolvedValueOnce(issueResponse(after));
+}
+
+function patchBody(): unknown {
+  const options = vi.mocked(fetch).mock.calls[1]![1] as RequestInit;
+  return JSON.parse(options.body as string);
+}
+
+function parsed<T>(result: { content: Array<{ text: string }> }): T {
+  return JSON.parse(result.content[0]!.text) as T;
+}
+
 describe('remove_monitor', () => {
   it('is registered', () => {
     expect(mockServer.hasToolRegistered('remove_monitor')).toBe(true);
   });
 
-  it('sends DELETE to the correct endpoint', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(204, ''));
-
-    await mockServer.callTool('remove_monitor', { issue_id: 42, username: 'jdoe' });
-
-    const call = vi.mocked(fetch).mock.calls[0]!;
-    const calledUrl = call[0] as string;
-    const options = call[1] as RequestInit;
-    expect(calledUrl).toContain('issues/42/monitors/jdoe');
-    expect(options.method).toBe('DELETE');
-  });
-
-  it('returns { success: true } on 204', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(204, ''));
+  it('reads the monitors, PATCHes the list without the user and reports the rest', async () => {
+    mockGetThenPatch([JDOE, ASMITH], [ASMITH]);
 
     const result = await mockServer.callTool('remove_monitor', { issue_id: 42, username: 'jdoe' });
 
+    // Exactly GET + PATCH — in particular no DELETE to the non-existent monitors route.
+    const calls = vi.mocked(fetch).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[0]![0] as string).toContain('issues/42');
+    expect((calls[0]![1] as RequestInit).method ?? 'GET').toBe('GET');
+    expect(calls[1]![0] as string).toContain('issues/42');
+    expect((calls[1]![1] as RequestInit).method).toBe('PATCH');
+    expect(patchBody()).toEqual({ monitors: [{ id: 9 }] });
+
     expect(result.isError).toBeUndefined();
-    const parsed = JSON.parse(result.content[0]!.text) as { success: boolean };
-    expect(parsed.success).toBe(true);
+    expect(parsed(result)).toEqual({ success: true, removed: true, monitors: ['asmith'] });
   });
 
-  it('returns isError on API error', async () => {
-    vi.mocked(fetch).mockResolvedValue(makeResponse(404, JSON.stringify({ message: 'Monitor not found' })));
+  it('requests only the monitors field when reading the issue', async () => {
+    mockGetThenPatch([JDOE], []);
 
-    const result = await mockServer.callTool('remove_monitor', { issue_id: 42, username: 'nobody' });
+    await mockServer.callTool('remove_monitor', { issue_id: 42, username: 'jdoe' });
+
+    const url = new URL(vi.mocked(fetch).mock.calls[0]![0] as string);
+    expect(url.searchParams.get('select')).toBe('id,monitors');
+  });
+
+  it('matches the username case-insensitively', async () => {
+    mockGetThenPatch([JDOE, ASMITH], [ASMITH]);
+
+    await mockServer.callTool('remove_monitor', { issue_id: 42, username: 'JDoe' });
+
+    expect(patchBody()).toEqual({ monitors: [{ id: 9 }] });
+  });
+
+  it('sends an empty list when the user is the only monitor', async () => {
+    mockGetThenPatch([JDOE], []);
+
+    const result = await mockServer.callTool('remove_monitor', { issue_id: 42, username: 'jdoe' });
+
+    expect(patchBody()).toEqual({ monitors: [] });
+    expect(result.isError).toBeUndefined();
+  });
+
+  it('succeeds without PATCH when the user is not a monitor', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(issueResponse([ASMITH]));
+
+    const result = await mockServer.callTool('remove_monitor', { issue_id: 42, username: 'jdoe' });
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    expect(result.isError).toBeUndefined();
+    const body = parsed<{ success: boolean; removed: boolean; message: string }>(result);
+    expect(body.success).toBe(true);
+    expect(body.removed).toBe(false);
+    expect(body.message).toContain('jdoe');
+  });
+
+  it('treats an issue without a monitors field as having no monitors', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 42 }] })));
+
+    const result = await mockServer.callTool('remove_monitor', { issue_id: 42, username: 'jdoe' });
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    expect(parsed<{ removed: boolean }>(result).removed).toBe(false);
+  });
+
+  it('returns isError when MantisBT silently keeps the user (missing permission)', async () => {
+    mockGetThenPatch([JDOE, ASMITH], [JDOE, ASMITH]);
+
+    const result = await mockServer.callTool('remove_monitor', { issue_id: 42, username: 'jdoe' });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('monitor_delete_others_bug_threshold');
+  });
+
+  it('returns isError when the issue cannot be read', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(makeResponse(404, JSON.stringify({ message: 'Issue #42 not found' })));
+
+    const result = await mockServer.callTool('remove_monitor', { issue_id: 42, username: 'jdoe' });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('Error:');
+  });
+
+  it('returns isError when the PATCH fails', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(issueResponse([JDOE]))
+      .mockResolvedValueOnce(makeResponse(403, JSON.stringify({ message: 'Access denied' })));
+
+    const result = await mockServer.callTool('remove_monitor', { issue_id: 42, username: 'jdoe' });
 
     expect(result.isError).toBe(true);
     expect(result.content[0]!.text).toContain('Error:');

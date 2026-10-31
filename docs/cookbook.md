@@ -1296,7 +1296,7 @@ Unsubscribes a user from notifications for an issue.
 
 **Parameters:**
 - `issue_id` — numeric issue ID
-- `username` — username string
+- `username` — MantisBT login name (case-insensitive)
 
 **Request:**
 
@@ -1310,8 +1310,14 @@ Unsubscribes a user from notifications for an issue.
 **Response:**
 
 ```json
-{ "success": true }
+{
+  "success": true,
+  "removed": true,
+  "monitors": ["asmith"]
+}
 ```
+
+`monitors` lists the users still watching the issue. If `jsmith` was not a monitor, nothing is changed and the response contains `"removed": false` plus a `message`. Removing another user requires the `monitor_delete_others_bug_threshold` access level; without it the tool returns an error.
 
 ---
 

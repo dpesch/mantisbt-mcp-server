@@ -1296,7 +1296,7 @@ Deabonniert einen Benutzer von Benachrichtigungen zu einem Issue.
 
 **Parameter:**
 - `issue_id` – numerische Issue-ID
-- `username` – Benutzername als Zeichenkette
+- `username` – MantisBT-Login-Name (Groß-/Kleinschreibung egal)
 
 **Request:**
 
@@ -1310,8 +1310,14 @@ Deabonniert einen Benutzer von Benachrichtigungen zu einem Issue.
 **Response:**
 
 ```json
-{ "success": true }
+{
+  "success": true,
+  "removed": true,
+  "monitors": ["asmith"]
+}
 ```
+
+`monitors` listet die Benutzer, die das Issue weiterhin beobachten. War `jsmith` gar kein Beobachter, ändert sich nichts, und die Antwort enthält `"removed": false` sowie eine `message`. Andere Benutzer zu entfernen erfordert die Zugriffsstufe `monitor_delete_others_bug_threshold`; fehlt sie, liefert das Tool einen Fehler.
 
 ---
 

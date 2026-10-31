@@ -119,6 +119,7 @@ export interface MantisIssue {
   attachments?: MantisFile[];
   relationships?: MantisRelationship[];
   tags?: MantisIdName[];
+  monitors?: MantisUser[];
   target_version?: MantisVersion;
   fixed_in_version?: MantisVersion;
   version?: MantisVersion;
