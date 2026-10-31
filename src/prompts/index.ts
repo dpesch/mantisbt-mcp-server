@@ -23,7 +23,7 @@ export function registerPrompts(server: McpServer): void {
       description: 'Guide the creation of a complete bug report in MantisBT. Project, category, summary, and description are required.',
       argsSchema: {
         project_id: z.coerce.number().int().positive().describe('Numeric project ID'),
-        category: z.string().describe('Issue category (call get_project_categories to list valid values)'),
+        category: z.string().describe('Issue category (call get_project with include: ["categories"] to list valid values)'),
         summary: z.string().describe('Short, descriptive summary of the bug'),
         description: z.string().describe('Detailed description of the bug'),
         steps_to_reproduce: z.string().optional().describe('Step-by-step reproduction instructions'),
@@ -78,7 +78,7 @@ export function registerPrompts(server: McpServer): void {
       description: 'Guide the creation of a feature request in MantisBT. Project, category, summary, and description are required.',
       argsSchema: {
         project_id: z.coerce.number().int().positive().describe('Numeric project ID'),
-        category: z.string().describe('Issue category (call get_project_categories to list valid values)'),
+        category: z.string().describe('Issue category (call get_project with include: ["categories"] to list valid values)'),
         summary: z.string().describe('Short description of the requested feature'),
         description: z.string().describe('Detailed description of the feature'),
         use_case: z.string().optional().describe('Business use case or motivation for the feature'),

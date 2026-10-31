@@ -25,6 +25,7 @@ Tool-orientierte Rezepte für den MantisBT MCP Server – jedes Rezept zeigt gen
   - [Issue neu zuweisen](#issue-neu-zuweisen)
   - [Fix-Version setzen](#fix-version-setzen)
 - [Notizen](#notizen)
+  - [Notizen eines Issues abrufen](#notizen-eines-issues-abrufen)
   - [Öffentliche Notiz hinzufügen](#öffentliche-notiz-hinzufügen)
   - [Private Notiz hinzufügen](#private-notiz-hinzufügen)
   - [Notiz löschen](#notiz-löschen)
@@ -52,6 +53,7 @@ Tool-orientierte Rezepte für den MantisBT MCP Server – jedes Rezept zeigt gen
   - [Nach Bedeutung suchen](#nach-bedeutung-suchen)
   - [Suche mit Felderweiterung](#suche-mit-felderweiterung)
 - [Projekte & Kategorien](#projekte--kategorien)
+  - [Projekt mit Kategorien, Nutzern und Versionen abrufen](#projekt-mit-kategorien-nutzern-und-versionen-abrufen)
   - [Projektkategorien auflisten](#projektkategorien-auflisten)
   - [Projektmitglied suchen](#projektmitglied-suchen)
   - [Projektversion erstellen](#projektversion-erstellen)
@@ -289,10 +291,11 @@ Kompakte Variante (nur die benötigten Felder):
 
 Ruft bis zu 50 Issues in einem einzigen MCP-Aufruf ab. Die Anfragen laufen parallel (max. 5 gleichzeitig). Nicht zugängliche IDs liefern `null` an ihrer Position – der Aufruf schlägt nie wegen einzelner fehlender IDs fehl.
 
-**Tool:** `get_issues`
+**Tool:** `get_issue`
 
 **Parameter:**
 - `ids` – Array numerischer Issue-IDs (1–50)
+- `select` – _(optional)_ kommagetrennte Feldliste
 
 **Request:**
 
@@ -328,6 +331,8 @@ Ruft bis zu 50 Issues in einem einzigen MCP-Aufruf ab. Die Anfragen laufen paral
 ```
 
 > **Hinweis:** `null`-Einträge zeigen IDs an, die nicht gefunden oder nicht zugänglich waren. `failed` gibt an, wie viele IDs nicht abgerufen werden konnten.
+
+> **Veraltet:** `get_issues` bietet dieselbe Funktion, ist aber veraltet – stattdessen `get_issue` mit `ids` wie oben gezeigt verwenden; `get_issues` wird in 2.0.0 entfernt.
 
 ---
 
@@ -785,11 +790,53 @@ Setzt das Feld `fixed_in_version` eines Issues.
 }
 ```
 
-> **Hinweis:** Mit `get_project_versions(project_id)` lassen sich gültige Versionsnamen für ein Projekt auflisten.
+> **Hinweis:** Mit `get_project` und `include: ["versions"]` lassen sich gültige Versionsnamen für ein Projekt auflisten.
 
 ---
 
 ## Notizen
+
+### Notizen eines Issues abrufen
+
+Ruft nur die Notizen eines Issues über serverseitige Feldprojektion ab. Dies ist die bevorzugte Alternative zum veralteten `list_notes`-Tool.
+
+**Tool:** `get_issue`
+
+**Parameter:**
+- `id` – numerische Issue-ID
+- `select` – `"id,notes"` (`id` einschließen, damit `view_url` auch bei Projektionen immer gesetzt wird)
+
+**Request:**
+
+```json
+{
+  "id": 1042,
+  "select": "id,notes"
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 1042,
+  "notes": [
+    {
+      "id": 88,
+      "reporter": { "id": 7, "name": "jdoe" },
+      "text": "In Version 2.0.3 reproduziert. Ursache in der Auth-Middleware identifiziert.",
+      "view_state": { "id": 10, "name": "public" },
+      "created_at": "2024-11-05T14:02:11+00:00",
+      "view_url": "https://mantis.example.com/view.php?id=1042#bugnote88"
+    }
+  ],
+  "view_url": "https://mantis.example.com/view.php?id=1042"
+}
+```
+
+> **Veraltet:** `list_notes` wird in 2.0.0 entfernt – stattdessen `get_issue` mit `select: "id,notes"` wie oben gezeigt verwenden.
+
+---
 
 ### Öffentliche Notiz hinzufügen
 
@@ -870,7 +917,7 @@ Entfernt eine Notiz dauerhaft von einem Issue.
 
 **Parameter:**
 - `issue_id` – numerische Issue-ID
-- `note_id` – numerische Notiz-ID (aus `list_notes` oder `get_issue`)
+- `note_id` – numerische Notiz-ID (aus `get_issue`)
 
 **Request:**
 
@@ -893,7 +940,7 @@ Entfernt eine Notiz dauerhaft von einem Issue.
 
 ### Notiz ändern
 
-Bearbeitet Text und/oder Sichtbarkeit einer bestehenden Notiz über `update_issue`. Die Notiz-ID stammt aus `get_issue` oder `list_notes`. Mindestens eines von `text` oder `view_state` muss angegeben werden. Mehrere Notizen können in einem Aufruf bearbeitet werden.
+Bearbeitet Text und/oder Sichtbarkeit einer bestehenden Notiz über `update_issue`. Die Notiz-ID stammt aus `get_issue`. Mindestens eines von `text` oder `view_state` muss angegeben werden. Mehrere Notizen können in einem Aufruf bearbeitet werden.
 
 **Tool:** `update_issue`
 
@@ -1016,35 +1063,44 @@ Hängt eine Datei an, indem ihr base64-kodierter Inhalt direkt übergeben wird. 
 
 ### Anhänge auflisten
 
-Gibt alle Dateianhänge eines Issues zurück.
+Gibt alle Dateianhänge eines Issues über serverseitige Feldprojektion zurück. Jeder Anhang enthält eine `download_url`, die über den MantisBT-File-Download-Endpoint aufgebaut wird.
 
-**Tool:** `list_issue_files`
+**Tool:** `get_issue`
 
 **Parameter:**
-- `issue_id` – numerische Issue-ID
+- `id` – numerische Issue-ID
+- `select` – `"id,attachments"`
 
 **Request:**
 
 ```json
 {
-  "issue_id": 1042
+  "id": 1042,
+  "select": "id,attachments"
 }
 ```
 
 **Response:**
 
 ```json
-[
-  {
-    "id": 23,
-    "filename": "login-error.png",
-    "size": 42318,
-    "content_type": "image/png",
-    "description": "Login error on mobile Safari",
-    "created_at": "2024-11-05T15:30:00+00:00"
-  }
-]
+{
+  "id": 1042,
+  "attachments": [
+    {
+      "id": 23,
+      "filename": "login-error.png",
+      "size": 42318,
+      "content_type": "image/png",
+      "created_at": "2024-11-05T15:30:00+00:00",
+      "reporter": { "id": 4, "name": "jsmith" },
+      "download_url": "https://mantis.example.com/file_download.php?file_id=23&type=bug"
+    }
+  ],
+  "view_url": "https://mantis.example.com/view.php?id=1042"
+}
 ```
+
+> **Veraltet:** `list_issue_files` wird in 2.0.0 entfernt – stattdessen `get_issue` mit `select: "id,attachments"` wie oben gezeigt verwenden.
 
 ---
 
@@ -1665,68 +1721,159 @@ Zeigt, welcher Teil eines Issues mit der Suchanfrage übereinstimmt. Jedes Ergeb
 
 ## Projekte & Kategorien
 
-### Projektkategorien auflisten
+### Projekt mit Kategorien, Nutzern und Versionen abrufen
 
-Gibt alle verfügbaren Kategorien eines MantisBT-Projekts zurück. Die zurückgegebenen Namen können direkt beim Erstellen von Issues verwendet werden.
+Ruft die Stammdaten eines Projekts sowie beliebige Kombinationen von Kategorien, Nutzern und Versionen in einem Aufruf ab. Kategorienamen werden ohne das Prefix `[All Projects]` geliefert und können direkt in `create_issue` verwendet werden. `member_query` filtert Nutzer per Teilstring-Suche in Login-Name, Realname und E-Mail und liefert alle Treffer.
 
-**Tool:** `get_project_categories`
+**Tool:** `get_project`
 
 **Parameter:**
-- `project_id` – numerische Projekt-ID
+- `project_id` – numerische Projekt-ID (mit `list_projects` ermitteln)
+- `include` – _(optional)_ Array aus `"categories"`, `"users"`, `"versions"` (beliebige Kombination)
+- `access_level` – _(optional)_ nur Nutzer ab dieser Zugriffsstufe (10=Betrachter, 25=Reporter, 40=Bearbeiter, 55=Entwickler, 70=Manager, 90=Administrator); impliziert `"users"`
+- `member_query` – _(optional)_ Teilstring für die Nutzersuche; impliziert `"users"`, liefert alle Treffer
+- `obsolete` – _(optional)_ veraltete Versionen einschließen; impliziert `"versions"`
+- `inherit` – _(optional)_ Versionen des Elternprojekts einschließen; impliziert `"versions"`
 
-**Request:**
+**Request:** _(Stammdaten + Kategorien + Nutzer + Versionen)_
 
 ```json
 {
-  "project_id": 3
+  "project_id": 3,
+  "include": ["categories", "users", "versions"]
 }
 ```
 
 **Response:**
 
 ```json
-[
-  { "id": 1, "name": "General" },
-  { "id": 2, "name": "UI" },
-  { "id": 3, "name": "Backend" }
-]
+{
+  "id": 3,
+  "name": "Webshop",
+  "description": "Kundenportal",
+  "status": { "id": 10, "name": "development" },
+  "enabled": true,
+  "view_state": { "id": 10, "name": "public" },
+  "categories": [
+    { "id": 1, "name": "General" },
+    { "id": 2, "name": "UI" },
+    { "id": 3, "name": "Backend" }
+  ],
+  "users": [
+    { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } },
+    { "id": 7, "name": "jdoe", "real_name": "Jane Doe", "email": "jdoe@example.com", "access_level": { "id": 70, "name": "manager" } }
+  ],
+  "versions": [
+    { "id": 42, "name": "1.2.0", "released": false, "obsolete": false, "timestamp": "2026-10-31T00:00:00+00:00" },
+    { "id": 43, "name": "1.2.1", "released": false, "obsolete": false, "timestamp": "2026-10-31T00:00:00+00:00" }
+  ]
+}
 ```
 
-> **Hinweis:** Kategorienamen mit dem Prefix `[All Projects]` (aus dem globalen Projekt geerbt) werden in der Antwort automatisch ohne diesen Prefix zurückgegeben.
+**Request:** _(Mitgliedersuche)_
+
+```json
+{
+  "project_id": 3,
+  "member_query": "smith"
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 3,
+  "name": "Webshop",
+  "status": { "id": 10, "name": "development" },
+  "enabled": true,
+  "users": [
+    { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } },
+    { "id": 11, "name": "asmith", "real_name": "Alice Smith", "email": "asmith@example.com", "access_level": { "id": 40, "name": "updater" } }
+  ]
+}
+```
+
+> **Hinweis:** `get_project_categories`, `get_project_users`, `get_project_versions` und `find_project_member` sind zugunsten von `get_project` mit `include` bzw. `member_query` veraltet und werden in 2.0.0 entfernt.
 
 ---
 
-### Projektmitglied suchen
+### Projektkategorien auflisten
 
-Sucht Projektmitglieder nach Name, Realname oder E-Mail. Die Suche ist Groß-/Kleinschreibungsunabhängig und findet Teilstrings. Ergebnisse werden bevorzugt aus dem Metadaten-Cache geliefert; bei leerem Cache wird die live API verwendet.
+Gibt alle verfügbaren Kategorien eines MantisBT-Projekts zurück. Die zurückgegebenen Namen können direkt beim Erstellen von Issues verwendet werden.
 
-**Tool:** `find_project_member`
+**Tool:** `get_project`
 
 **Parameter:**
 - `project_id` – numerische Projekt-ID
-- `query` – _(optional)_ Suchbegriff für `name`, `real_name` oder `email`
-- `limit` – _(optional)_ maximale Trefferanzahl, Standard 10, max. 100
+- `include` – `["categories"]`
 
 **Request:**
 
 ```json
 {
   "project_id": 3,
-  "query": "smith",
-  "limit": 5
+  "include": ["categories"]
 }
 ```
 
 **Response:**
 
 ```json
-[
-  { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } },
-  { "id": 11, "name": "asmith", "real_name": "Alice Smith", "email": "asmith@example.com", "access_level": { "id": 40, "name": "reporter" } }
-]
+{
+  "id": 3,
+  "name": "Webshop",
+  "status": { "id": 10, "name": "development" },
+  "enabled": true,
+  "categories": [
+    { "id": 1, "name": "General" },
+    { "id": 2, "name": "UI" },
+    { "id": 3, "name": "Backend" }
+  ]
+}
 ```
 
-> **Tipp:** `query` weglassen, um alle Mitglieder des Projekts aufzulisten (bis zu `limit`).
+> **Hinweis:** Kategorienamen mit dem Prefix `[All Projects]` (aus dem globalen Projekt geerbt) werden in der Antwort automatisch ohne diesen Prefix zurückgegeben.
+
+> **Veraltet:** `get_project_categories` wird in 2.0.0 entfernt – stattdessen `get_project` mit `include: ["categories"]` wie oben gezeigt verwenden.
+
+---
+
+### Projektmitglied suchen
+
+Sucht Projektmitglieder nach Name, Realname oder E-Mail. Die Suche ist Groß-/Kleinschreibungsunabhängig und findet Teilstrings. Alle Treffer werden zurückgegeben – es gibt kein `limit`.
+
+**Tool:** `get_project`
+
+**Parameter:**
+- `project_id` – numerische Projekt-ID
+- `member_query` – Suchbegriff für `name`, `real_name` oder `email`
+
+**Request:**
+
+```json
+{
+  "project_id": 3,
+  "member_query": "smith"
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 3,
+  "name": "Webshop",
+  "status": { "id": 10, "name": "development" },
+  "enabled": true,
+  "users": [
+    { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } },
+    { "id": 11, "name": "asmith", "real_name": "Alice Smith", "email": "asmith@example.com", "access_level": { "id": 40, "name": "updater" } }
+  ]
+}
+```
+
+> **Veraltet:** `find_project_member` wird in 2.0.0 entfernt – stattdessen `get_project` mit `member_query` wie oben gezeigt verwenden. Anders als `find_project_member` hat `get_project` kein `limit` und gibt alle Treffer zurück.
 
 ---
 
@@ -1781,7 +1928,7 @@ Aktualisiert eine bestehende Version eines MantisBT-Projekts. Es werden nur die 
 
 **Parameter:**
 - `project_id` – numerische Projekt-ID
-- `version_id` – numerische Versions-ID (mit `get_project_versions` ermittelbar)
+- `version_id` – numerische Versions-ID (mit `get_project` und `include: ["versions"]` ermittelbar)
 - `name` – _(optional)_ neuer Versionsname (muss im Projekt eindeutig sein)
 - `description` – _(optional)_ neue Versionsbeschreibung
 - `released` – _(optional)_ Veröffentlichungs-Flag
@@ -1960,7 +2107,7 @@ Gibt eine kompakte Übersicht aller gecachten Metadaten zurück: Gesamtzahl der 
 }
 ```
 
-> **Hinweis:** Für vollständige Listen `list_projects`, `get_project_users`, `get_project_versions`, `get_project_categories`, `list_tags` oder `get_metadata_full` verwenden.
+> **Hinweis:** Für vollständige Listen `list_projects`, `get_project` (mit `include`), `list_tags` oder `get_metadata_full` verwenden.
 
 ---
 

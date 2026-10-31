@@ -3,8 +3,10 @@ import { basename, resolve, sep } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MantisClient } from '../client.js';
+import { enrichIssue } from '../issue-enrich.js';
 import { getVersionHint } from '../version-hint.js';
 import { firstIssue, type IssueEnvelope } from '../issue-envelope.js';
+import { deprecationNote } from '../deprecation.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -35,9 +37,9 @@ export function registerFileTools(
     'list_issue_files',
     {
       title: 'List Issue File Attachments',
-      description: `List all file attachments of a MantisBT issue. Returns an array of attachment objects, each containing id, filename, size in bytes, content_type, and download_url. Returns an empty array if the issue has no attachments.
+      description: `${deprecationNote('list_issue_files', 'get_issue with select: "attachments"')}
 
-Use this tool when you need to inspect or enumerate files attached to an issue. To add a new attachment, use upload_file instead. To retrieve full issue details that include attachments alongside other fields, use get_issue instead.`,
+List all file attachments of a MantisBT issue. Returns an array of attachment objects, each containing id, filename, size in bytes, content_type, and download_url. Returns an empty array if the issue has no attachments.`,
       inputSchema: z.object({
         issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
       }),
@@ -49,8 +51,12 @@ Use this tool when you need to inspect or enumerate files attached to an issue. 
     },
     async ({ issue_id }) => {
       try {
-        const result = await client.get<IssueEnvelope>(`issues/${issue_id}`);
-        const attachments = firstIssue(result)?.attachments ?? [];
+        const [result, baseUrl] = await Promise.all([
+          client.get<IssueEnvelope>(`issues/${issue_id}`, { select: 'id,attachments' }),
+          client.getBaseUrl(),
+        ]);
+        const issue = firstIssue(result);
+        const attachments = (issue && enrichIssue(issue, baseUrl, issue_id).attachments) ?? [];
         return {
           content: [{ type: 'text', text: JSON.stringify(attachments, null, 2) }],
         };
@@ -77,7 +83,7 @@ Provide exactly one of the two input modes:
 
 The optional content_type sets the MIME type (e.g. "image/png"); defaults to "application/octet-stream". Use the optional description to annotate the attachment.
 
-Use this tool to attach files such as logs, screenshots, or patches to an existing issue. To list existing attachments, use list_issue_files. To retrieve issue details, use get_issue.`,
+Use this tool to attach files such as logs, screenshots, or patches to an existing issue. To list existing attachments, use get_issue with select: "attachments".`,
       inputSchema: z.object({
         issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
         file_path: z.string().min(1).optional().describe('Preferred: absolute path to the local file to upload — use this whenever the file exists on disk (mutually exclusive with content)'),

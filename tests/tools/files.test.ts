@@ -58,6 +58,16 @@ describe('list_issue_files', () => {
     expect(parsed[0]!.file_name).toBe('screenshot.png');
   });
 
+  it('adds download_url to each attachment (MantisBT sends it only via SOAP)', async () => {
+    const apiResponse = { issues: [{ id: 42, attachments: [{ id: 7, filename: 'log.txt', size: 10, content_type: 'text/plain' }] }] };
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(apiResponse)));
+
+    const result = await mockServer.callTool('list_issue_files', { issue_id: 42 });
+
+    const parsed = JSON.parse(result.content[0]!.text) as Array<{ download_url: string }>;
+    expect(parsed[0]!.download_url).toBe('https://mantis.example.com/file_download.php?file_id=7&type=bug');
+  });
+
   it('returns an empty array when there are no attachments', async () => {
     const apiResponse = { issues: [{ id: 42 }] };
     vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(apiResponse)));

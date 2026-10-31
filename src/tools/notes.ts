@@ -4,6 +4,8 @@ import { MantisClient, buildNoteViewUrl } from '../client.js';
 import type { MantisNote } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
 import { firstIssue, type IssueEnvelope } from '../issue-envelope.js';
+import { deprecationNote } from '../deprecation.js';
+import { enrichIssue } from '../issue-enrich.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -38,7 +40,7 @@ export async function postNote(
 // Edit of an existing note. Without id MantisBT would create a new note, so
 // id is required here.
 const noteEdit = z.object({
-  id: z.coerce.number().int().positive().describe('ID of the note to edit (from get_issue or list_notes)'),
+  id: z.coerce.number().int().positive().describe('ID of the note to edit (from get_issue)'),
   text: z.string().min(1).optional().describe('New note text'),
   view_state: z.enum(['public', 'private']).optional().describe('New visibility; omitted = keep the current one'),
 }).strict().refine(e => e.text !== undefined || e.view_state !== undefined, { message: "A note edit needs 'text' or 'view_state'" });
@@ -75,7 +77,7 @@ export async function prepareNoteEdits(
   const current = new Map((firstIssue(result)?.notes ?? []).map(n => [n.id, n]));
   const unknown = edits.filter(e => !current.has(e.id)).map(e => e.id);
   if (unknown.length > 0) {
-    throw new Error(`Note(s) ${unknown.join(', ')} do not belong to issue ${issueId} or are not visible to you — use list_notes to look up note IDs.`);
+    throw new Error(`Note(s) ${unknown.join(', ')} do not belong to issue ${issueId} or are not visible to you — use get_issue to look up note IDs.`);
   }
   return edits.map(({ id, text, view_state }) => ({
     id,
@@ -113,7 +115,9 @@ export function registerNoteTools(server: McpServer, client: MantisClient): void
     'list_notes',
     {
       title: 'List Issue Notes',
-      description: 'List all notes (comments) attached to a MantisBT issue. Note: get_issue already includes notes in its response — use list_notes only when you need notes without fetching the full issue.',
+      description: `${deprecationNote('list_notes', 'get_issue with select: "notes"')}
+
+List all notes (comments) attached to a MantisBT issue.`,
       inputSchema: z.object({
         issue_id: z.coerce.number().int().positive().describe('Numeric issue ID'),
       }),
@@ -126,13 +130,11 @@ export function registerNoteTools(server: McpServer, client: MantisClient): void
     async ({ issue_id }) => {
       try {
         const [result, baseUrl] = await Promise.all([
-          client.get<IssueEnvelope>(`issues/${issue_id}`),
+          client.get<IssueEnvelope>(`issues/${issue_id}`, { select: 'id,notes' }),
           client.getBaseUrl(),
         ]);
-        const notes = (firstIssue(result)?.notes ?? []).map(note => ({
-          ...note,
-          view_url: buildNoteViewUrl(baseUrl, issue_id, note.id),
-        }));
+        const issue = firstIssue(result);
+        const notes = (issue && enrichIssue(issue, baseUrl, issue_id).notes) ?? [];
         return {
           content: [{ type: 'text', text: JSON.stringify(notes, null, 2) }],
         };
@@ -194,10 +196,10 @@ Prerequisites: obtain issue_id from list_issues, get_issue, or search_issues.`,
 
 Returns a plain-text confirmation message on success. Returns an error if the note does not exist or the current user lacks permission to delete it (MantisBT enforces access control: users can typically only delete their own notes unless they have manager-level access or higher).
 
-Prerequisites: obtain note_id from list_notes or from get_issue (notes[].id); obtain issue_id from the same source.`,
+Prerequisites: obtain note_id from get_issue (notes[].id).`,
       inputSchema: z.object({
-        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID that owns the note — use get_issue or list_notes to identify this value'),
-        note_id: z.coerce.number().int().positive().describe('Numeric note ID to delete — obtain from get_issue (notes[].id) or list_notes'),
+        issue_id: z.coerce.number().int().positive().describe('Numeric issue ID that owns the note'),
+        note_id: z.coerce.number().int().positive().describe('Numeric note ID to delete — obtain from get_issue (notes[].id)'),
       }),
       annotations: {
         readOnlyHint: false,

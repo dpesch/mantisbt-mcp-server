@@ -68,13 +68,15 @@ export interface MantisNote {
   view_url?: string;
 }
 
+/** Attachment as sent by the REST API (mci_issue_get_attachments); download_url is added by this server. */
 export interface MantisFile {
   id: number;
-  file_name: string;
+  filename: string;
   size: number;
   content_type?: string;
-  date_added?: string;
-  description?: string;
+  created_at?: string;
+  reporter?: MantisUser;
+  download_url?: string;
 }
 
 export interface MantisRelationship {

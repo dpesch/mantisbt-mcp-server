@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { MantisClient, buildIssueViewUrl, buildNoteViewUrl } from '../client.js';
+import { MantisClient, buildIssueViewUrl } from '../client.js';
+import { enrichIssue } from '../issue-enrich.js';
 import { MetadataCache } from '../cache.js';
 import type { MantisIssue, MantisUser, MantisPaginatedIssues } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
@@ -10,6 +11,7 @@ import { fetchIssueEnumsWithCache } from './config.js';
 import { postNote, noteEditsSchema, prepareNoteEdits, verifyNoteEdits } from './notes.js';
 import { applyMonitorChanges } from './monitors.js';
 import { firstIssue, type IssueEnvelope } from '../issue-envelope.js';
+import { deprecationNote } from '../deprecation.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -18,19 +20,6 @@ function errorText(msg: string): string {
   return hint ? `Error: ${msg}\n\n${hint}` : `Error: ${msg}`;
 }
 
-// issueId: fallback when a select projection excluded the id field from the response
-function enrichIssue(issue: MantisIssue, baseUrl: string, issueId?: number): MantisIssue {
-  const id = issue.id ?? issueId;
-  if (id === undefined) return issue;
-  return {
-    ...issue,
-    view_url: buildIssueViewUrl(baseUrl, id),
-    notes: issue.notes?.map(note => ({
-      ...note,
-      view_url: buildNoteViewUrl(baseUrl, id, note.id),
-    })),
-  };
-}
 
 // MantisBT reference shape: at least one of id or name must be provided
 const ref = z.object({ id: z.number().optional(), name: z.string().optional() })
@@ -93,6 +82,29 @@ async function resolveEnum(
 
 export function registerIssueTools(server: McpServer, client: MantisClient, cache: MetadataCache): void {
 
+  /**
+   * Fetches and enriches one issue. The requested ID is passed to enrichIssue
+   * so view_url survives a select without "id".
+   */
+  async function fetchIssue(id: number, select?: string): Promise<MantisIssue> {
+    const [result, baseUrl] = await Promise.all([
+      client.get<IssueEnvelope>(`issues/${id}`, { select }),
+      client.getBaseUrl(),
+    ]);
+    return enrichIssue(firstIssue(result) ?? (result as MantisIssue), baseUrl, id);
+  }
+
+  /**
+   * Fetches several issues in parallel (max GET_ISSUES_CONCURRENCY). Missing or
+   * inaccessible IDs yield null at their position; the call itself never fails.
+   */
+  async function fetchIssuesByIds(ids: number[], select?: string) {
+    const issues = await runWithConcurrency(ids, GET_ISSUES_CONCURRENCY, id =>
+      fetchIssue(id, select).catch(() => null));
+    const found = issues.filter(i => i !== null).length;
+    return { issues, requested: ids.length, found, failed: ids.length - found };
+  }
+
   // ---------------------------------------------------------------------------
   // get_issue
   // ---------------------------------------------------------------------------
@@ -101,9 +113,15 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
     'get_issue',
     {
       title: 'Get Issue',
-      description: 'Retrieve a single MantisBT issue by its numeric ID. Returns all issue fields including notes, attachments, and relationships (unless "select" is given). Notes are always included — no separate list_notes call needed.',
+      description: `Retrieve one MantisBT issue by "id", or several by "ids" (1–50). Pass exactly one of the two.
+
+With "id": returns the issue with all fields including notes (each with view_url), attachments and relationships, unless "select" is given.
+With "ids": returns { issues, requested, found, failed } — requests run in parallel (max 5 concurrent); missing or inaccessible IDs give null at their position instead of failing the call.
+
+Use "select" to fetch only some fields, e.g. select: "notes" for just the notes or select: "attachments" for just the file attachments of an issue.`,
       inputSchema: z.object({
-        id: z.coerce.number().int().positive().describe('Numeric issue ID'),
+        id: z.coerce.number().int().positive().optional().describe('Numeric issue ID (use either id or ids)'),
+        ids: z.array(z.coerce.number().int().positive()).min(1).max(50).optional().describe('Several issue IDs (1–50) to fetch in one call (use either id or ids)'),
         select: z.string().optional().describe('Comma-separated list of fields to include in the response (server-side projection, same as list_issues). Significantly reduces response size. Example: "id,summary,status,notes"'),
       }),
       annotations: {
@@ -112,14 +130,15 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         idempotentHint: true,
       },
     },
-    async ({ id, select }) => {
+    async ({ id, ids, select }) => {
+      if ((id === undefined) === (ids === undefined)) {
+        return { content: [{ type: 'text', text: errorText('Pass exactly one of "id" or "ids".') }], isError: true };
+      }
+      if (ids) {
+        return { content: [{ type: 'text', text: JSON.stringify(await fetchIssuesByIds(ids, select), null, 2) }] };
+      }
       try {
-        const result = await client.get<IssueEnvelope>(`issues/${id}`, { select });
-        const issue = firstIssue(result) ?? (result as MantisIssue);
-        const baseUrl = await client.getBaseUrl();
-        return {
-          content: [{ type: 'text', text: JSON.stringify(enrichIssue(issue, baseUrl, id), null, 2) }],
-        };
+        return { content: [{ type: 'text', text: JSON.stringify(await fetchIssue(id!, select), null, 2) }] };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         return { content: [{ type: 'text', text: errorText(msg) }], isError: true };
@@ -136,6 +155,7 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
     {
       title: 'Get Multiple Issues',
       description:
+        `${deprecationNote('get_issues', 'get_issue with ids')}\n\n` +
         'Retrieve multiple MantisBT issues by their numeric IDs in a single MCP call. ' +
         'Requests run in parallel (max 5 concurrent). ' +
         'Missing or inaccessible IDs return null at their array position — ' +
@@ -154,35 +174,9 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
         idempotentHint: true,
       },
     },
-    async ({ ids }) => {
-      const [rawResults, baseUrl] = await Promise.all([
-        runWithConcurrency(
-          ids,
-          GET_ISSUES_CONCURRENCY,
-          async (id): Promise<MantisIssue | null> => {
-            try {
-              const result = await client.get<IssueEnvelope>(`issues/${id}`);
-              return firstIssue(result) ?? (result as MantisIssue);
-            } catch {
-              return null;
-            }
-          },
-        ),
-        client.getBaseUrl(),
-      ]);
-      const results = rawResults.map(issue => issue !== null ? enrichIssue(issue, baseUrl) : null);
-      const found = results.filter((r) => r !== null).length;
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify(
-            { issues: results, requested: ids.length, found, failed: ids.length - found },
-            null,
-            2,
-          ),
-        }],
-      };
-    },
+    async ({ ids }) => ({
+      content: [{ type: 'text', text: JSON.stringify(await fetchIssuesByIds(ids), null, 2) }],
+    }),
   );
 
   // ---------------------------------------------------------------------------
@@ -323,9 +317,9 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
 Required fields: summary, description, project_id, category. All other fields are optional with sensible defaults (priority: "normal", severity: "minor").
 
 Recommended workflow:
-1. Call get_project_categories to obtain a valid category name
-2. Optionally call get_project_versions to obtain version names
-3. Optionally call find_project_member to resolve the assignee's username
+1. Call get_project with include: ["categories"] to obtain a valid category name
+2. Optionally add "versions" to include to obtain version names
+3. Optionally call get_project with member_query to resolve the assignee's username
 
 Both priority and severity accept canonical English names or localized labels from the connected MantisBT instance — call get_issue_enums to see all available values.
 
@@ -334,14 +328,14 @@ For the handler, prefer the username field (resolved server-side) over handler_i
         summary: z.string().min(1).describe('Issue summary/title (required)'),
         description: z.string().min(1).describe('Detailed issue description (required). Do not create issues without a description. Plain text or Markdown.'),
         project_id: z.coerce.number().int().positive().describe('Project ID the issue belongs to — use list_projects to discover project IDs'),
-        category: z.string().min(1).describe('Category name (required). Use get_project_categories to list available categories for the project.'),
+        category: z.string().min(1).describe('Category name (required). Use get_project with include: ["categories"] to list available categories for the project.'),
         priority: z.string().default('normal').describe('Priority level. Canonical English names: none, low, normal, high, urgent, immediate. Default: "normal". Use get_issue_enums to see localized labels.'),
         severity: z.string().default('minor').describe('Severity level. Canonical English names: feature, trivial, text, tweak, minor, major, crash, block. Default: "minor". Use get_issue_enums to see localized labels.'),
         handler_id: z.coerce.number().int().positive().optional().describe('Numeric user ID of the assignee. Alternative to the handler field — use one or the other, not both.'),
-        handler: z.string().optional().describe('MantisBT login name of the assignee. The server resolves the name to a user ID from the project member list. Use find_project_member or get_project_users to look up valid login names.'),
-        version: z.string().optional().describe('Affected product version name. Use get_project_versions to list available version names for the project.'),
-        target_version: z.string().optional().describe('Target fix version — version in which the issue is planned to be resolved. Use get_project_versions to list available version names.'),
-        fixed_in_version: z.string().optional().describe('Version in which the issue was fixed. Use get_project_versions to list available version names.'),
+        handler: z.string().optional().describe('MantisBT login name of the assignee. The server resolves the name to a user ID from the project member list. Use get_project with member_query or include: ["users"] to look up valid login names.'),
+        version: z.string().optional().describe('Affected product version name. Use get_project with include: ["versions"] to list available version names for the project.'),
+        target_version: z.string().optional().describe('Target fix version — version in which the issue is planned to be resolved. Use get_project with include: ["versions"] to list available version names.'),
+        fixed_in_version: z.string().optional().describe('Version in which the issue was fixed. Use get_project with include: ["versions"] to list available version names.'),
         steps_to_reproduce: z.string().optional().describe('Step-by-step instructions to reproduce the issue. Plain text or Markdown.'),
         additional_information: z.string().optional().describe('Additional context or notes about the issue. Plain text or Markdown.'),
         reproducibility: z.string().optional().describe('How reliably the issue reproduces. Canonical English names: always, sometimes, random, have not tried, unable to reproduce, N/A. Use get_issue_enums to see localized labels.'),
@@ -478,7 +472,7 @@ The "fields" object accepts any combination of:
 - fixed_in_version: { name: "<version_name>" }
 - view_state: { name: "public"|"private" }
 - custom_fields: [{field: {id|name}, value: "<string>"}]  (only the listed custom fields are changed, others stay untouched; use get_issue_fields to discover fields)
-- notes: [{ id: <note_id>, text?: "<new text>", view_state?: "public"|"private" }]  (edits existing notes; note IDs come from get_issue or list_notes. An omitted view_state keeps the note's current visibility. To add a new note use the "note" parameter or add_note.)
+- notes: [{ id: <note_id>, text?: "<new text>", view_state?: "public"|"private" }]  (edits existing notes; note IDs come from get_issue. An omitted view_state keeps the note's current visibility. To add a new note use the "note" parameter or add_note.)
 
 Important: when resolving an issue, always set BOTH status and resolution to avoid leaving resolution as "open".
 

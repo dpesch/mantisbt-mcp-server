@@ -336,3 +336,138 @@ describe('find_project_member', () => {
     expect(result.isError).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// get_project (#8497) — replaces get_project_categories/_users/_versions and
+// find_project_member
+// ---------------------------------------------------------------------------
+
+describe('get_project', () => {
+  const PROJECT = {
+    id: 7,
+    name: 'TestProject',
+    description: 'Demo',
+    status: { id: 10, name: 'development', label: 'Entwicklung' },
+    enabled: true,
+    view_state: { id: 10, name: 'public', label: 'öffentlich' },
+    categories: [{ id: 1, name: '[All Projects] General' }, { id: 2, name: 'Backend' }],
+  };
+  const USERS: MantisUser[] = [
+    { id: 1, name: 'alice', real_name: 'Alice Smith' },
+    { id: 2, name: 'bob', real_name: 'Bob Jones' },
+  ];
+
+  /** Answers each request by URL path, since get_project fetches in parallel. */
+  function routeFetch(routes: Record<string, unknown>): void {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const path = new URL(String(input)).pathname.replace(/^.*\/api\/rest\//, '');
+      if (!(path in routes)) return makeResponse(404, JSON.stringify({ message: `no route ${path}` }));
+      return makeResponse(200, JSON.stringify(routes[path]));
+    });
+  }
+  const urls = () => vi.mocked(fetch).mock.calls.map(c => new URL(String(c[0])));
+  const parse = (r: { content: Array<{ text: string }> }) => JSON.parse(r.content[0]!.text) as Record<string, unknown>;
+
+  beforeEach(() => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+  });
+
+  it('returns only the project master data by default (one request)', async () => {
+    routeFetch({ 'projects/7': { projects: [PROJECT] } });
+
+    const result = await mockServer.callTool('get_project', { project_id: 7 }, { validate: true });
+
+    expect(result.isError).toBeUndefined();
+    expect(vi.mocked(fetch)).toHaveBeenCalledOnce();
+    const parsed = parse(result);
+    expect(parsed).toMatchObject({ id: 7, name: 'TestProject', description: 'Demo' });
+    expect(parsed).not.toHaveProperty('categories');
+    expect(parsed).not.toHaveProperty('users');
+    expect(parsed).not.toHaveProperty('versions');
+  });
+
+  it('includes categories without the [All Projects] prefix and without an extra request', async () => {
+    routeFetch({ 'projects/7': { projects: [PROJECT] } });
+
+    const result = await mockServer.callTool('get_project', { project_id: 7, include: ['categories'] }, { validate: true });
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledOnce();
+    expect(parse(result)['categories']).toEqual([{ id: 1, name: 'General' }, { id: 2, name: 'Backend' }]);
+  });
+
+  it('includes users and versions, passing access_level, obsolete and inherit', async () => {
+    routeFetch({
+      'projects/7': { projects: [PROJECT] },
+      'projects/7/users': { users: USERS },
+      'projects/7/versions': { versions: [{ id: 3, name: '1.0', released: true }] },
+    });
+
+    const result = await mockServer.callTool(
+      'get_project',
+      { project_id: 7, include: ['users', 'versions'], access_level: 55, obsolete: true, inherit: true },
+      { validate: true },
+    );
+
+    expect(result.isError).toBeUndefined();
+    const usersUrl = urls().find(u => u.pathname.endsWith('/users'))!;
+    const versionsUrl = urls().find(u => u.pathname.endsWith('/versions'))!;
+    expect(usersUrl.searchParams.get('access_level')).toBe('55');
+    expect(versionsUrl.searchParams.get('obsolete')).toBe('1');
+    expect(versionsUrl.searchParams.get('inherit')).toBe('1');
+    const parsed = parse(result);
+    expect(parsed['users']).toEqual(USERS);
+    expect(parsed['versions']).toEqual([{ id: 3, name: '1.0', released: true }]);
+  });
+
+  it('member_query implies users and returns all matches (case-insensitive, name/real_name/email)', async () => {
+    routeFetch({ 'projects/7': { projects: [PROJECT] }, 'projects/7/users': { users: USERS } });
+
+    const result = await mockServer.callTool('get_project', { project_id: 7, member_query: 'SMITH' }, { validate: true });
+
+    expect(parse(result)['users']).toEqual([USERS[0]]);
+  });
+
+  it('obsolete/inherit imply versions', async () => {
+    routeFetch({ 'projects/7': { projects: [PROJECT] }, 'projects/7/versions': { versions: [] } });
+
+    const result = await mockServer.callTool('get_project', { project_id: 7, obsolete: true }, { validate: true });
+
+    expect(parse(result)['versions']).toEqual([]);
+    expect(urls().some(u => u.pathname.endsWith('/versions'))).toBe(true);
+  });
+
+  it('serves users from a fresh cache when no access_level is given', async () => {
+    await seedCache(USERS);
+    routeFetch({ 'projects/7': { projects: [PROJECT] } });
+
+    const result = await mockServer.callTool('get_project', { project_id: 7, member_query: 'bob' }, { validate: true });
+
+    expect(urls().some(u => u.pathname.endsWith('/users'))).toBe(false);
+    expect(parse(result)['users']).toEqual([USERS[1]]);
+  });
+
+  it('asks the API for users when access_level is given, even with a fresh cache', async () => {
+    await seedCache(USERS);
+    routeFetch({ 'projects/7': { projects: [PROJECT] }, 'projects/7/users': { users: [USERS[0]] } });
+
+    const result = await mockServer.callTool('get_project', { project_id: 7, include: ['users'], access_level: 70 }, { validate: true });
+
+    expect(urls().some(u => u.pathname.endsWith('/users'))).toBe(true);
+    expect(parse(result)['users']).toEqual([USERS[0]]);
+  });
+
+  it('returns isError when the project does not exist', async () => {
+    routeFetch({});
+
+    const result = await mockServer.callTool('get_project', { project_id: 999 }, { validate: true });
+
+    expect(result.isError).toBe(true);
+  });
+
+  it('rejects an unknown include value', async () => {
+    const result = await mockServer.callTool('get_project', { project_id: 7, include: ['tags'] }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+});

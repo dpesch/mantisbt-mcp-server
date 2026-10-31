@@ -103,15 +103,19 @@ Praktische Beispiele für die Interaktion mit MantisBT über Claude, sobald der 
 
 > »Auf welche Projekte habe ich Zugriff?«
 
-> »Welche Versionen sind im Webshop-Projekt definiert?«
+> »Welche Kategorien und Versionen hat Projekt 12?«
 
-> »Liste alle Kategorien im Backend-Projekt.«
+> »Zeig mir Mitglieder, Kategorien und Versionen des Webshop-Projekts in einem Aufruf.«
 
 > »Wer sind die Mitglieder des API-Projekts?«
 
 > »Gibt es im Projekt 3 einen Benutzer namens 'schmidt'?«
 
 > »Finde alle Mitglieder des Webshop-Projekts, deren E-Mail '@example.com' enthält.«
+
+> »Welche Versionen sind im Webshop-Projekt definiert?«
+
+> »Liste alle Kategorien im Backend-Projekt.«
 
 ---
 

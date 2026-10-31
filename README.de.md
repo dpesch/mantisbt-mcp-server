@@ -90,18 +90,18 @@ npm run build
 
 | Tool | Beschreibung |
 |---|---|
-| `get_issue` | Ein Issue anhand seiner ID abrufen; optionales `select` zur Feldauswahl reduziert die Antwortgröße |
-| `get_issues` | Mehrere Issues per ID in einem Aufruf abrufen (1–50 IDs); nicht zugängliche IDs liefern `null` an ihrer Position, statt den gesamten Aufruf abzubrechen |
+| `get_issue` | Ein Issue per `id` oder mehrere per `ids` (1–50) in einem Aufruf abrufen – genau eines von beiden angeben; mit `ids` lautet die Antwort `{ issues, requested, found, failed }`, nicht zugängliche IDs liefern `null` an ihrer Position; optionales `select` zur Feldauswahl |
+| `get_issues` | **Veraltet:** stattdessen `get_issue` mit `ids` verwenden – wird in 2.0.0 entfernt |
 | `list_issues` | Issues nach Projekt, Status, Autor u.v.m. filtern; optionales `select` für Feldprojektion und `status` für clientseitige Statusfilterung – kanonische englische Statusnamen (z.B. `"new"`, `"resolved"`) werden per ID abgeglichen und funktionieren damit sprachunabhängig auf lokalisierten Installationen |
 | `create_issue` | Neues Issue anlegen; `severity` und `priority` müssen kanonische englische Namen sein (z.B. `minor`, `major`, `normal`, `high`) – `get_issue_enums` aufrufen, um alle gültigen Werte und deren lokalisierte Bezeichnungen zu sehen; optionaler `handler`-Parameter akzeptiert einen Benutzernamen als Alternative zu `handler_id` (wird gegen die Projektmitglieder aufgelöst); optionales `custom_fields` zum Setzen benutzerdefinierter Felder |
-| `update_issue` | Bestehendes Issue bearbeiten; Enum-Felder (`status`, `priority`, `severity`, `resolution`, `reproducibility`) akzeptieren kanonische englische Namen, lokalisierte Namen oder numerische IDs – der Server löst Namen automatisch zu IDs auf; unterstützt `custom_fields` sowie einen optionalen `note`-Parameter, der im selben Aufruf eine Notiz anhängt; `fields` darf entfallen, wenn nur `add_monitors`, `remove_monitors` oder `note` angegeben werden; mit `add_monitors` / `remove_monitors` (Arrays von Login-Namen) können Beobachter hinzugefügt oder entfernt werden – die Antwort enthält einen `monitors`-Schlüssel mit der aktuellen und der geänderten Beobachterliste; mit `fields.notes` lassen sich bestehende Notizen per ID bearbeiten (Notiz-ID aus `get_issue` oder `list_notes`) |
+| `update_issue` | Bestehendes Issue bearbeiten; Enum-Felder (`status`, `priority`, `severity`, `resolution`, `reproducibility`) akzeptieren kanonische englische Namen, lokalisierte Namen oder numerische IDs – der Server löst Namen automatisch zu IDs auf; unterstützt `custom_fields` sowie einen optionalen `note`-Parameter, der im selben Aufruf eine Notiz anhängt; `fields` darf entfallen, wenn nur `add_monitors`, `remove_monitors` oder `note` angegeben werden; mit `add_monitors` / `remove_monitors` (Arrays von Login-Namen) können Beobachter hinzugefügt oder entfernt werden – die Antwort enthält einen `monitors`-Schlüssel mit der aktuellen und der geänderten Beobachterliste; mit `fields.notes` lassen sich bestehende Notizen per ID bearbeiten (Notiz-ID aus `get_issue`) |
 | `delete_issue` | Issue löschen |
 
 ### Notizen
 
 | Tool | Beschreibung |
 |---|---|
-| `list_notes` | Alle Notizen eines Issues auflisten |
+| `list_notes` | **Veraltet:** stattdessen `get_issue` mit `select: "notes"` verwenden – wird in 2.0.0 entfernt |
 | `add_note` | Notiz zu einem Issue hinzufügen |
 | `delete_note` | Notiz löschen |
 
@@ -109,7 +109,7 @@ npm run build
 
 | Tool | Beschreibung |
 |---|---|
-| `list_issue_files` | Anhänge eines Issues auflisten |
+| `list_issue_files` | **Veraltet:** stattdessen `get_issue` mit `select: "attachments"` verwenden – wird in 2.0.0 entfernt |
 | `upload_file` | Datei an ein Issue anhängen – bevorzugt: lokaler `file_path` (der Server liest und kodiert die Datei automatisch); Fallback: Base64-kodiertes `content` + `filename` (nur verwenden, wenn `file_path` nicht verfügbar ist) |
 
 ### Beziehungen
@@ -139,14 +139,15 @@ npm run build
 | Tool | Beschreibung |
 |---|---|
 | `list_projects` | Alle zugänglichen Projekte auflisten; gibt normalisierte Projektdaten zurück (konsistent mit dem `sync_metadata`-Cache) |
-| `get_project_versions` | Versionen eines Projekts abrufen; optionale Booleans `obsolete` und `inherit` für veraltete bzw. vom Elternprojekt geerbte Versionen; jede Version enthält ein `timestamp`-Feld (Versionsdatum); zum Ändern siehe `create_version`, `update_version`, `release_version`, `delete_version` |
+| `get_project` | Stammdaten eines Projekts (id, name, status, enabled, Unterprojekte) sowie auf Anfrage Kategorien, Benutzer und/oder Versionen in einem Aufruf; `access_level` und `member_query` implizieren `users`; `obsolete`/`inherit` implizieren `versions` |
+| `get_project_versions` | **Veraltet:** stattdessen `get_project` mit `include: ["versions"]` verwenden – wird in 2.0.0 entfernt |
 | `create_version` | Neue Version in einem Projekt erstellen; gibt das erstellte Versionsobjekt zurück (id, name, description, released, obsolete, timestamp); erfordert `manage_project_threshold` (Standard: Manager) |
 | `update_version` | Bestehende Version aktualisieren; nur übergebene Felder werden geändert (mindestens eines erforderlich); Umbenennen schreibt version/target_version/fixed_in_version aller referenzierenden Issues neu; optionales `next_version` (nur zusammen mit `released: true`) legt eine Folgeversion im gleichen Aufruf an; erfordert `manage_project_threshold` (Standard: Manager) |
 | `release_version` | **Veraltet:** stattdessen `update_version` mit `released: true`, `timestamp` und optional `next_version` verwenden – wird in 2.0.0 entfernt |
 | `delete_version` | Version dauerhaft löschen – nicht umkehrbar, MantisBT leert version/target_version/fixed_in_version aller referenzierenden Issues; `update_version` mit `obsolete=true` als nicht-destruktive Alternative bevorzugen; erfordert `manage_project_threshold` (Standard: Manager) |
-| `get_project_categories` | Kategorien eines Projekts abrufen |
-| `get_project_users` | Benutzer eines Projekts abrufen |
-| `find_project_member` | Projektmitglieder nach Name, Realname oder E-Mail suchen (Teilstring-Suche, Groß-/Kleinschreibung ignoriert); optionale Parameter `query` und `limit` (Standard 10, max. 100); Cache-first |
+| `get_project_categories` | **Veraltet:** stattdessen `get_project` mit `include: ["categories"]` verwenden – wird in 2.0.0 entfernt |
+| `get_project_users` | **Veraltet:** stattdessen `get_project` mit `include: ["users"]` verwenden – wird in 2.0.0 entfernt |
+| `find_project_member` | **Veraltet:** stattdessen `get_project` mit `member_query` verwenden (kein `limit`, liefert alle Treffer) – wird in 2.0.0 entfernt |
 
 ### Semantische Suche *(optional)*
 

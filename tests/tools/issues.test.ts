@@ -119,6 +119,89 @@ describe('get_issue', () => {
 });
 
 // ---------------------------------------------------------------------------
+// get_issue with ids (#8497) — replaces get_issues
+// ---------------------------------------------------------------------------
+
+describe('get_issue – attachments', () => {
+  it('adds download_url to each attachment, also with select: "attachments"', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify({
+      issues: [{ attachments: [{ id: 7, filename: 'log.txt', size: 10, content_type: 'text/plain' }] }],
+    })));
+
+    const result = await mockServer.callTool('get_issue', { id: 42, select: 'attachments' }, { validate: true });
+
+    const parsed = JSON.parse(result.content[0]!.text) as { attachments: Array<{ id: number; download_url: string }> };
+    expect(parsed.attachments[0]).toMatchObject({
+      id: 7,
+      download_url: 'https://mantis.example.com/file_download.php?file_id=7&type=bug',
+    });
+  });
+});
+
+describe('get_issue – ids', () => {
+  type Envelope = { issues: Array<{ id: number; view_url?: string } | null>; requested: number; found: number; failed: number };
+
+  it('fetches several issues and returns the get_issues envelope', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 42, summary: 'A' }] })))
+      .mockResolvedValueOnce(makeResponse(404, JSON.stringify({ message: 'Issue not found' })));
+
+    const result = await mockServer.callTool('get_issue', { ids: [42, 9999] }, { validate: true });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as Envelope;
+    expect(parsed).toMatchObject({ requested: 2, found: 1, failed: 1 });
+    expect(parsed.issues[0]?.id).toBe(42);
+    expect(parsed.issues[1]).toBeNull();
+  });
+
+  it('keeps the envelope for a single-element ids list', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 42 }] })));
+
+    const result = await mockServer.callTool('get_issue', { ids: [42] }, { validate: true });
+
+    const parsed = JSON.parse(result.content[0]!.text) as Envelope;
+    expect(parsed.requested).toBe(1);
+    expect(parsed.issues).toHaveLength(1);
+  });
+
+  it('passes select to every request and keeps view_url when select omits id', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ summary: 'A' }] })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ summary: 'B' }] })));
+
+    const result = await mockServer.callTool('get_issue', { ids: [42, 43], select: 'summary' }, { validate: true });
+
+    expect(fetchCall(0).url).toContain('select=summary');
+    expect(fetchCall(1).url).toContain('select=summary');
+    const parsed = JSON.parse(result.content[0]!.text) as Envelope;
+    expect(parsed.issues.map(i => i?.view_url)).toEqual([
+      'https://mantis.example.com/view.php?id=42',
+      'https://mantis.example.com/view.php?id=43',
+    ]);
+  });
+
+  it.each([
+    ['neither id nor ids', {}],
+    ['both id and ids', { id: 42, ids: [43] }],
+  ])('rejects %s without calling the API', async (_label, args) => {
+    const result = await mockServer.callTool('get_issue', args, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('exactly one of');
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('rejects more than 50 ids', async () => {
+    const ids = Array.from({ length: 51 }, (_, i) => i + 1);
+    const result = await mockServer.callTool('get_issue', { ids }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // get_issues
 // ---------------------------------------------------------------------------
 

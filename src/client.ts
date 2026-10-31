@@ -44,6 +44,11 @@ export function buildNoteViewUrl(baseUrl: string, issueId: number, noteId: numbe
   return `${baseUrl}/view.php?id=${issueId}#bugnote${noteId}`;
 }
 
+/** MantisBT sends download_url for attachments only via SOAP, so the REST tools build it themselves. */
+export function buildAttachmentDownloadUrl(baseUrl: string, fileId: number): string {
+  return `${baseUrl}/file_download.php?file_id=${fileId}&type=bug`;
+}
+
 // ---------------------------------------------------------------------------
 // MantisApiError
 // ---------------------------------------------------------------------------

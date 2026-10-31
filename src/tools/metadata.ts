@@ -100,6 +100,14 @@ function normalizeIdName(o: any): MantisIdName {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+/** MantisBT prefixes global categories with "[All Projects] "; stripped so the names work in create_issue. */
+export function stripAllProjectsPrefix(categories: MantisCategory[]): MantisCategory[] {
+  return categories.map(cat => ({
+    ...cat,
+    name: cat.name.startsWith(ALL_PROJECTS_PREFIX) ? cat.name.slice(ALL_PROJECTS_PREFIX.length) : cat.name,
+  }));
+}
+
 export function normalizeProject(p: any): MantisProject {
   return {
     id: p.id,
@@ -141,12 +149,7 @@ async function fetchAndCacheMetadata(client: MantisClient, cache: MetadataCache)
       const rawCategories: MantisCategory[] = projectDetailResult.status === 'fulfilled'
         ? (projectDetailResult.value.projects?.[0]?.categories ?? [])
         : [];
-      const categories = rawCategories.map((cat) => ({
-        ...cat,
-        name: cat.name.startsWith(ALL_PROJECTS_PREFIX)
-          ? cat.name.slice(ALL_PROJECTS_PREFIX.length)
-          : cat.name,
-      }));
+      const categories = stripAllProjectsPrefix(rawCategories);
 
       byProject[project.id] = { users, versions, categories };
     })
@@ -230,7 +233,7 @@ Use this tool to refresh stale data.`,
       description: `Return a compact summary of cached MantisBT metadata: project count, tag count, and per-project counts of users, versions, and categories.
 
 If the cache does not exist or has expired (default TTL: 24 hours), it will automatically sync first.
-Use sync_metadata to force a refresh. For full lists use: list_projects (projects), get_project_users / get_project_versions / get_project_categories (per-project data), list_tags (tags).`,
+Use sync_metadata to force a refresh. For full lists use: list_projects (projects), get_project with include (per-project categories, users, versions), list_tags (tags).`,
       inputSchema: z.object({}),
       annotations: {
         readOnlyHint: true,

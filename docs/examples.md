@@ -103,15 +103,19 @@ Practical examples of how to interact with MantisBT through Claude once the MCP 
 
 > "Which projects do I have access to?"
 
-> "What versions are defined in the Webshop project?"
+> "What categories and versions does project 12 have?"
 
-> "List all categories in the Backend project."
+> "Show me the members, categories and versions of the Webshop project in one call."
 
 > "Who are the members of the API project?"
 
 > "Is there a user named 'smith' in project 3?"
 
 > "Find all members of the Webshop project whose email contains '@example.com'."
+
+> "What versions are defined in the Webshop project?"
+
+> "List all categories in the Backend project."
 
 ---
 

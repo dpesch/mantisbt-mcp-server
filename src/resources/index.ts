@@ -3,8 +3,7 @@ import { MantisClient } from '../client.js';
 import { MetadataCache } from '../cache.js';
 import type { MantisProject, MantisUser, MantisVersion, MantisCategory } from '../types.js';
 import { fetchIssueEnums } from '../tools/config.js';
-import { normalizeProject } from '../tools/metadata.js';
-import { ALL_PROJECTS_PREFIX } from '../constants.js';
+import { normalizeProject, stripAllProjectsPrefix } from '../tools/metadata.js';
 
 function jsonResource(uri: URL, data: unknown): { contents: Array<{ uri: string; mimeType: string; text: string }> } {
   return {
@@ -89,10 +88,7 @@ export function registerResources(server: McpServer, client: MantisClient, cache
         project = raw ? normalizeProject(raw) : undefined;
         users = usersResult.users ?? [];
         versions = versionsResult.versions ?? [];
-        categories = (raw?.categories ?? []).map((c) => ({
-          ...c,
-          name: c.name.startsWith(ALL_PROJECTS_PREFIX) ? c.name.slice(ALL_PROJECTS_PREFIX.length) : c.name,
-        }));
+        categories = stripAllProjectsPrefix(raw?.categories ?? []);
       }
 
       if (!project) {

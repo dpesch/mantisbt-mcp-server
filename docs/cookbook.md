@@ -25,6 +25,7 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
   - [Reassign an issue](#reassign-an-issue)
   - [Set fix version](#set-fix-version)
 - [Notes](#notes)
+  - [Get notes for an issue](#get-notes-for-an-issue)
   - [Add a public note](#add-a-public-note)
   - [Add a private note](#add-a-private-note)
   - [Delete a note](#delete-a-note)
@@ -52,6 +53,7 @@ Tool-oriented recipes for the MantisBT MCP server — each recipe shows exactly 
   - [Search by meaning](#search-by-meaning)
   - [Search with field enrichment](#search-with-field-enrichment)
 - [Projects & Categories](#projects--categories)
+  - [Get a project with categories, users and versions](#get-a-project-with-categories-users-and-versions)
   - [List project categories](#list-project-categories)
   - [Find a project member](#find-a-project-member)
   - [Create a project version](#create-a-project-version)
@@ -289,10 +291,11 @@ Compact variant (only the fields you need):
 
 Fetches up to 50 issues in a single MCP call. Requests run in parallel (max 5 concurrent). Missing or inaccessible IDs return `null` at their position — the call never fails due to individual missing IDs.
 
-**Tool:** `get_issues`
+**Tool:** `get_issue`
 
 **Parameters:**
 - `ids` — array of numeric issue IDs (1–50)
+- `select` — _(optional)_ comma-separated field list
 
 **Request:**
 
@@ -328,6 +331,8 @@ Fetches up to 50 issues in a single MCP call. Requests run in parallel (max 5 co
 ```
 
 > **Note:** `null` entries indicate IDs that were not found or could not be accessed. Check `failed` to see how many IDs could not be retrieved.
+
+> **Deprecated:** `get_issues` provides the same functionality but is deprecated — use `get_issue` with `ids` as shown above; `get_issues` will be removed in 2.0.0.
 
 ---
 
@@ -785,11 +790,53 @@ Sets the `fixed_in_version` field on an issue.
 }
 ```
 
-> **Note:** Use `get_project_versions(project_id)` to list valid version names for a project.
+> **Note:** Use `get_project` with `include: ["versions"]` to list valid version names for a project.
 
 ---
 
 ## Notes
+
+### Get notes for an issue
+
+Retrieves only the notes of an issue using server-side field projection. This is the preferred alternative to the deprecated `list_notes` tool.
+
+**Tool:** `get_issue`
+
+**Parameters:**
+- `id` — numeric issue ID
+- `select` — `"id,notes"` (include `id` so `view_url` is always set even when the projection omits it)
+
+**Request:**
+
+```json
+{
+  "id": 1042,
+  "select": "id,notes"
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 1042,
+  "notes": [
+    {
+      "id": 88,
+      "reporter": { "id": 7, "name": "jdoe" },
+      "text": "Reproduced on version 2.0.3. Root cause identified in the auth middleware.",
+      "view_state": { "id": 10, "name": "public" },
+      "created_at": "2024-11-05T14:02:11+00:00",
+      "view_url": "https://mantis.example.com/view.php?id=1042#bugnote88"
+    }
+  ],
+  "view_url": "https://mantis.example.com/view.php?id=1042"
+}
+```
+
+> **Deprecated:** `list_notes` will be removed in 2.0.0 — use `get_issue` with `select: "id,notes"` as shown above.
+
+---
 
 ### Add a public note
 
@@ -870,7 +917,7 @@ Permanently removes a note from an issue.
 
 **Parameters:**
 - `issue_id` — numeric issue ID
-- `note_id` — numeric note ID (from `list_notes` or `get_issue`)
+- `note_id` — numeric note ID (from `get_issue`)
 
 **Request:**
 
@@ -893,7 +940,7 @@ Permanently removes a note from an issue.
 
 ### Edit a note
 
-Edits the text and/or visibility of an existing note via `update_issue`. The note ID comes from `get_issue` or `list_notes`. At least one of `text` or `view_state` must be given. Multiple notes can be edited in a single call.
+Edits the text and/or visibility of an existing note via `update_issue`. The note ID comes from `get_issue`. At least one of `text` or `view_state` must be given. Multiple notes can be edited in a single call.
 
 **Tool:** `update_issue`
 
@@ -1016,35 +1063,44 @@ Attaches a file by passing its base64-encoded content directly. Use this **only*
 
 ### List attachments
 
-Returns all file attachments for an issue.
+Returns all file attachments for an issue using server-side field projection. Each attachment includes a `download_url` built from the MantisBT file download endpoint.
 
-**Tool:** `list_issue_files`
+**Tool:** `get_issue`
 
 **Parameters:**
-- `issue_id` — numeric issue ID
+- `id` — numeric issue ID
+- `select` — `"id,attachments"`
 
 **Request:**
 
 ```json
 {
-  "issue_id": 1042
+  "id": 1042,
+  "select": "id,attachments"
 }
 ```
 
 **Response:**
 
 ```json
-[
-  {
-    "id": 23,
-    "filename": "login-error.png",
-    "size": 42318,
-    "content_type": "image/png",
-    "description": "Login error on mobile Safari",
-    "created_at": "2024-11-05T15:30:00+00:00"
-  }
-]
+{
+  "id": 1042,
+  "attachments": [
+    {
+      "id": 23,
+      "filename": "login-error.png",
+      "size": 42318,
+      "content_type": "image/png",
+      "created_at": "2024-11-05T15:30:00+00:00",
+      "reporter": { "id": 4, "name": "jsmith" },
+      "download_url": "https://mantis.example.com/file_download.php?file_id=23&type=bug"
+    }
+  ],
+  "view_url": "https://mantis.example.com/view.php?id=1042"
+}
 ```
+
+> **Deprecated:** `list_issue_files` will be removed in 2.0.0 — use `get_issue` with `select: "id,attachments"` as shown above.
 
 ---
 
@@ -1665,68 +1721,159 @@ Shows which part of an issue matched the search query. Each result that has keyw
 
 ## Projects & Categories
 
-### List project categories
+### Get a project with categories, users and versions
 
-Returns all categories available for a MantisBT project. Use the returned names directly when creating issues.
+Retrieves a project's master data plus any combination of its categories, users and versions in one call. Categories come without the `[All Projects]` prefix — ready for use in `create_issue`. `member_query` filters users by a case-insensitive substring in login name, real name or email, and returns all matches.
 
-**Tool:** `get_project_categories`
+**Tool:** `get_project`
 
 **Parameters:**
-- `project_id` — numeric project ID
+- `project_id` — numeric project ID (use `list_projects` to discover)
+- `include` — _(optional)_ array of `"categories"`, `"users"`, `"versions"` (any combination)
+- `access_level` — _(optional)_ only users at or above this level (10=viewer, 25=reporter, 40=updater, 55=developer, 70=manager, 90=administrator); implies `"users"`
+- `member_query` — _(optional)_ case-insensitive substring; implies `"users"`, returns all matches
+- `obsolete` — _(optional)_ include obsolete versions; implies `"versions"`
+- `inherit` — _(optional)_ include versions inherited from parent projects; implies `"versions"`
 
-**Request:**
+**Request:** _(master data + categories + users + versions)_
 
 ```json
 {
-  "project_id": 3
+  "project_id": 3,
+  "include": ["categories", "users", "versions"]
 }
 ```
 
 **Response:**
 
 ```json
-[
-  { "id": 1, "name": "General" },
-  { "id": 2, "name": "UI" },
-  { "id": 3, "name": "Backend" }
-]
+{
+  "id": 3,
+  "name": "Webshop",
+  "description": "Main customer-facing storefront",
+  "status": { "id": 10, "name": "development" },
+  "enabled": true,
+  "view_state": { "id": 10, "name": "public" },
+  "categories": [
+    { "id": 1, "name": "General" },
+    { "id": 2, "name": "UI" },
+    { "id": 3, "name": "Backend" }
+  ],
+  "users": [
+    { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } },
+    { "id": 7, "name": "jdoe", "real_name": "Jane Doe", "email": "jdoe@example.com", "access_level": { "id": 70, "name": "manager" } }
+  ],
+  "versions": [
+    { "id": 42, "name": "1.2.0", "released": false, "obsolete": false, "timestamp": "2026-10-31T00:00:00+00:00" },
+    { "id": 43, "name": "1.2.1", "released": false, "obsolete": false, "timestamp": "2026-10-31T00:00:00+00:00" }
+  ]
+}
 ```
 
-> **Note:** Category names prefixed with `[All Projects]` (inherited from the global project) have the prefix automatically stripped in the response.
+**Request:** _(member search)_
+
+```json
+{
+  "project_id": 3,
+  "member_query": "smith"
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 3,
+  "name": "Webshop",
+  "status": { "id": 10, "name": "development" },
+  "enabled": true,
+  "users": [
+    { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } },
+    { "id": 11, "name": "asmith", "real_name": "Alice Smith", "email": "asmith@example.com", "access_level": { "id": 40, "name": "updater" } }
+  ]
+}
+```
+
+> **Note:** `get_project_categories`, `get_project_users`, `get_project_versions`, and `find_project_member` are deprecated in favour of `get_project` with `include` / `member_query` and will be removed in 2.0.0.
 
 ---
 
-### Find a project member
+### List project categories
 
-Searches project members by name, real name, or email. The search is case-insensitive and matches any substring. Results are served from the metadata cache when available; falls back to a live API call on a cold cache.
+Returns all categories available for a MantisBT project. Use the returned names directly when creating issues.
 
-**Tool:** `find_project_member`
+**Tool:** `get_project`
 
 **Parameters:**
 - `project_id` — numeric project ID
-- `query` — _(optional)_ substring to match against `name`, `real_name`, or `email`
-- `limit` — _(optional)_ maximum number of results, default 10, max 100
+- `include` — `["categories"]`
 
 **Request:**
 
 ```json
 {
   "project_id": 3,
-  "query": "smith",
-  "limit": 5
+  "include": ["categories"]
 }
 ```
 
 **Response:**
 
 ```json
-[
-  { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } },
-  { "id": 11, "name": "asmith", "real_name": "Alice Smith", "email": "asmith@example.com", "access_level": { "id": 40, "name": "reporter" } }
-]
+{
+  "id": 3,
+  "name": "Webshop",
+  "status": { "id": 10, "name": "development" },
+  "enabled": true,
+  "categories": [
+    { "id": 1, "name": "General" },
+    { "id": 2, "name": "UI" },
+    { "id": 3, "name": "Backend" }
+  ]
+}
 ```
 
-> **Tip:** Omit `query` to list all members of the project (up to `limit`).
+> **Note:** Category names prefixed with `[All Projects]` (inherited from the global project) have the prefix automatically stripped in the response.
+
+> **Deprecated:** `get_project_categories` will be removed in 2.0.0 — use `get_project` with `include: ["categories"]` as shown above.
+
+---
+
+### Find a project member
+
+Searches project members by name, real name, or email. The search is case-insensitive and matches any substring. All matching users are returned — there is no `limit`.
+
+**Tool:** `get_project`
+
+**Parameters:**
+- `project_id` — numeric project ID
+- `member_query` — substring to match against `name`, `real_name`, or `email`
+
+**Request:**
+
+```json
+{
+  "project_id": 3,
+  "member_query": "smith"
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 3,
+  "name": "Webshop",
+  "status": { "id": 10, "name": "development" },
+  "enabled": true,
+  "users": [
+    { "id": 4, "name": "jsmith", "real_name": "John Smith", "email": "jsmith@example.com", "access_level": { "id": 55, "name": "developer" } },
+    { "id": 11, "name": "asmith", "real_name": "Alice Smith", "email": "asmith@example.com", "access_level": { "id": 40, "name": "updater" } }
+  ]
+}
+```
+
+> **Deprecated:** `find_project_member` will be removed in 2.0.0 — use `get_project` with `member_query` as shown above. Unlike `find_project_member`, `get_project` has no `limit` and returns all matching users.
 
 ---
 
@@ -1781,7 +1928,7 @@ Updates an existing version of a MantisBT project. Only the fields you pass are 
 
 **Parameters:**
 - `project_id` — numeric project ID
-- `version_id` — numeric version ID (use `get_project_versions` to discover)
+- `version_id` — numeric version ID (use `get_project` with `include: ["versions"]` to discover)
 - `name` — _(optional)_ new version name (must be unique within the project)
 - `description` — _(optional)_ new version description
 - `released` — _(optional)_ released flag
@@ -1960,7 +2107,7 @@ Returns a compact overview of all cached metadata: total project and tag counts,
 }
 ```
 
-> **Note:** For full lists use `list_projects`, `get_project_users`, `get_project_versions`, `get_project_categories`, `list_tags`, or `get_metadata_full`.
+> **Note:** For full lists use `list_projects`, `get_project` (with `include`), `list_tags`, or `get_metadata_full`.
 
 ---
 

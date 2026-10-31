@@ -23,10 +23,10 @@ function definedFields(fields: Record<string, unknown>): Record<string, unknown>
 
 const PERMISSION_NOTE = 'Requires the manage_project_threshold access level in the project (MantisBT default: manager).';
 
-const OWNING_PROJECT_NOTE = 'The version must belong to project_id itself: versions inherited from a parent project can only be changed via the parent\'s project_id (otherwise MantisBT answers "Version not found"). get_project_versions with inherit=false (the default) lists the project\'s own versions.';
+const OWNING_PROJECT_NOTE = 'The version must belong to project_id itself: versions inherited from a parent project can only be changed via the parent\'s project_id (otherwise MantisBT answers "Version not found"). get_project with include: ["versions"] and without inherit lists the project\'s own versions.';
 
 const projectIdSchema = z.coerce.number().int().positive().describe('Numeric ID of the project the version belongs to — use list_projects to discover project IDs');
-const versionIdSchema = z.coerce.number().int().positive().describe('Numeric version ID — use get_project_versions to discover version IDs');
+const versionIdSchema = z.coerce.number().int().positive().describe('Numeric version ID — use get_project with include: ["versions"] to discover version IDs');
 const timestampSchema = z.string().min(1).describe('Version date as ISO 8601 string, e.g. "2026-09-27" or "2026-09-27T10:00:00+02:00". Determines the order in roadmap and changelog.');
 const boolFlag = z.preprocess(coerceBool, z.boolean());
 

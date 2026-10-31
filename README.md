@@ -90,18 +90,18 @@ npm run build
 
 | Tool | Description |
 |---|---|
-| `get_issue` | Retrieve an issue by its numeric ID; optional `select` for field projection to reduce response size |
-| `get_issues` | Retrieve multiple issues by ID in one call (1–50 IDs); missing or inaccessible IDs return `null` at their position instead of failing the call |
+| `get_issue` | Retrieve an issue by `id`, or several by `ids` (1–50) in one call — pass exactly one; with `ids` returns `{ issues, requested, found, failed }`, missing or inaccessible IDs give `null` at their position; optional `select` for field projection |
+| `get_issues` | **Deprecated:** use `get_issue` with `ids` instead — will be removed in 2.0.0 |
 | `list_issues` | Filter issues by project, status, author, and more; optional `select` for field projection and `status` for client-side status filtering — canonical English status names (e.g. `"new"`, `"resolved"`) are matched by ID, making the filter language-independent on localized installations |
 | `create_issue` | Create a new issue; `severity` and `priority` must be canonical English names (e.g. `minor`, `major`, `normal`, `high`) — call `get_issue_enums` to see all valid values and their localized labels; optional `handler` parameter accepts a username as alternative to `handler_id` (resolved against project members); optional `custom_fields` to set custom field values |
-| `update_issue` | Update an existing issue; enum fields (`status`, `priority`, `severity`, `resolution`, `reproducibility`) accept canonical English names, localized names, or numeric IDs — the server resolves names to IDs automatically; supports `custom_fields` and an optional `note` parameter that appends a note in the same call; `fields` may be omitted when only `add_monitors`, `remove_monitors`, or `note` are given; use `add_monitors` / `remove_monitors` (arrays of login names) to add or remove watchers — the response includes a `monitors` key with the current and changed monitor lists; use `fields.notes` to edit existing notes by ID (note ID from `get_issue` or `list_notes`) |
+| `update_issue` | Update an existing issue; enum fields (`status`, `priority`, `severity`, `resolution`, `reproducibility`) accept canonical English names, localized names, or numeric IDs — the server resolves names to IDs automatically; supports `custom_fields` and an optional `note` parameter that appends a note in the same call; `fields` may be omitted when only `add_monitors`, `remove_monitors`, or `note` are given; use `add_monitors` / `remove_monitors` (arrays of login names) to add or remove watchers — the response includes a `monitors` key with the current and changed monitor lists; use `fields.notes` to edit existing notes by ID (note ID from `get_issue`) |
 | `delete_issue` | Delete an issue |
 
 ### Notes
 
 | Tool | Description |
 |---|---|
-| `list_notes` | List all notes of an issue |
+| `list_notes` | **Deprecated:** use `get_issue` with `select: "notes"` instead — will be removed in 2.0.0 |
 | `add_note` | Add a note to an issue |
 | `delete_note` | Delete a note |
 
@@ -109,7 +109,7 @@ npm run build
 
 | Tool | Description |
 |---|---|
-| `list_issue_files` | List attachments of an issue |
+| `list_issue_files` | **Deprecated:** use `get_issue` with `select: "attachments"` instead — will be removed in 2.0.0 |
 | `upload_file` | Upload a file to an issue — preferred: local `file_path` (server reads and encodes automatically); fallback: Base64-encoded `content` + `filename` (use only when `file_path` is not available) |
 
 ### Relationships
@@ -139,14 +139,15 @@ npm run build
 | Tool | Description |
 |---|---|
 | `list_projects` | List all accessible projects; returns normalized project data (consistent with `sync_metadata` cache) |
-| `get_project_versions` | Get versions of a project; optional `obsolete` and `inherit` booleans to include obsolete or parent-inherited versions; each version includes a `timestamp` field (version date); see `create_version`, `update_version`, `release_version`, `delete_version` to modify versions |
+| `get_project` | Get one project's master data (id, name, status, enabled, subprojects) plus, on request, its categories, users and/or versions in one call; `access_level` and `member_query` imply `users`; `obsolete`/`inherit` imply `versions` |
+| `get_project_versions` | **Deprecated:** use `get_project` with `include: ["versions"]` instead — will be removed in 2.0.0 |
 | `create_version` | Create a new version in a project; returns the created version object (id, name, description, released, obsolete, timestamp); requires `manage_project_threshold` (default: manager) |
 | `update_version` | Update an existing version; only the fields you pass are changed (at least one required); renaming rewrites version/target_version/fixed_in_version on all referencing issues; optional `next_version` (only with `released: true`) creates a follow-up version in the same call; requires `manage_project_threshold` (default: manager) |
 | `release_version` | **Deprecated:** use `update_version` with `released: true`, `timestamp`, and optionally `next_version` instead — will be removed in 2.0.0 |
 | `delete_version` | Permanently delete a version — irreversible, MantisBT clears version/target_version/fixed_in_version on all referencing issues; prefer `update_version` with `obsolete=true` as the non-destructive alternative; requires `manage_project_threshold` (default: manager) |
-| `get_project_categories` | Get categories of a project |
-| `get_project_users` | Get users of a project |
-| `find_project_member` | Search project members by name, real name, or email (case-insensitive substring match); optional `query` and `limit` (default 10, max 100); cache-first |
+| `get_project_categories` | **Deprecated:** use `get_project` with `include: ["categories"]` instead — will be removed in 2.0.0 |
+| `get_project_users` | **Deprecated:** use `get_project` with `include: ["users"]` instead — will be removed in 2.0.0 |
+| `find_project_member` | **Deprecated:** use `get_project` with `member_query` instead (no `limit`, returns all matches) — will be removed in 2.0.0 |
 
 ### Semantic search *(optional)*
 
