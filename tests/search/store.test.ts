@@ -139,6 +139,18 @@ describe('VectraStore.getLastSyncedAt / setLastSyncedAt', () => {
   });
 });
 
+describe('VectraStore.getEmbeddingSignature / setEmbeddingSignature', () => {
+  it('returns null for an index without a signature', async () => {
+    expect(await store.getEmbeddingSignature()).toBeNull();
+  });
+
+  it('persists the signature across instances', async () => {
+    await store.setEmbeddingSignature('model-a|max_tokens=128');
+
+    expect(await new VectraStore(dir).getEmbeddingSignature()).toBe('model-a|max_tokens=128');
+  });
+});
+
 describe('VectraStore.resetLastSyncedAt', () => {
   it('clears the lastSyncedAt value', async () => {
     await store.setLastSyncedAt('2024-01-01T00:00:00.000Z');

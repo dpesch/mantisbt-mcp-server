@@ -7,6 +7,7 @@ import type { Embedder } from '../../src/search/embedder.js';
 // ---------------------------------------------------------------------------
 
 export const MOCK_VECTOR = Array(384).fill(0.1) as number[];
+export const MOCK_SIGNATURE = 'mock-model|max_tokens=128';
 
 // ---------------------------------------------------------------------------
 // makeMockStore
@@ -23,6 +24,8 @@ export function makeMockStore(options?: {
   itemCount?: number;
   lastKnownTotal?: number | null;
   items?: MockStoreItem[];
+  /** Defaults to the signature of makeMockEmbedder(), i.e. an up-to-date index. */
+  embeddingSignature?: string | null;
 }): VectorStore {
   const lastSyncedAt = options?.lastSyncedAt ?? null;
   const seedItems = options?.items ?? null;
@@ -69,6 +72,9 @@ export function makeMockStore(options?: {
     getLastKnownTotal: vi.fn(async () => options?.lastKnownTotal ?? null),
     setLastKnownTotal: vi.fn(async () => {}),
     flush: vi.fn(async () => {}),
+    getEmbeddingSignature: vi.fn(async () =>
+      options?.embeddingSignature === undefined ? MOCK_SIGNATURE : options.embeddingSignature),
+    setEmbeddingSignature: vi.fn(async () => {}),
   };
 }
 
@@ -80,5 +86,6 @@ export function makeMockEmbedder(): Embedder {
   return {
     embed: vi.fn(async () => MOCK_VECTOR),
     embedBatch: vi.fn(async (texts: string[]) => texts.map(() => MOCK_VECTOR)),
+    signature: MOCK_SIGNATURE,
   } as unknown as Embedder;
 }

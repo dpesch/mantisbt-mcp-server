@@ -87,6 +87,8 @@ async function readDotEnvLocal(): Promise<void> {
 // Non-credential config (safe to read at startup without credentials)
 // ---------------------------------------------------------------------------
 
+export const DEFAULT_SEARCH_MODEL = 'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
+
 function readNonCredentialConfig(): StartupConfig {
   const defaultCacheDir = join(homedir(), '.cache', 'mantisbt-mcp');
   const cacheDir = process.env.MANTIS_CACHE_DIR ?? defaultCacheDir;
@@ -102,9 +104,7 @@ function readNonCredentialConfig(): StartupConfig {
   const searchBackend: 'vectra' | 'sqlite-vec' =
     searchBackendRaw === 'sqlite-vec' ? 'sqlite-vec' : 'vectra';
   const searchDir = process.env.MANTIS_SEARCH_DIR ?? join(cacheDir, 'search');
-  const searchModelName =
-    process.env.MANTIS_SEARCH_MODEL ??
-    'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
+  const searchModelName = process.env.MANTIS_SEARCH_MODEL ?? DEFAULT_SEARCH_MODEL;
   const searchNumThreads = Math.max(1, parseInt(process.env.MANTIS_SEARCH_THREADS ?? '', 10) || 1);
 
   return {

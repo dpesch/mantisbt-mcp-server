@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { MantisClient } from '../../src/client.js';
 import { SearchSyncService, SyncLockedError } from '../../src/search/sync.js';
 import { acquireSyncLock } from '../../src/search/sync-lock.js';
-import { makeMockStore, makeMockEmbedder } from '../helpers/search-mocks.js';
+import { makeMockStore, makeMockEmbedder, MOCK_SIGNATURE } from '../helpers/search-mocks.js';
 import { makeResponse } from '../helpers/mock-server.js';
 import type { Embedder } from '../../src/search/embedder.js';
 
@@ -251,6 +251,82 @@ describe('SearchSyncService.sync – sync lock', () => {
     await expect(service.sync()).rejects.toThrow();
 
     expect(await acquireSyncLock(lockDir)).not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Embedding signature (#8539) — vectors made with another model or token limit
+// are not comparable with new query vectors, so the index is rebuilt. An
+// incremental sync would never replace them: their issues are unchanged.
+// ---------------------------------------------------------------------------
+
+describe('SearchSyncService.sync – embedding signature', () => {
+  beforeEach(() => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(LIST_ISSUES_RESPONSE)));
+  });
+
+  it('rebuilds the index when it was made with another signature', async () => {
+    const store = makeMockStore({ lastSyncedAt: '2024-03-01T00:00:00Z', itemCount: 5, embeddingSignature: 'old-model|max_tokens=default' });
+
+    await new SearchSyncService(client, store, embedder).sync();
+
+    expect(store.clear).toHaveBeenCalledTimes(1);
+    expect(store.resetLastSyncedAt).toHaveBeenCalledTimes(1);
+    expect(store.setEmbeddingSignature).toHaveBeenCalledWith(MOCK_SIGNATURE);
+  });
+
+  it('rebuilds an index without a signature (written before 1.16.0)', async () => {
+    const store = makeMockStore({ lastSyncedAt: '2024-03-01T00:00:00Z', itemCount: 5, embeddingSignature: null });
+
+    await new SearchSyncService(client, store, embedder).sync();
+
+    expect(store.clear).toHaveBeenCalledTimes(1);
+    expect(store.setEmbeddingSignature).toHaveBeenCalledWith(MOCK_SIGNATURE);
+  });
+
+  it('stores the signature before indexing, so an interrupted rebuild resumes instead of restarting', async () => {
+    const store = makeMockStore({ lastSyncedAt: null, embeddingSignature: null });
+
+    await new SearchSyncService(client, store, embedder).sync();
+
+    const signatureAt = vi.mocked(store.setEmbeddingSignature).mock.invocationCallOrder[0]!;
+    expect(signatureAt).toBeLessThan(vi.mocked(store.addBatch).mock.invocationCallOrder[0]!);
+  });
+
+  it('rebuilds all projects even when the sync is limited to one', async () => {
+    const store = makeMockStore({ lastSyncedAt: '2024-03-01T00:00:00Z', itemCount: 5, embeddingSignature: 'old-model|max_tokens=default' });
+
+    await new SearchSyncService(client, store, embedder).sync(7);
+
+    const url = new URL(vi.mocked(fetch).mock.calls[0]![0] as string);
+    expect(url.searchParams.has('project_id')).toBe(false);
+  });
+
+  it('limits the first sync of an empty index to the requested project', async () => {
+    const store = makeMockStore({ lastSyncedAt: null, itemCount: 0, embeddingSignature: null });
+
+    await new SearchSyncService(client, store, embedder).sync(7);
+
+    const url = new URL(vi.mocked(fetch).mock.calls[0]![0] as string);
+    expect(url.searchParams.get('project_id')).toBe('7');
+    expect(store.setEmbeddingSignature).toHaveBeenCalledWith(MOCK_SIGNATURE);
+  });
+
+  it('keeps an index made with the current signature', async () => {
+    const store = makeMockStore({ lastSyncedAt: '2024-03-01T00:00:00Z', itemCount: 5 });
+
+    await new SearchSyncService(client, store, embedder).sync();
+
+    expect(store.clear).not.toHaveBeenCalled();
+    expect(store.setEmbeddingSignature).not.toHaveBeenCalled();
+  });
+
+  it('stores the current signature on a requested full rebuild', async () => {
+    const store = makeMockStore({ lastSyncedAt: '2024-03-01T00:00:00Z', itemCount: 5 });
+
+    await new SearchSyncService(client, store, embedder).sync(undefined, { full: true });
+
+    expect(store.setEmbeddingSignature).toHaveBeenCalledWith(MOCK_SIGNATURE);
   });
 });
 

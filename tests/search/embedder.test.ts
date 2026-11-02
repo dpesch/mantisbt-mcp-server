@@ -1,28 +1,112 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Tensor } from '@huggingface/transformers';
 import { Embedder } from '../../src/search/embedder.js';
 
 // ---------------------------------------------------------------------------
 // Mock @huggingface/transformers (dynamic import)
+//
+// Only pipeline() is replaced. Tensor and mean_pooling stay real, so the
+// pooling and normalisation tested here are the library's own.
 // ---------------------------------------------------------------------------
 
-const mockPipelineFn = Object.assign(
-  vi.fn(async (texts: string | string[]) => {
-    if (Array.isArray(texts)) {
-      return texts.map(() => ({ data: new Float32Array(4).fill(0.1), dims: [1, 4] }));
-    }
-    return { data: new Float32Array(4).fill(0.1), dims: [4] };
-  }),
-  { dispose: vi.fn(async () => {}) },
-);
+// Token vectors per text: [batch=2][seq=2][dim=2]. The second token of the
+// second text is padding (mask 0) and must not count towards the mean.
+const HIDDEN = [[[3, 0], [1, 0]], [[0, 4], [9, 9]]];
+const MASK = [[1, 1], [1, 0]];
+
+function fakeTokenizerOutput(count: number) {
+  return {
+    attention_mask: new Tensor('int64', BigInt64Array.from(MASK.slice(0, count).flat().map(BigInt)), [count, 2]),
+  };
+}
+
+const mockTokenizer = vi.fn((texts: string[], _opts?: unknown) => fakeTokenizerOutput(texts.length));
+const modelImpl = async (inputs: { attention_mask: Tensor }) => {
+  const count = inputs.attention_mask.dims[0]!;
+  return { last_hidden_state: new Tensor('float32', Float32Array.from(HIDDEN.slice(0, count).flat(2)), [count, 2, 2]) };
+};
+const mockModel = vi.fn(modelImpl);
+
+const mockPipelineFn = { tokenizer: mockTokenizer, model: mockModel, dispose: vi.fn(async () => {}) };
 
 const mockPipelineFactory = vi.fn(async (_task: string, _model: string, _opts?: unknown) => mockPipelineFn);
 
-vi.mock('@huggingface/transformers', () => ({
-  pipeline: mockPipelineFactory,
+vi.mock('@huggingface/transformers', async importOriginal => ({
+  ...(await importOriginal<typeof import('@huggingface/transformers')>()),
+  // Lazy: the static Tensor import evaluates this factory before the mocks exist.
+  pipeline: (...args: Parameters<typeof mockPipelineFactory>) => mockPipelineFactory(...args),
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+const DEFAULT_MODEL = 'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
+
+// ---------------------------------------------------------------------------
+// Embedding output
+// ---------------------------------------------------------------------------
+
+describe('Embedder – embedding output', () => {
+  it('returns one mean-pooled, L2-normalised vector per text, ignoring padding', async () => {
+    const vectors = await new Embedder('m').embedBatch(['a', 'b']);
+
+    expect(vectors).toHaveLength(2);
+    expect(vectors[0]![0]).toBeCloseTo(1);
+    expect(vectors[0]![1]).toBeCloseTo(0);
+    expect(vectors[1]![0]).toBeCloseTo(0);
+    expect(vectors[1]![1]).toBeCloseTo(1);
+  });
+
+  it('embed() returns the vector of a single text', async () => {
+    const vector = await new Embedder('m').embed('a');
+
+    expect(vector[0]).toBeCloseTo(1);
+    expect(vector[1]).toBeCloseTo(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Token limit (#8539) — the default model is trained on 128 tokens. Longer
+// input is out of distribution and makes the vectors of long issues collapse
+// into one another.
+// ---------------------------------------------------------------------------
+
+describe('Embedder – token limit', () => {
+  it('truncates the default model to its training length of 128 tokens', async () => {
+    await new Embedder(DEFAULT_MODEL).embedBatch(['a']);
+
+    expect(mockTokenizer).toHaveBeenCalledWith(['a'], expect.objectContaining({
+      padding: true, truncation: true, max_length: 128,
+    }));
+  });
+
+  it('applies the same limit to search queries', async () => {
+    await new Embedder(DEFAULT_MODEL).embed('a');
+
+    expect(mockTokenizer).toHaveBeenCalledWith(['a'], expect.objectContaining({ max_length: 128 }));
+  });
+
+  it('keeps the tokenizer limit for models without a known training length', async () => {
+    await new Embedder('some/other-model').embed('a');
+
+    expect(mockTokenizer).toHaveBeenCalledWith(['a'], expect.objectContaining({ truncation: true, max_length: undefined }));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Signature — identifies how the stored vectors were made, so a changed model
+// or token limit triggers a rebuild of the index.
+// ---------------------------------------------------------------------------
+
+describe('Embedder – signature', () => {
+  it('names the model and its token limit', () => {
+    expect(new Embedder(DEFAULT_MODEL).signature).toBe(`${DEFAULT_MODEL}|max_tokens=128`);
+  });
+
+  it('marks the tokenizer limit for models without a known training length', () => {
+    expect(new Embedder('some/other-model').signature).toBe('some/other-model|max_tokens=default');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -136,9 +220,9 @@ describe('Embedder – idle unload', () => {
     await embedder.embed('warm up');
 
     let finish!: () => void;
-    mockPipelineFn.mockImplementationOnce(async () => {
+    mockModel.mockImplementationOnce(async inputs => {
       await new Promise<void>(resolve => { finish = resolve; });
-      return { data: new Float32Array(4).fill(0.1), dims: [4] };
+      return modelImpl(inputs);
     });
 
     const running = embedder.embed('slow');
@@ -161,7 +245,7 @@ describe('Embedder – idle unload', () => {
   it('keeps a loaded pipeline when a single embedding fails', async () => {
     const embedder = new Embedder('m');
     await embedder.embed('x');
-    mockPipelineFn.mockRejectedValueOnce(new Error('bad input'));
+    mockModel.mockRejectedValueOnce(new Error('bad input'));
 
     await expect(embedder.embed('broken')).rejects.toThrow('bad input');
     await embedder.embed('y');

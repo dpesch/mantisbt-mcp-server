@@ -62,14 +62,26 @@ export class SearchSyncService {
   }
 
   private async syncUnlocked(projectId: number | undefined, full: boolean): Promise<SyncResult> {
-    if (full) {
+    // Vectors made with another model or token limit are not comparable with
+    // new query vectors, and an incremental sync never replaces them — their
+    // issues are unchanged. Such an index is rebuilt, for all projects, since
+    // it is useless as it stands. An empty index only takes the signature.
+    const signature = this.embedder.signature;
+    const mismatch = (await this.store.getEmbeddingSignature()) !== signature;
+    const outdated = mismatch && (await this.store.count()) > 0;
+    const scope = outdated ? undefined : projectId;
+
+    if (full || outdated) {
       await this.store.clear();
       await this.store.resetLastSyncedAt();
     }
+    // Stored before indexing: an interrupted rebuild then resumes on the next
+    // sync instead of starting over.
+    if (full || mismatch) await this.store.setEmbeddingSignature(signature);
 
     const lastSyncedAt = await this.store.getLastSyncedAt();
 
-    const { issues: allIssues, totalFromApi } = await this.fetchAllIssues(lastSyncedAt ?? undefined, projectId);
+    const { issues: allIssues, totalFromApi } = await this.fetchAllIssues(lastSyncedAt ?? undefined, scope);
 
     let indexed = 0;
     let skipped = 0;
@@ -127,7 +139,7 @@ export class SearchSyncService {
     // changes for good. A project-scoped sync must not move the shared watermark,
     // since changes in the other projects were not looked at.
     const newestUpdatedAt = allIssues.find(issue => issue.updated_at)?.updated_at;
-    if (projectId === undefined && newestUpdatedAt && newestUpdatedAt !== lastSyncedAt) {
+    if (scope === undefined && newestUpdatedAt && newestUpdatedAt !== lastSyncedAt) {
       await this.store.setLastSyncedAt(newestUpdatedAt);
     }
 

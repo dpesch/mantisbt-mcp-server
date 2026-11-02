@@ -25,6 +25,9 @@ export interface VectorStore {
   resetLastSyncedAt(): Promise<void>;
   getLastKnownTotal(): Promise<number | null>;
   setLastKnownTotal(total: number): Promise<void>;
+  /** Embedder.signature the stored vectors were made with; null if unknown. */
+  getEmbeddingSignature(): Promise<string | null>;
+  setEmbeddingSignature(signature: string): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -35,6 +38,7 @@ export class VectraStore implements VectorStore {
   private readonly vectraDir: string;
   private readonly lastSyncFile: string;
   private readonly lastTotalFile: string;
+  private readonly signatureFile: string;
   private items: Map<number, VectorStoreItem> = new Map();
   private loaded = false;
   // Version of index.json the in-memory items correspond to (null: no file).
@@ -48,6 +52,7 @@ export class VectraStore implements VectorStore {
     this.vectraDir = join(dir, 'vectra');
     this.lastSyncFile = join(dir, 'last_sync.txt');
     this.lastTotalFile = join(dir, 'last_total.txt');
+    this.signatureFile = join(dir, 'embedding_signature.txt');
   }
 
   private get indexFile(): string {
@@ -179,6 +184,19 @@ export class VectraStore implements VectorStore {
   async setLastKnownTotal(total: number): Promise<void> {
     await mkdir(this.dir, { recursive: true });
     await writeFile(this.lastTotalFile, String(total), 'utf-8');
+  }
+
+  async getEmbeddingSignature(): Promise<string | null> {
+    try {
+      return (await readFile(this.signatureFile, 'utf-8')).trim() || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async setEmbeddingSignature(signature: string): Promise<void> {
+    await mkdir(this.dir, { recursive: true });
+    await writeFile(this.signatureFile, signature, 'utf-8');
   }
 }
 

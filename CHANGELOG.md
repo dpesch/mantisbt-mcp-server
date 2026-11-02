@@ -9,6 +9,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Semantic search: `search_issues` often missed issues with a longer description, even when queried with their exact title. The default model is trained on 128 tokens, but the text was embedded with up to 512, so the vectors of long issues collapsed into one another and short issues won almost every query. Text is now cut at the model's training length. On an index of 7,930 issues, an exact-title query found the issue among the top 10 in 95 % of the cases instead of 47 %, a query with the first sentence of the description in 84 % instead of 38 %. Content beyond the first 128 tokens is no longer taken into account.
+- Semantic search: the index is rebuilt automatically when it was made with another embedding model or token limit, including the first start after this update. Before, changing `MANTIS_SEARCH_MODEL` kept the old vectors, which cannot be compared with the new ones, until a `rebuild_search_index` with `full: true`. The model and token limit are stored in `embedding_signature.txt` in the search directory. The rebuild runs in the background sync of the first server start and took about 1.5 minutes for 7,700 issues; until it is done, `search_issues` finds only the issues indexed so far. It also drops entries of issues that were deleted or are no longer visible, which an incremental sync never removes.
+
 ---
 
 ## [1.15.0] – 2026-10-31
