@@ -87,14 +87,13 @@ export class Embedder {
       throw new Error(`Failed to load @huggingface/transformers: ${msg}`);
     }
 
-    // FIXME: onnxruntime expects intraOpNumThreads/interOpNumThreads and
-    // silently ignores these snake_case keys, so the thread limit has no
-    // effect. Kept as is here; fixing it changes sync speed noticeably.
+    // onnxruntime takes camelCase keys and silently ignores unknown ones
+    // (snake_case had no effect until #8540).
     return transformers.pipeline('feature-extraction', this.modelName, {
       session_options: {
-        intra_op_num_threads: this.numThreads,
-        inter_op_num_threads: 1, // Transformer graphs are sequential — no benefit from inter-op parallelism
-      } as Record<string, number>,
+        intraOpNumThreads: this.numThreads,
+        interOpNumThreads: 1, // Transformer graphs are sequential — no benefit from inter-op parallelism
+      },
     });
   }
 

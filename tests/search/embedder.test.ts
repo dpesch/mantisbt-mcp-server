@@ -114,7 +114,7 @@ describe('Embedder – signature', () => {
 // ---------------------------------------------------------------------------
 
 describe('Embedder – thread configuration', () => {
-  it('passes intra_op_num_threads=1 by default', async () => {
+  it('passes intraOpNumThreads=1 by default', async () => {
     const embedder = new Embedder('test-model');
     await embedder.embed('hello');
 
@@ -122,12 +122,12 @@ describe('Embedder – thread configuration', () => {
       'feature-extraction',
       'test-model',
       expect.objectContaining({
-        session_options: { intra_op_num_threads: 1, inter_op_num_threads: 1 },
+        session_options: { intraOpNumThreads: 1, interOpNumThreads: 1 },
       }),
     );
   });
 
-  it('passes configured numThreads to intra_op_num_threads; inter stays 1', async () => {
+  it('passes configured numThreads to intraOpNumThreads; interOpNumThreads stays 1', async () => {
     const embedder = new Embedder('test-model', 4);
     await embedder.embed('hello');
 
@@ -135,7 +135,7 @@ describe('Embedder – thread configuration', () => {
       'feature-extraction',
       'test-model',
       expect.objectContaining({
-        session_options: { intra_op_num_threads: 4, inter_op_num_threads: 1 },
+        session_options: { intraOpNumThreads: 4, interOpNumThreads: 1 },
       }),
     );
   });
@@ -154,14 +154,14 @@ describe('Embedder – thread configuration', () => {
 // ---------------------------------------------------------------------------
 
 describe('Embedder – numThreads default', () => {
-  it('uses intra_op_num_threads=1 when numThreads is not passed', async () => {
+  it('uses intraOpNumThreads=1 when numThreads is not passed', async () => {
     const embedder = new Embedder('m');
     await embedder.embed('x');
     expect(mockPipelineFactory).toHaveBeenCalledWith(
       'feature-extraction',
       'm',
       expect.objectContaining({
-        session_options: expect.objectContaining({ intra_op_num_threads: 1 }),
+        session_options: expect.objectContaining({ intraOpNumThreads: 1 }),
       }),
     );
   });
