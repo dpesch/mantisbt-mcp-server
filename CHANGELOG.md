@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [1.16.0] – 2026-11-02
+
 ### Added
 
 - Search benchmark `npm run benchmark:search` (`scripts/benchmark-search.ts`): measures recall@10 of `search_issues` on an existing index for exact titles, first sentences, sentences from deep in long descriptions, rare identifiers and — from `BENCHMARK_PARAPHRASES` — hand-written paraphrases, ranked by vectors only and hybrid. Reads the index only; refuses one built with another embedding signature.
@@ -16,7 +20,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - Semantic search: `search_issues` now combines the semantic ranking with a keyword ranking (BM25 over summary and description, summary counted twice) by Reciprocal Rank Fusion. Embeddings blur exact terms; a query for an identifier that occurs in at most three issues found its issue among the top 10 in 26 % of the cases, now in 100 % (7,739 issues). Literal queries gain as well — exact titles 97 % → 99.8 %, first sentences 83 % → 99 %, sentences from deep in a long description 58 % → 97 % — while paraphrased queries stay level (38 % → 37 %, 60 queries). `score` is still the semantic similarity, but results are now ordered by the combined ranking, so a keyword match can precede a higher `score`. The keyword index is built in memory on the first search (about 0.1 s and 7 MB for 7,739 issues) and adds about 2 ms per search.
-- Semantic search: a long description is now split into up to 8 chunks of the model's token limit, each embedded together with the summary, and an issue scores by its best chunk. Details deep in a long description become findable (measured without the keyword ranking below): a sentence from the middle of a long description found its issue among the top 10 in 58 % of the cases instead of 13 % (7,739 issues); exact titles 97 % (before 96 %), first sentences 83 % (before 84 %). The index grows to about 1.7 vectors per issue — `index.json` from 67 to 113 MB for 7,739 issues, held in memory by every server process with search enabled. Further chunks are stored in a new optional `chunks` field next to `vector`, so a server of an older version can still read the index.
+- Semantic search: a long description is now split into up to 8 chunks of the model's token limit, each embedded together with the summary, and an issue scores by its best chunk. Details deep in a long description become findable (measured without the keyword ranking above): a sentence from the middle of a long description found its issue among the top 10 in 58 % of the cases instead of 13 % (7,739 issues); exact titles 97 % (before 96 %), first sentences 83 % (before 84 %). The index grows to about 1.7 vectors per issue — `index.json` from 67 to 113 MB for 7,739 issues, held in memory by every server process with search enabled. Further chunks are stored in a new optional `chunks` field next to `vector`, so a server of an older version can still read the index.
 
 ### Fixed
 
