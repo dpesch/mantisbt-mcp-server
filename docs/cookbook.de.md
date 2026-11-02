@@ -1584,6 +1584,8 @@ Deabonniert einen Benutzer von Benachrichtigungen zu einem Issue.
 
 Baut den vollständigen Vektor-Suchindex von Grund auf neu auf. Einmalig nach der Aktivierung der semantischen Suche ausführen.
 
+Der Server baut den Index außerdem von selbst neu auf, wenn er mit einem anderen Embedding-Modell oder auf andere Weise erstellt wurde – nach einer Änderung von `MANTIS_SEARCH_MODEL` oder nach einem Update, das die Art der Einbettung ändert. Ein vollständiger Neuaufbau von 7.700 Issues dauerte mit dem Standard von 1 Thread etwa 6 Minuten, mit `MANTIS_SEARCH_THREADS=4` keine 3 Minuten.
+
 **Tool:** `rebuild_search_index`
 
 **Parameter:**
@@ -1614,7 +1616,7 @@ Baut den vollständigen Vektor-Suchindex von Grund auf neu auf. Einmalig nach de
 
 Aktualisiert den Index mit Issues, die seit der letzten Synchronisation hinzugekommen oder geändert wurden. Schneller als ein vollständiger Neuaufbau: Nur die seitdem geänderten Issues werden abgerufen und neu eingebettet.
 
-Es synchronisiert immer nur ein Serverprozess den gemeinsamen Index. Läuft bereits eine Synchronisation in einem anderen Prozess (etwa einer anderen Client-Sitzung), gibt das Tool einen Fehler zurück – nach deren Ende einfach erneut aufrufen. Eine auf `project_id` beschränkte Synchronisation verschiebt `last_synced_at` nicht, damit Änderungen in anderen Projekten beim nächsten Sync trotzdem erfasst werden.
+Es synchronisiert immer nur ein Serverprozess den gemeinsamen Index. Läuft bereits eine Synchronisation in einem anderen Prozess (etwa einer anderen Client-Sitzung), gibt das Tool einen Fehler zurück – nach deren Ende einfach erneut aufrufen. Eine auf `project_id` beschränkte Synchronisation verschiebt `last_synced_at` nicht, damit Änderungen in anderen Projekten beim nächsten Sync trotzdem erfasst werden. Wurde der Index mit einem anderen Embedding-Modell oder einer anderen Version erstellt, baut der Sync ihn für alle Projekte neu auf, auch mit `project_id`.
 
 **Tool:** `rebuild_search_index`
 

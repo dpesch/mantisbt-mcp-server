@@ -1584,6 +1584,8 @@ Unsubscribes a user from notifications for an issue.
 
 Builds the full vector search index from scratch. Run this once after enabling semantic search.
 
+The server also rebuilds the index by itself when it was made with another embedding model or in another way — after `MANTIS_SEARCH_MODEL` was changed, or after an update that changes how issues are embedded. A full rebuild of 7,700 issues took about 6 minutes with the default of 1 thread and less than 3 minutes with `MANTIS_SEARCH_THREADS=4`.
+
 **Tool:** `rebuild_search_index`
 
 **Parameters:**
@@ -1614,7 +1616,7 @@ Builds the full vector search index from scratch. Run this once after enabling s
 
 Updates the index with issues added or changed since the last sync. Faster than a full rebuild: only issues changed since then are fetched and re-embedded.
 
-Only one server process syncs the shared index at a time. If another process (for example another client session) is already syncing, the tool returns an error ("A search index sync is already running") — try again once that sync has finished. A sync limited to `project_id` does not advance `last_synced_at`, so changes in other projects are still picked up by the next sync.
+Only one server process syncs the shared index at a time. If another process (for example another client session) is already syncing, the tool returns an error ("A search index sync is already running") — try again once that sync has finished. A sync limited to `project_id` does not advance `last_synced_at`, so changes in other projects are still picked up by the next sync. If the index was made with another embedding model or version, the sync rebuilds it for all projects, even with `project_id`.
 
 **Tool:** `rebuild_search_index`
 

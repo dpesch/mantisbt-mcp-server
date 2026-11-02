@@ -81,7 +81,7 @@ npm run build
 | `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vector store backend: `vectra` (pure JS) or `sqlite-vec` (requires manual install) |
 | `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/search` | Directory for the search index |
 | `MANTIS_SEARCH_MODEL` | – | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | Embedding model name (downloaded once on first use, ~80 MB). After a change the index is rebuilt automatically on the next sync. |
-| `MANTIS_SEARCH_THREADS` | – | `1` | Number of ONNX intra-op threads for the embedding model. Default is 1 to prevent CPU saturation on multi-core machines and WSL. Increase only if index rebuild speed matters and the host is dedicated to this workload. Effective since 1.16.0 — earlier versions ignored this setting and always used every core. |
+| `MANTIS_SEARCH_THREADS` | – | `1` | Number of ONNX intra-op threads for the embedding model. Default is 1 to prevent CPU saturation on multi-core machines and WSL. On a machine with 4 or more cores, `4` is a good value: a full rebuild of 7,700 issues took 160 s instead of 377 s with 1 thread. The setting mainly speeds up indexing; a search query is a single short text and hardly benefits. Effective since 1.16.0 — earlier versions ignored this setting and always used every core. |
 | `MANTIS_UPLOAD_DIR` | – | – | Restrict `upload_file`'s `file_path` to files within this directory (path traversal via `../` is blocked). In **stdio mode** `file_path` is unrestricted unless this is set. In **HTTP mode** `file_path` reads from the server's filesystem, so it is **disabled unless this variable is set** — HTTP clients should upload via the `content` (Base64) parameter instead. |
 | `MANTIS_TOOLSETS` | – | – (all) | Comma-separated list of tool groups to offer: `issues`, `notes`, `links`, `files`, `projects`, `versions`, `meta`, `search` (case-insensitive). Unset or empty means all groups. The `search` group additionally requires `MANTIS_SEARCH_ENABLED=true`; without the group the search module is not started at all. An unknown group name stops the server at startup with a message listing the valid names. See [Limit the offered tools](#limit-the-offered-tools) and the [cookbook](docs/cookbook.md#offer-only-some-tool-groups). |
 | `MANTIS_DISABLE_DESTRUCTIVE` | – | `false` | Set to `true` to hide every destructive tool — `delete_issue`, `delete_note`, `delete_version`, `remove_relationship`, `remove_monitor` — regardless of the active groups. Hidden tools are not listed and return "Tool … not found" when called. |
@@ -214,7 +214,7 @@ Deprecated tools always belong to the same group as their replacement — disabl
 
 ### Semantic search *(optional)*
 
-Instead of exact keyword matching, semantic search understands the *meaning* behind a query. Ask in plain language — the search engine finds conceptually related issues even when the wording doesn't match:
+Semantic search understands the *meaning* behind a query, not just its keywords. Ask in plain language — the search engine finds conceptually related issues even when the wording doesn't match:
 
 - *"login fails after password reset"* — finds issues about authentication edge cases
 - *"performance problems on the checkout page"* — surfaces related reports regardless of the exact terminology used
