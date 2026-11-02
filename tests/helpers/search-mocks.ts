@@ -85,7 +85,7 @@ export function makeMockStore(options?: {
 export function makeMockEmbedder(): Embedder {
   return {
     embed: vi.fn(async () => MOCK_VECTOR),
-    embedBatch: vi.fn(async (texts: string[]) => texts.map(() => MOCK_VECTOR)),
+    embedDocuments: vi.fn(async (docs: unknown[]) => docs.map(() => [MOCK_VECTOR])),
     signature: MOCK_SIGNATURE,
   } as unknown as Embedder;
 }

@@ -8,6 +8,8 @@ import { join } from 'node:path';
 export interface VectorStoreItem {
   id: number;
   vector: number[];
+  /** Vectors of further description chunks (#8541); the item scores by the best one. */
+  chunks?: number[][];
   metadata: { summary: string; description?: string; updated_at?: string };
 }
 
@@ -119,7 +121,8 @@ export class VectraStore implements VectorStore {
     const results: Array<{ id: number; score: number }> = [];
 
     for (const item of this.items.values()) {
-      const score = cosineSimilarity(vector, item.vector);
+      let score = cosineSimilarity(vector, item.vector);
+      if (item.chunks) for (const chunk of item.chunks) score = Math.max(score, cosineSimilarity(vector, chunk));
       results.push({ id: item.id, score });
     }
 

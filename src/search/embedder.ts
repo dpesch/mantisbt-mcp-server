@@ -24,6 +24,26 @@ const MODEL_MAX_TOKENS: Record<string, number> = {
   [DEFAULT_SEARCH_MODEL]: 128,
 };
 
+// Vectors per issue for models with a known token limit: the first covers
+// summary and the start of the description, each further one the next part of
+// the description, prefixed with the summary (#8541). 8 chunks reach about
+// 1,000 description tokens and grow the index by a factor of about 1.7.
+const MAX_CHUNKS = 8;
+// Special tokens the tokenizer adds ([CLS], [SEP]) plus the newline.
+const CHUNK_OVERHEAD_TOKENS = 3;
+const MIN_CHUNK_TOKENS = 32;
+// Characters per token kept before tokenizing: tokens average about 4
+// characters, so this keeps well beyond MAX_CHUNKS windows without tokenizing
+// descriptions of 17,000+ tokens in full.
+const MAX_CHARS_PER_TOKEN = 16;
+// Texts per model call; caps the activation memory of a batch.
+const MODEL_BATCH_SIZE = 32;
+
+export interface EmbeddingDocument {
+  summary: string;
+  description?: string;
+}
+
 // A loaded model takes ~0.9 GB RAM, and every client session runs its own
 // server process. An idle process releases the model; the next use reloads it.
 const IDLE_UNLOAD_MS = 10 * 60 * 1000;
@@ -42,7 +62,9 @@ export class Embedder {
     private readonly numThreads: number = 1,
   ) {
     this.maxTokens = MODEL_MAX_TOKENS[modelName];
-    this.signature = `${modelName}|max_tokens=${this.maxTokens ?? 'default'}`;
+    this.signature = this.maxTokens === undefined
+      ? `${modelName}|max_tokens=default`
+      : `${modelName}|max_tokens=${this.maxTokens}|chunks=${MAX_CHUNKS}`;
   }
 
   private async withPipeline<T>(fn: (extractor: FeatureExtractionPipeline) => Promise<T>): Promise<T> {
@@ -97,6 +119,39 @@ export class Embedder {
     });
   }
 
+  /** One or more vectors per document; see MAX_CHUNKS. */
+  async embedDocuments(docs: EmbeddingDocument[]): Promise<number[][][]> {
+    if (docs.length === 0) return [];
+    return this.withPipeline(async ({ tokenizer }) => {
+      const texts = docs.map(doc => this.chunkTexts(doc, tokenizer));
+      const vectors = await this.embedBatch(texts.flat());
+      let start = 0;
+      return texts.map(chunks => {
+        const own = vectors.slice(start, start + chunks.length);
+        start += chunks.length;
+        return own;
+      });
+    });
+  }
+
+  private chunkTexts({ summary, description: fullDescription }: EmbeddingDocument, tokenizer: FeatureExtractionPipeline['tokenizer']): string[] {
+    const description = this.maxTokens === undefined
+      ? fullDescription
+      : fullDescription?.slice(0, MAX_CHUNKS * this.maxTokens * MAX_CHARS_PER_TOKEN);
+    const texts = [`${summary}\n${description ?? ''}`.trim()];
+    if (this.maxTokens === undefined || !description) return texts;
+
+    const encode = (text: string) => tokenizer.encode(text, { add_special_tokens: false });
+    const window = Math.max(MIN_CHUNK_TOKENS, this.maxTokens - CHUNK_OVERHEAD_TOKENS - encode(summary).length);
+    const tokens = encode(description);
+    // The first text already covers about the first window of the description.
+    for (let start = window; start < tokens.length && texts.length < MAX_CHUNKS; start += window) {
+      const part = tokenizer.decode(tokens.slice(start, start + window), { skip_special_tokens: true });
+      texts.push(`${summary}\n${part}`);
+    }
+    return texts;
+  }
+
   async embed(text: string): Promise<number[]> {
     return (await this.embedBatch([text]))[0]!;
   }
@@ -106,13 +161,17 @@ export class Embedder {
   async embedBatch(texts: string[]): Promise<number[][]> {
     if (texts.length === 0) return [];
     return this.withPipeline(async ({ tokenizer, model }) => {
-      const inputs = tokenizer(texts, { padding: true, truncation: true, max_length: this.maxTokens });
-      const outputs = (await model(inputs)) as Record<string, Tensor | undefined>;
-      const tokenVectors = outputs['last_hidden_state'] ?? outputs['logits'] ?? outputs['token_embeddings'];
-      if (!tokenVectors) throw new Error('Embedding model returned no token vectors');
       // Already loaded by load(), so this resolves from the module cache.
       const { mean_pooling } = await import('@huggingface/transformers');
-      return mean_pooling(tokenVectors, inputs.attention_mask as Tensor).normalize(2, -1).tolist() as number[][];
+      const vectors: number[][] = [];
+      for (let i = 0; i < texts.length; i += MODEL_BATCH_SIZE) {
+        const inputs = tokenizer(texts.slice(i, i + MODEL_BATCH_SIZE), { padding: true, truncation: true, max_length: this.maxTokens });
+        const outputs = (await model(inputs)) as Record<string, Tensor | undefined>;
+        const tokenVectors = outputs['last_hidden_state'] ?? outputs['logits'] ?? outputs['token_embeddings'];
+        if (!tokenVectors) throw new Error('Embedding model returned no token vectors');
+        vectors.push(...(mean_pooling(tokenVectors, inputs.attention_mask as Tensor).normalize(2, -1).tolist() as number[][]));
+      }
+      return vectors;
     });
   }
 }

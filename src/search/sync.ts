@@ -1,6 +1,6 @@
 import type { MantisClient } from '../client.js';
 import type { VectorStore, VectorStoreItem } from './store.js';
-import type { Embedder } from './embedder.js';
+import type { Embedder, EmbeddingDocument } from './embedder.js';
 import { acquireSyncLock } from './sync-lock.js';
 
 // ---------------------------------------------------------------------------
@@ -90,7 +90,7 @@ export class SearchSyncService {
     // Process in batches of EMBED_BATCH_SIZE
     for (let i = 0; i < allIssues.length; i += EMBED_BATCH_SIZE) {
       const batch = allIssues.slice(i, i + EMBED_BATCH_SIZE);
-      const toEmbed: Array<{ issue: IssueListItem; text: string }> = [];
+      const toEmbed: Array<{ issue: IssueListItem; doc: EmbeddingDocument }> = [];
 
       for (const issue of batch) {
         if (!issue.summary) {
@@ -100,23 +100,22 @@ export class SearchSyncService {
         if (issue.updated_at && (await this.store.getItem(issue.id))?.metadata.updated_at === issue.updated_at) {
           continue; // already indexed in this exact version
         }
-        const text = `${issue.summary}\n${issue.description ?? ''}`.trim();
-        toEmbed.push({ issue, text });
+        toEmbed.push({ issue, doc: { summary: issue.summary, description: issue.description } });
       }
 
       if (toEmbed.length === 0) continue;
 
-      const vectors = await this.embedder.embedBatch(toEmbed.map(e => e.text));
+      const vectors = await this.embedder.embedDocuments(toEmbed.map(e => e.doc));
 
-      const batchItems: VectorStoreItem[] = toEmbed.map((e, j) => ({
-        id: e.issue.id,
-        vector: vectors[j]!,
-        metadata: {
-          summary: e.issue.summary!,
-          description: e.issue.description,
-          updated_at: e.issue.updated_at,
-        },
-      }));
+      const batchItems: VectorStoreItem[] = toEmbed.map(({ issue, doc }, j) => {
+        const [vector, ...chunks] = vectors[j]!;
+        return {
+          id: issue.id,
+          vector: vector!,
+          ...(chunks.length > 0 && { chunks }),
+          metadata: { ...doc, updated_at: issue.updated_at },
+        };
+      });
       await this.store.addBatch(batchItems);
       indexed += batchItems.length;
       indexedSinceCheckpoint += batchItems.length;

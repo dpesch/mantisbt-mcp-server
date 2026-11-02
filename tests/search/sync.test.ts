@@ -331,6 +331,29 @@ describe('SearchSyncService.sync – embedding signature', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Chunk vectors (#8541)
+// ---------------------------------------------------------------------------
+
+describe('SearchSyncService.sync – chunk vectors', () => {
+  it('stores the first vector as vector and the others as chunks', async () => {
+    const store = makeMockStore({ lastSyncedAt: null });
+    vi.mocked(fetch).mockResolvedValue(makeResponse(200, JSON.stringify(LIST_ISSUES_RESPONSE)));
+    vi.mocked(embedder.embedDocuments).mockImplementation(async docs => docs.map((_, i) => (i === 0 ? [[1], [2], [3]] : [[4]])));
+
+    await new SearchSyncService(client, store, embedder).sync();
+
+    const items = vi.mocked(store.addBatch).mock.calls.flat(2);
+    expect(items[0]).toMatchObject({ id: 101, vector: [1], chunks: [[2], [3]] });
+    expect(items[1]).toMatchObject({ id: 102, vector: [4] });
+    expect(items[1]).not.toHaveProperty('chunks');
+    expect(embedder.embedDocuments).toHaveBeenCalledWith([
+      { summary: 'Login fails on mobile', description: 'Steps to reproduce...' },
+      { summary: 'Dashboard loads slowly', description: 'Takes over 10 seconds' },
+    ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Issues without summary are skipped
 // ---------------------------------------------------------------------------
 

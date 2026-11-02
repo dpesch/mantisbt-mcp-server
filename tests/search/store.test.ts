@@ -80,6 +80,17 @@ describe('VectraStore.search', () => {
     }
   });
 
+  it('scores an issue by the best of its vector and its chunk vectors', async () => {
+    const queryVec = randomVector();
+    await store.add({ id: 1, vector: randomVector(), chunks: [randomVector(), [...queryVec]], metadata: { summary: 'Match in a chunk' } });
+    await store.add({ id: 2, vector: randomVector(), metadata: { summary: 'Random' } });
+
+    const results = await store.search(queryVec, 2);
+
+    expect(results[0]!.id).toBe(1);
+    expect(results[0]!.score).toBeCloseTo(1, 5);
+  });
+
   it('respects the topN limit', async () => {
     for (let i = 1; i <= 5; i++) {
       await store.add({ id: i, vector: randomVector(), metadata: { summary: `Issue ${i}` } });

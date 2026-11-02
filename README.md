@@ -220,7 +220,7 @@ Instead of exact keyword matching, semantic search understands the *meaning* beh
 - *"performance problems on the checkout page"* — surfaces related reports regardless of the exact terminology used
 - *"duplicate entries in the invoice list"* — catches issues described as "shown twice", "double records", etc.
 
-The embedding model (~80 MB) runs entirely **offline** — no OpenAI key, no external API. It is downloaded once on first start and cached locally. Issues are indexed incrementally on every server start (only new and updated issues are re-indexed). When several client sessions start a server at the same time, only one of them syncs the shared index. The model is loaded on first use and unloaded again after 10 minutes without embedding, so idle sessions do not hold on to its memory (~0.9 GB per server process).
+The embedding model (~80 MB) runs entirely **offline** — no OpenAI key, no external API. It is downloaded once on first start and cached locally. Issues are indexed incrementally on every server start (only new and updated issues are re-indexed). When several client sessions start a server at the same time, only one of them syncs the shared index. The model is loaded on first use and unloaded again after 10 minutes without embedding, so idle sessions do not hold on to its memory (~0.9 GB per server process). Long descriptions are split into up to 8 chunks so that details further down are found as well; the index then holds about 1.7 vectors per issue (around 115 MB for 7,700 issues), which every server process with search enabled keeps in memory.
 
 Activate with `MANTIS_SEARCH_ENABLED=true`.
 

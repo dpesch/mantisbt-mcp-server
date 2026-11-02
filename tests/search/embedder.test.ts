@@ -9,21 +9,33 @@ import { Embedder } from '../../src/search/embedder.js';
 // pooling and normalisation tested here are the library's own.
 // ---------------------------------------------------------------------------
 
-// Token vectors per text: [batch=2][seq=2][dim=2]. The second token of the
-// second text is padding (mask 0) and must not count towards the mean.
+// Token vectors per text: [seq=2][dim=2], alternating between two texts. The
+// second token of every second text is padding (mask 0) and must not count
+// towards the mean.
 const HIDDEN = [[[3, 0], [1, 0]], [[0, 4], [9, 9]]];
 const MASK = [[1, 1], [1, 0]];
+const row = <T>(rows: T[], i: number) => rows[i % rows.length]!;
 
 function fakeTokenizerOutput(count: number) {
-  return {
-    attention_mask: new Tensor('int64', BigInt64Array.from(MASK.slice(0, count).flat().map(BigInt)), [count, 2]),
-  };
+  const mask = Array.from({ length: count }, (_, i) => row(MASK, i)).flat();
+  return { attention_mask: new Tensor('int64', BigInt64Array.from(mask.map(BigInt)), [count, 2]) };
 }
 
-const mockTokenizer = vi.fn((texts: string[], _opts?: unknown) => fakeTokenizerOutput(texts.length));
+// One token per space-separated word, so tests can reason about token counts.
+const vocab: string[] = [];
+const tokenId = (word: string) => { const i = vocab.indexOf(word); return i === -1 ? vocab.push(word) - 1 : i; };
+
+const mockTokenizer = Object.assign(
+  vi.fn((texts: string[], _opts?: unknown) => fakeTokenizerOutput(texts.length)),
+  {
+    encode: vi.fn((text: string, _opts?: unknown) => text.split(/\s+/).filter(Boolean).map(tokenId)),
+    decode: vi.fn((ids: number[], _opts?: unknown) => ids.map(i => vocab[i]).join(' ')),
+  },
+);
 const modelImpl = async (inputs: { attention_mask: Tensor }) => {
   const count = inputs.attention_mask.dims[0]!;
-  return { last_hidden_state: new Tensor('float32', Float32Array.from(HIDDEN.slice(0, count).flat(2)), [count, 2, 2]) };
+  const hidden = Array.from({ length: count }, (_, i) => row(HIDDEN, i)).flat(2);
+  return { last_hidden_state: new Tensor('float32', Float32Array.from(hidden), [count, 2, 2]) };
 };
 const mockModel = vi.fn(modelImpl);
 
@@ -95,13 +107,79 @@ describe('Embedder – token limit', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Signature — identifies how the stored vectors were made, so a changed model
-// or token limit triggers a rebuild of the index.
+// Documents (#8541) — text beyond the token limit is split into further
+// chunks, each prefixed with the summary, so details deep in a long
+// description stay findable.
+// ---------------------------------------------------------------------------
+
+const words = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => `w${from + i}`).join(' ');
+const embeddedTexts = () => mockTokenizer.mock.calls.flatMap(([texts]) => texts);
+
+describe('Embedder – documents', () => {
+  it('embeds a short issue as one vector of summary and description', async () => {
+    const [vectors] = await new Embedder(DEFAULT_MODEL).embedDocuments([{ summary: 'Title', description: 'short text' }]);
+
+    expect(vectors).toHaveLength(1);
+    expect(embeddedTexts()).toEqual(['Title\nshort text']);
+  });
+
+  it('splits a long description into summary-prefixed chunks that fit the token limit', async () => {
+    // 1 summary token + newline + 2 special tokens leave 124 description tokens per chunk
+    const [vectors] = await new Embedder(DEFAULT_MODEL).embedDocuments([{ summary: 'Title', description: words(0, 300) }]);
+
+    expect(vectors).toHaveLength(3);
+    expect(embeddedTexts()).toEqual([
+      `Title\n${words(0, 300)}`,
+      `Title\n${words(124, 248)}`,
+      `Title\n${words(248, 300)}`,
+    ]);
+  });
+
+  it('keeps at most 8 vectors per issue', async () => {
+    const [vectors] = await new Embedder(DEFAULT_MODEL).embedDocuments([{ summary: 'Title', description: words(0, 5000) }]);
+
+    expect(vectors).toHaveLength(8);
+  });
+
+  it('returns the vectors per document, in order', async () => {
+    const result = await new Embedder(DEFAULT_MODEL).embedDocuments([
+      { summary: 'A', description: words(0, 300) },
+      { summary: 'B' },
+    ]);
+
+    expect(result.map(v => v.length)).toEqual([3, 1]);
+    expect(embeddedTexts().at(-1)).toBe('B');
+  });
+
+  it('runs the model on at most 32 texts at a time', async () => {
+    const vectors = await new Embedder(DEFAULT_MODEL).embedBatch(Array.from({ length: 40 }, (_, i) => `t${i}`));
+
+    expect(vectors).toHaveLength(40);
+    expect(mockTokenizer.mock.calls.map(([texts]) => texts.length)).toEqual([32, 8]);
+  });
+
+  it('tokenizes only the start of a very long description', async () => {
+    await new Embedder(DEFAULT_MODEL).embedDocuments([{ summary: 'Title', description: 'x '.repeat(50_000) }]);
+
+    const longest = Math.max(...mockTokenizer.encode.mock.calls.map(([text]) => text.length));
+    expect(longest).toBeLessThanOrEqual(8 * 128 * 16);
+  });
+
+  it('does not split for models without a known token limit', async () => {
+    const [vectors] = await new Embedder('some/other-model').embedDocuments([{ summary: 'Title', description: words(0, 5000) }]);
+
+    expect(vectors).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Signature — identifies how the stored vectors were made, so a changed model,
+// token limit or chunking triggers a rebuild of the index.
 // ---------------------------------------------------------------------------
 
 describe('Embedder – signature', () => {
-  it('names the model and its token limit', () => {
-    expect(new Embedder(DEFAULT_MODEL).signature).toBe(`${DEFAULT_MODEL}|max_tokens=128`);
+  it('names the model, its token limit and the chunking', () => {
+    expect(new Embedder(DEFAULT_MODEL).signature).toBe(`${DEFAULT_MODEL}|max_tokens=128|chunks=8`);
   });
 
   it('marks the tokenizer limit for models without a known training length', () => {
