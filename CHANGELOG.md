@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Search benchmark `npm run benchmark:search` (`scripts/benchmark-search.ts`): measures recall@10 of `search_issues` on an existing index for exact titles, first sentences, sentences from deep in long descriptions, rare identifiers and — from `BENCHMARK_PARAPHRASES` — hand-written paraphrases, ranked by vectors only and hybrid. Reads the index only; refuses one built with another embedding signature.
+
 ### Changed
 
 - Semantic search: `search_issues` now combines the semantic ranking with a keyword ranking (BM25 over summary and description, summary counted twice) by Reciprocal Rank Fusion. Embeddings blur exact terms; a query for an identifier that occurs in at most three issues found its issue among the top 10 in 26 % of the cases, now in 100 % (7,739 issues). Literal queries gain as well — exact titles 97 % → 99.8 %, first sentences 83 % → 99 %, sentences from deep in a long description 58 % → 97 % — while paraphrased queries stay level (38 % → 37 %, 60 queries). `score` is still the semantic similarity, but results are now ordered by the combined ranking, so a keyword match can precede a higher `score`. The keyword index is built in memory on the first search (about 0.1 s and 7 MB for 7,739 issues) and adds about 2 ms per search.

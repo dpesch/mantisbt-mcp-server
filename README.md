@@ -341,6 +341,7 @@ npm test             # Run tests (vitest)
 npm run test:watch   # Run tests in watch mode
 npm run test:coverage # Coverage report
 npm run benchmark    # Token benchmark against a live MantisBT (see Token usage above)
+npm run benchmark:search # Search recall on an existing index (MANTIS_SEARCH_DIR), vectors vs. hybrid
 ```
 
 ## License

@@ -341,6 +341,7 @@ npm test             # Tests ausführen (vitest)
 npm run test:watch   # Tests im Watch-Modus
 npm run test:coverage # Coverage-Report
 npm run benchmark    # Token-Benchmark gegen eine Live-MantisBT-Instanz (siehe Token-Verbrauch oben)
+npm run benchmark:search # Such-Trefferquote auf einem bestehenden Index (MANTIS_SEARCH_DIR), Vektor vs. hybrid
 ```
 
 ## Lizenz
