@@ -1682,7 +1682,7 @@ Gibt die Anzahl der indizierten Issues, die Gesamtanzahl der Issues und den Zeit
 
 ### Nach Bedeutung suchen
 
-Findet Issues, die einem natürlichsprachigen Suchbegriff semantisch ähnlich sind. Gibt Issue-IDs und Relevanz-Scores zurück.
+Findet Issues, die einem natürlichsprachigen Suchbegriff semantisch ähnlich sind, kombiniert mit einer Stichwortsuche, damit auch exakte Begriffe (Bezeichner, Fehlercodes, Versionsnummern) gefunden werden. Gibt Issue-IDs und Relevanz-Scores zurück. `score` ist die semantische Ähnlichkeit; die Reihenfolge folgt der kombinierten Rangfolge, ein Ergebnis mit exaktem Stichworttreffer kann also vor einem mit höherem `score` stehen.
 
 **Tool:** `search_issues`
 

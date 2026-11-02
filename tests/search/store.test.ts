@@ -91,6 +91,40 @@ describe('VectraStore.search', () => {
     expect(results[0]!.score).toBeCloseTo(1, 5);
   });
 
+  // Hybrid search (#8542): with the query text, the ranking fuses vector and
+  // keyword ranks; the score stays the vector similarity.
+  it('ranks an exact keyword match first when the query text is given', async () => {
+    const queryVec = randomVector();
+    await store.add({ id: 1, vector: [...queryVec], metadata: { summary: 'Similar wording', description: 'nothing special' } });
+    await store.add({ id: 2, vector: randomVector(), metadata: { summary: 'Other', description: 'set MANTIS_SEARCH_DIR here' } });
+    await store.add({ id: 3, vector: randomVector(), metadata: { summary: 'Third', description: 'unrelated' } });
+
+    const results = await store.search(queryVec, 3, 'MANTIS_SEARCH_DIR');
+
+    expect(results[0]!.id).toBe(2);
+    expect(results.find(r => r.id === 1)!.score).toBeCloseTo(1, 5);
+  });
+
+  it('ranks by vector similarity alone without query text', async () => {
+    const queryVec = randomVector();
+    await store.add({ id: 1, vector: [...queryVec], metadata: { summary: 'Similar wording' } });
+    await store.add({ id: 2, vector: randomVector(), metadata: { summary: 'MANTIS_SEARCH_DIR' } });
+
+    const results = await store.search(queryVec, 2);
+
+    expect(results[0]!.id).toBe(1);
+  });
+
+  it('finds keywords of items added after an earlier search', async () => {
+    await store.add({ id: 1, vector: randomVector(), metadata: { summary: 'First' } });
+    await store.search(randomVector(), 1, 'first');
+    await store.add({ id: 2, vector: randomVector(), metadata: { summary: 'Second', description: 'zebra' } });
+
+    const results = await store.search(randomVector(), 1, 'zebra');
+
+    expect(results[0]!.id).toBe(2);
+  });
+
   it('respects the topN limit', async () => {
     for (let i = 1; i <= 5; i++) {
       await store.add({ id: i, vector: randomVector(), metadata: { summary: `Issue ${i}` } });

@@ -69,7 +69,10 @@ export function registerSearchTools(
       title: 'Semantic Issue Search',
       description:
         'Search MantisBT issues using natural language. Returns the most relevant issues ' +
-        'by semantic similarity. The search index must be populated first via rebuild_search_index.',
+        'by combining semantic similarity with keyword matching, so exact terms such as identifiers, ' +
+        'error codes or version numbers are found as well. "score" is the semantic similarity; results ' +
+        'are ordered by the combined ranking, so a keyword match can precede a higher score. ' +
+        'The search index must be populated first via rebuild_search_index.',
       inputSchema: z.object({
         query: z.string().describe('Natural language search query'),
         top_n: z
@@ -121,7 +124,7 @@ export function registerSearchTools(
           embedder.embed(query),
           client.getBaseUrl(),
         ]);
-        const results = await store.search(queryVector, top_n);
+        const results = await store.search(queryVector, top_n, query);
 
         if (!select) {
           // For filtering or highlighting we need store metadata per result

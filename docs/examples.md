@@ -199,6 +199,16 @@ Semantic search understands the *meaning* of your question — not just keywords
 
 ---
 
+### Exact terms
+
+The search also matches exact keywords, so identifiers, error codes and version numbers work as queries too.
+
+> "Which issues mention `MANTIS_SEARCH_DIR`?"
+
+> "Find issues about the error `ERR_CERT_DATE_INVALID`."
+
+---
+
 ### Keyword highlights
 
 > "Search for login errors and show me which part of each ticket is relevant."

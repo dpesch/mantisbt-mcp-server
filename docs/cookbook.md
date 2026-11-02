@@ -1682,7 +1682,7 @@ Returns the number of indexed issues, total issue count, and the timestamp of th
 
 ### Search by meaning
 
-Finds issues semantically similar to a natural language query. Returns issue IDs and relevance scores.
+Finds issues semantically similar to a natural language query, combined with keyword matching so that exact terms (identifiers, error codes, version numbers) are found as well. Returns issue IDs and relevance scores. `score` is the semantic similarity; the order follows the combined ranking, so a result with an exact keyword match can come before one with a higher `score`.
 
 **Tool:** `search_issues`
 

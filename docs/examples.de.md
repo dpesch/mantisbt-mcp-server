@@ -199,6 +199,16 @@ Die semantische Suche versteht die *Bedeutung* deiner Frage – nicht nur einzel
 
 ---
 
+### Exakte Begriffe
+
+Die Suche berücksichtigt auch exakte Stichwörter, daher funktionieren Bezeichner, Fehlercodes und Versionsnummern ebenfalls als Suchanfrage.
+
+> »Welche Issues erwähnen `MANTIS_SEARCH_DIR`?«
+
+> »Finde Issues zum Fehler `ERR_CERT_DATE_INVALID`.«
+
+---
+
 ### Keyword-Highlights
 
 > »Suche nach Login-Fehlern und zeige mir, welche Stelle im Ticket relevant ist.«

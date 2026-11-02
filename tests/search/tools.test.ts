@@ -96,6 +96,15 @@ describe('search_issues – with results', () => {
 
     expect(embedder.embed).toHaveBeenCalledWith('performance issue');
   });
+
+  it('passes the query text to the store for keyword ranking', async () => {
+    const store = makeMockStore({ itemCount: 1 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    await mockServer.callTool('search_issues', { query: 'MANTIS_SEARCH_DIR', top_n: 5 });
+
+    expect(store.search).toHaveBeenCalledWith(expect.any(Array), 5, 'MANTIS_SEARCH_DIR');
+  });
 });
 
 // ---------------------------------------------------------------------------
