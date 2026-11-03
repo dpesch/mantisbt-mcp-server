@@ -220,7 +220,7 @@ Die semantische Suche versteht die *Bedeutung* einer Anfrage, nicht nur ihre Sti
 - *„Performance-Probleme auf der Checkout-Seite"* – liefert verwandte Meldungen unabhängig von der verwendeten Terminologie
 - *„doppelte Einträge in der Rechnungsliste"* – erkennt auch Issues, die als „zweifach angezeigt", „dupliziert" o.ä. beschrieben sind
 
-Das Embedding-Modell (~80 MB) läuft vollständig **offline** – kein OpenAI-Key, keine externe API. Es wird beim ersten Start einmalig heruntergeladen und lokal gecacht. Issues werden bei jedem Serverstart inkrementell indexiert (nur neue und geänderte Issues werden neu verarbeitet). Starten mehrere Client-Sitzungen gleichzeitig einen Server, synchronisiert nur einer davon den gemeinsamen Index. Das Modell wird bei der ersten Nutzung geladen und nach 10 Minuten ohne Einbetten wieder entladen, damit ruhende Sitzungen seinen Speicher (~0,9 GB pro Serverprozess) nicht dauerhaft belegen. Lange Beschreibungen werden in bis zu 8 Abschnitte geteilt, damit auch Details weiter unten gefunden werden; der Index enthält dadurch etwa 1,7 Vektoren pro Issue (rund 115 MB bei 7.700 Issues), die jeder Serverprozess mit aktivierter Suche im Speicher hält. Die Rangfolge berücksichtigt zusätzlich exakte Stichworttreffer, sodass eine Suche nach einem Bezeichner, Fehlercode oder einer Versionsnummer die Issues findet, die ihn enthalten – und alle Issues, die eine solche Kennung vollständig enthalten, vor allen anderen auflistet.
+Das Embedding-Modell (~80 MB) läuft vollständig **offline** – kein OpenAI-Key, keine externe API. Es wird beim ersten Start einmalig heruntergeladen und lokal gecacht. Issues werden bei jedem Serverstart inkrementell indexiert (nur neue und geänderte Issues werden neu verarbeitet). Starten mehrere Client-Sitzungen gleichzeitig einen Server, synchronisiert nur einer davon den gemeinsamen Index. Das Modell wird bei der ersten Nutzung geladen und nach 10 Minuten ohne Einbetten wieder entladen, damit ruhende Sitzungen seinen Speicher (~0,9 GB pro Serverprozess) nicht dauerhaft belegen. Lange Beschreibungen werden in bis zu 8 Abschnitte geteilt, damit auch Details weiter unten gefunden werden; der Index enthält dadurch etwa 1,7 Vektoren pro Issue (rund 115 MB bei 7.700 Issues), die jeder Serverprozess mit aktivierter Suche im Speicher hält. Die Rangfolge berücksichtigt zusätzlich exakte Stichworttreffer, sodass eine Suche nach einem Bezeichner, Fehlercode oder einer Versionsnummer die Issues findet, die ihn enthalten – und alle Issues, die eine solche Kennung vollständig enthalten, vor allen anderen auflistet, sofern die Kennung nicht in mehr als 20 Issues vorkommt.
 
 Aktivierung mit `MANTIS_SEARCH_ENABLED=true`.
 
@@ -343,6 +343,8 @@ npm run test:coverage # Coverage-Report
 npm run benchmark    # Token-Benchmark gegen eine Live-MantisBT-Instanz (siehe Token-Verbrauch oben)
 npm run benchmark:search # Such-Trefferquote und Exakt-Treffer-Reihenfolge auf einem bestehenden Index (MANTIS_SEARCH_DIR), Vektor vs. hybrid
 ```
+
+`benchmark:search` liest optional handgeschriebene Umschreibungen (`BENCHMARK_PARAPHRASES`) und feste Fälle mit erwarteter Rangfolge (`BENCHMARK_EXACT`); die Dateiformate stehen am Anfang von `scripts/benchmark-search.ts`.
 
 ## Lizenz
 

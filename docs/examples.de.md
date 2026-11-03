@@ -207,6 +207,8 @@ Die Suche berücksichtigt auch exakte Stichwörter, daher funktionieren Bezeichn
 
 > »Finde alle Issues zu `CVE-2026-1234`.«
 
+Wie Kennungen erkannt werden: [Cookbook – Nach einer Kennung suchen](cookbook.de.md#nach-einer-kennung-suchen).
+
 > »Finde Issues zum Fehler `ERR_CERT_DATE_INVALID`.«
 
 ---

@@ -1684,7 +1684,7 @@ Returns the number of indexed issues, total issue count, and the timestamp of th
 
 ### Search by meaning
 
-Finds issues semantically similar to a natural language query, combined with keyword matching so that exact terms (identifiers, error codes, version numbers) are found as well. Returns issue IDs and relevance scores. `score` is the semantic similarity; the order follows the combined ranking, so a result with an exact keyword match can come before one with a higher `score`. Issues that contain an identifier from the query as a whole — an order number, a CVE, a version, a code name such as `MANTIS_SEARCH_DIR` — are listed before all others.
+Finds issues semantically similar to a natural language query, combined with keyword matching so that exact terms (identifiers, error codes, version numbers) are found as well. Returns issue IDs and relevance scores. `score` is the semantic similarity; the order follows the combined ranking, so a result with an exact keyword match can come before one with a higher `score`. Issues that contain an identifier from the query as a whole — an order number, a CVE, a version, a code name such as `MANTIS_SEARCH_DIR` — are listed before all others, unless the identifier occurs in more than 20 issues.
 
 **Tool:** `search_issues`
 
@@ -1712,7 +1712,38 @@ Finds issues semantically similar to a natural language query, combined with key
 ]
 ```
 
-> **Note:** Semantic search returns the top-N most similar issues — it does not guarantee exhaustive recall. It is not suitable for "find all issues about X" census queries.
+> **Note:** Semantic search returns the top-N most similar issues — it does not guarantee exhaustive recall. It is not suitable for "find all issues about X" census queries. The exception is a query for a rare identifier: the issues that contain it come first (see below), so with a large enough `top_n` they are all listed.
+
+---
+
+### Search for an identifier
+
+A query for an order number, a CVE, a version or a code name lists every issue that contains it as a whole before all other results. Identifiers are recognised by their form: an underscore, a capital inside the word, letters with digits, five or more digits, or parts joined by `-` `.` `:` `/` with a digit. `1.15` does not match `1.15.2`, and `CVE-2026-1234` does not match `CVE-2026-12345`. Plain words and short numbers keep the combined ranking, as does an identifier that occurs in more than 20 issues.
+
+**Tool:** `search_issues`
+
+**Request:**
+
+```json
+{
+  "query": "CVE-2026-1234",
+  "top_n": 5
+}
+```
+
+**Response:**
+
+```json
+[
+  { "id": 2210, "score": 0.58, "view_url": "https://mantis.example.com/view.php?id=2210" },
+  { "id": 2211, "score": 0.47, "view_url": "https://mantis.example.com/view.php?id=2211" },
+  { "id": 2084, "score": 0.65, "view_url": "https://mantis.example.com/view.php?id=2084" },
+  { "id": 1977, "score": 0.63, "view_url": "https://mantis.example.com/view.php?id=1977" },
+  { "id": 2150, "score": 0.61, "view_url": "https://mantis.example.com/view.php?id=2150" }
+]
+```
+
+Issues 2210 and 2211 contain `CVE-2026-1234` and come first, although issue 2084 has the higher `score`.
 
 ---
 

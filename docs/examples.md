@@ -207,6 +207,8 @@ The search also matches exact keywords, so identifiers, error codes and version 
 
 > "Find all issues about `CVE-2026-1234`."
 
+How identifiers are recognised: [Cookbook — Search for an identifier](cookbook.md#search-for-an-identifier).
+
 > "Find issues about the error `ERR_CERT_DATE_INVALID`."
 
 ---

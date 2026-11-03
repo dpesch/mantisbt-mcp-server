@@ -1684,7 +1684,7 @@ Gibt die Anzahl der indizierten Issues, die Gesamtanzahl der Issues und den Zeit
 
 ### Nach Bedeutung suchen
 
-Findet Issues, die einem natürlichsprachigen Suchbegriff semantisch ähnlich sind, kombiniert mit einer Stichwortsuche, damit auch exakte Begriffe (Bezeichner, Fehlercodes, Versionsnummern) gefunden werden. Gibt Issue-IDs und Relevanz-Scores zurück. `score` ist die semantische Ähnlichkeit; die Reihenfolge folgt der kombinierten Rangfolge, ein Ergebnis mit exaktem Stichworttreffer kann also vor einem mit höherem `score` stehen. Issues, die eine Kennung aus der Anfrage vollständig enthalten – eine Auftragsnummer, eine CVE, eine Version, einen Code-Bezeichner wie `MANTIS_SEARCH_DIR` –, stehen vor allen anderen.
+Findet Issues, die einem natürlichsprachigen Suchbegriff semantisch ähnlich sind, kombiniert mit einer Stichwortsuche, damit auch exakte Begriffe (Bezeichner, Fehlercodes, Versionsnummern) gefunden werden. Gibt Issue-IDs und Relevanz-Scores zurück. `score` ist die semantische Ähnlichkeit; die Reihenfolge folgt der kombinierten Rangfolge, ein Ergebnis mit exaktem Stichworttreffer kann also vor einem mit höherem `score` stehen. Issues, die eine Kennung aus der Anfrage vollständig enthalten – eine Auftragsnummer, eine CVE, eine Version, einen Code-Bezeichner wie `MANTIS_SEARCH_DIR` –, stehen vor allen anderen, es sei denn, die Kennung kommt in mehr als 20 Issues vor.
 
 **Tool:** `search_issues`
 
@@ -1712,7 +1712,38 @@ Findet Issues, die einem natürlichsprachigen Suchbegriff semantisch ähnlich si
 ]
 ```
 
-> **Hinweis:** Die semantische Suche gibt die top-N ähnlichsten Issues zurück – vollständige Treffergarantie besteht nicht. Sie eignet sich nicht für Abfragen wie »alle Issues zu Thema X auflisten«.
+> **Hinweis:** Die semantische Suche gibt die top-N ähnlichsten Issues zurück – vollständige Treffergarantie besteht nicht. Sie eignet sich nicht für Abfragen wie »alle Issues zu Thema X auflisten«. Ausnahme ist die Suche nach einer seltenen Kennung: Die Issues, die sie enthalten, stehen vorn (siehe unten), mit ausreichend großem `top_n` werden also alle aufgelistet.
+
+---
+
+### Nach einer Kennung suchen
+
+Eine Suche nach einer Auftragsnummer, einer CVE, einer Version oder einem Code-Bezeichner listet alle Issues, die sie vollständig enthalten, vor allen anderen Ergebnissen. Kennungen werden an ihrer Form erkannt: ein Unterstrich, ein Großbuchstabe mitten im Wort, Buchstaben mit Ziffern, fünf oder mehr Ziffern oder mit `-` `.` `:` `/` verbundene Teile mit einer Ziffer. `1.15` trifft nicht `1.15.2`, und `CVE-2026-1234` trifft nicht `CVE-2026-12345`. Gewöhnliche Wörter und kurze Zahlen behalten die kombinierte Rangfolge, ebenso eine Kennung, die in mehr als 20 Issues vorkommt.
+
+**Tool:** `search_issues`
+
+**Request:**
+
+```json
+{
+  "query": "CVE-2026-1234",
+  "top_n": 5
+}
+```
+
+**Response:**
+
+```json
+[
+  { "id": 2210, "score": 0.58, "view_url": "https://mantis.example.com/view.php?id=2210" },
+  { "id": 2211, "score": 0.47, "view_url": "https://mantis.example.com/view.php?id=2211" },
+  { "id": 2084, "score": 0.65, "view_url": "https://mantis.example.com/view.php?id=2084" },
+  { "id": 1977, "score": 0.63, "view_url": "https://mantis.example.com/view.php?id=1977" },
+  { "id": 2150, "score": 0.61, "view_url": "https://mantis.example.com/view.php?id=2150" }
+]
+```
+
+Die Issues 2210 und 2211 enthalten `CVE-2026-1234` und stehen vorn, obwohl Issue 2084 den höheren `score` hat.
 
 ---
 
