@@ -72,6 +72,8 @@ export function registerSearchTools(
         'by combining semantic similarity with keyword matching, so exact terms such as identifiers, ' +
         'error codes or version numbers are found as well. "score" is the semantic similarity; results ' +
         'are ordered by the combined ranking, so a keyword match can precede a higher score. ' +
+        'Issues that contain an identifier from the query as a whole (order number, CVE, version, ' +
+        'code name such as MANTIS_SEARCH_DIR) are listed before all others, unless the identifier is common. ' +
         'The search index must be populated first via rebuild_search_index.',
       inputSchema: z.object({
         query: z.string().describe('Natural language search query'),

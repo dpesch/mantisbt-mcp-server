@@ -1684,7 +1684,7 @@ Returns the number of indexed issues, total issue count, and the timestamp of th
 
 ### Search by meaning
 
-Finds issues semantically similar to a natural language query, combined with keyword matching so that exact terms (identifiers, error codes, version numbers) are found as well. Returns issue IDs and relevance scores. `score` is the semantic similarity; the order follows the combined ranking, so a result with an exact keyword match can come before one with a higher `score`.
+Finds issues semantically similar to a natural language query, combined with keyword matching so that exact terms (identifiers, error codes, version numbers) are found as well. Returns issue IDs and relevance scores. `score` is the semantic similarity; the order follows the combined ranking, so a result with an exact keyword match can come before one with a higher `score`. Issues that contain an identifier from the query as a whole — an order number, a CVE, a version, a code name such as `MANTIS_SEARCH_DIR` — are listed before all others.
 
 **Tool:** `search_issues`
 

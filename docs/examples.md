@@ -201,9 +201,11 @@ Semantic search understands the *meaning* of your question — not just keywords
 
 ### Exact terms
 
-The search also matches exact keywords, so identifiers, error codes and version numbers work as queries too.
+The search also matches exact keywords, so identifiers, error codes and version numbers work as queries too. Issues that contain the identifier come first.
 
 > "Which issues mention `MANTIS_SEARCH_DIR`?"
+
+> "Find all issues about `CVE-2026-1234`."
 
 > "Find issues about the error `ERR_CERT_DATE_INVALID`."
 

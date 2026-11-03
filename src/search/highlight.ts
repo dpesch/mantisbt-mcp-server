@@ -5,7 +5,7 @@
  * A result may have no highlighted terms even if it is semantically relevant.
  */
 
-function escapeRegex(term: string): string {
+export function escapeRegex(term: string): string {
   return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 

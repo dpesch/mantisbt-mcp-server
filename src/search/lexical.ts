@@ -7,6 +7,8 @@
 // vector index already stores — no extra API calls.
 // ---------------------------------------------------------------------------
 
+import { escapeRegex } from './highlight.js';
+
 export interface LexicalDocument {
   id: number;
   summary: string;
@@ -24,6 +26,50 @@ export function tokenize(text: string): string[] {
   return (text.toLowerCase().match(/[\p{L}\p{N}_]+/gu) ?? []).filter(word => word.length >= 2);
 }
 
+// An identifier (#8545) found in more issues than this is no longer specific
+// enough to put all of them first; the fused ranking decides instead. Keeps
+// common tokens such as UTF-8 from taking over a search. The rare identifiers
+// of the search benchmark occur in at most 8 issues, well below the cap.
+const MAX_EXACT_MATCHES = 20;
+
+// Words, or words joined by - . : / (CVE-2026-1234, 7.0.0-1014-azure).
+const COMPOUND = /[\p{L}\p{N}_]+(?:[-.:/][\p{L}\p{N}_]+)*/gu;
+
+function looksLikeIdentifier(word: string): boolean {
+  return word.includes('_')                                          // MANTIS_SEARCH_DIR, _resizeTimer
+    || /\p{Ll}\p{Lu}/u.test(word)                                    // ScrollViewHelper
+    || (word.length >= 4 && /\p{L}/u.test(word) && /\p{N}/u.test(word)) // host01
+    || /^\p{N}{5,}$/u.test(word);                                    // 202699999
+}
+
+/**
+ * Identifiers in a search query: order numbers, CVEs, versions, code names.
+ * Plain words, short numbers ("Android 15") and hyphenated words without
+ * digits ("Play-Store-Hinweis") are none.
+ */
+export function identifiers(query: string): string[] {
+  const found = new Map<string, string>();
+  for (const match of query.match(COMPOUND) ?? []) {
+    // A compound with a digit is one identifier; otherwise each word counts alone.
+    const candidates = /[-.:/]/.test(match) && /\p{N}/u.test(match)
+      ? [match]
+      : match.split(/[-.:/]/).filter(looksLikeIdentifier);
+    for (const candidate of candidates) {
+      if (!found.has(candidate.toLowerCase())) found.set(candidate.toLowerCase(), candidate);
+    }
+  }
+  return [...found.values()];
+}
+
+/**
+ * Matches the identifier as a whole: not inside a longer word, and not as the
+ * start or end of a longer number or version (1.15 is not in 1.15.2), while a
+ * word may continue with a hyphen (ScrollViewHelper in ScrollViewHelper-Bridge).
+ */
+export function wholeIdentifier(identifier: string): RegExp {
+  return new RegExp(`(?<![\\p{L}\\p{N}_])(?<!\\p{N}[-.:/])${escapeRegex(identifier)}(?![\\p{L}\\p{N}_])(?![-.:/]\\p{N})`, 'iu');
+}
+
 export class LexicalIndex {
   // Postings in compressed sparse rows: the documents of term t are
   // docs[offsets[t] .. offsets[t + 1]], with their term frequencies in tfs.
@@ -37,7 +83,7 @@ export class LexicalIndex {
   private readonly lengths: Uint32Array;
   private readonly avgLength: number;
 
-  constructor(documents: LexicalDocument[]) {
+  constructor(private readonly documents: LexicalDocument[]) {
     this.ids = Uint32Array.from(documents, doc => doc.id);
     this.lengths = new Uint32Array(documents.length);
 
@@ -93,5 +139,30 @@ export class LexicalIndex {
       }
     }
     return new Map([...byDoc].map(([doc, score]) => [this.ids[doc]!, score]));
+  }
+
+  /**
+   * Per document id, how many identifiers of the query it contains as a whole
+   * (#8545); documents without one are absent. Candidates come from the
+   * postings of the identifier's rarest word, the text check decides.
+   */
+  exactMatches(query: string): Map<number, number> {
+    const counts = new Map<number, number>();
+    const frequency = (term: number) => this.offsets[term + 1]! - this.offsets[term]!;
+    for (const identifier of identifiers(query)) {
+      const terms = tokenize(identifier).map(word => this.termIds.get(word));
+      if (terms.length === 0 || terms.some(term => term === undefined)) continue;
+      const rarest = (terms as number[]).reduce((a, b) => (frequency(a) <= frequency(b) ? a : b));
+      const pattern = wholeIdentifier(identifier);
+      const matches: number[] = [];
+      for (let at = this.offsets[rarest]!; at < this.offsets[rarest + 1]!; at++) {
+        const doc = this.documents[this.docs[at]!]!;
+        if (pattern.test(doc.summary) || pattern.test(doc.description ?? '')) matches.push(doc.id);
+        if (matches.length > MAX_EXACT_MATCHES) break;
+      }
+      if (matches.length > MAX_EXACT_MATCHES) continue;
+      for (const id of matches) counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return counts;
   }
 }

@@ -151,11 +151,19 @@ export class VectraStore implements VectorStore {
     const keywordRank = new Map(
       [...this.lexical.scores(queryText)].sort((a, b) => b[1] - a[1]).map(([id], rank) => [id, rank]),
     );
+    // Issues containing an identifier of the query as a whole come first
+    // (#8545): a search for an order number or a CVE lists all its issues
+    // before any that merely resemble the query.
+    const exact = this.lexical.exactMatches(queryText);
     const fused = results.map((result, vectorRank) => {
       const rank = keywordRank.get(result.id);
-      return { result, fused: 1 / (RRF_K + vectorRank) + (rank === undefined ? 0 : 1 / (RRF_K + rank)) };
+      return {
+        result,
+        exact: exact.get(result.id) ?? 0,
+        fused: 1 / (RRF_K + vectorRank) + (rank === undefined ? 0 : 1 / (RRF_K + rank)),
+      };
     });
-    fused.sort((a, b) => b.fused - a.fused);
+    fused.sort((a, b) => b.exact - a.exact || b.fused - a.fused);
     return fused.slice(0, topN).map(f => f.result);
   }
 

@@ -105,6 +105,37 @@ describe('VectraStore.search', () => {
     expect(results.find(r => r.id === 1)!.score).toBeCloseTo(1, 5);
   });
 
+  // Exact-first (#8545): issues containing an identifier from the query rank
+  // before all others, whatever their vector similarity.
+  it('ranks every issue containing a query identifier before the others', async () => {
+    // The pattern from the ticket: a short issue without the number is the
+    // nearest vector, the issues with the number are far away. Plain RRF puts
+    // the short issue between the keyword ranks 1 and 2.
+    const queryVec = randomVector();
+    const far = queryVec.map(x => -x);
+    await store.add({ id: 1, vector: [...queryVec], metadata: { summary: 'Short ticket', description: 'see e-mail' } });
+    for (let id = 2; id <= 4; id++) {
+      await store.add({ id, vector: [...far], metadata: { summary: `Order ${id}`, description: `Auftrag 202699999 Position ${id}` } });
+    }
+    await store.addBatch(Array.from({ length: 200 }, (_, k) => (
+      { id: 100 + k, vector: randomVector(), metadata: { summary: `Filler ${k}`, description: 'Auftrag 202699998' } }
+    )));
+
+    const results = await store.search(queryVec, 5, '202699999');
+
+    expect(results.slice(0, 3).map(r => r.id).sort()).toEqual([2, 3, 4]);
+  });
+
+  it('keeps the fused ranking for queries without identifiers', async () => {
+    const queryVec = randomVector();
+    await store.add({ id: 1, vector: [...queryVec], metadata: { summary: 'Statusleiste Farbe veraltet' } });
+    await store.add({ id: 2, vector: randomVector(), metadata: { summary: 'Android 15', description: 'API 15' } });
+
+    const results = await store.search(queryVec, 2, 'Statusleiste Farbe veraltete API Android 15');
+
+    expect(results[0]!.id).toBe(1);
+  });
+
   it('ranks by vector similarity alone without query text', async () => {
     const queryVec = randomVector();
     await store.add({ id: 1, vector: [...queryVec], metadata: { summary: 'Similar wording' } });
