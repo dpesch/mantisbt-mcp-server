@@ -9,13 +9,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Changed
+---
 
-- Semantic search: `search_issues` lists every issue that contains an identifier from the query as a whole — an order number, a CVE, a version, a code name such as `MANTIS_SEARCH_DIR` or `getEmbeddingSignature` — before all issues that do not. The combined ranking found such issues, but put issues in between that were only close by meaning, often short ones (#8545). A query for `CVE-2026-1234` no longer counts an issue with another CVE of 2026 as a near match, and `1.15` does not match `1.15.2`. Identifiers are recognised by their form (underscore, inner capital, letters with digits, five or more digits, or words joined by `-` `.` `:` `/` with a digit), so plain words and short numbers such as "Android 15" keep the combined ranking; an identifier found in more than 20 issues does as well. Measured on 7,742 issues: for a rare identifier, all issues containing it now lead the top 10 in 97 % of the queries instead of 72 %; for a compound identifier such as `7.0.0-1014-azure` in 98 % instead of 11 %, and such a query finds its issue among the top 10 in 98 % instead of 64 %. Titles, sentences and paraphrases stay level or gain slightly. No index rebuild is needed.
+## [1.17.0] – 2026-11-03
 
 ### Added
 
 - Search benchmark: an exact-first measure for identifier queries (do all issues that contain the identifier lead the top 10?), a new `compound` query type for identifiers such as `CVE-2026-1234`, and fixed cases from `BENCHMARK_EXACT` that print their ranking.
+
+### Changed
+
+- Semantic search: `search_issues` lists every issue that contains an identifier from the query as a whole — an order number, a CVE, a version, a code name such as `MANTIS_SEARCH_DIR` or `getEmbeddingSignature` — before all issues that do not. The combined ranking found such issues, but put issues in between that were only close by meaning, often short ones (#8545). A query for `CVE-2026-1234` no longer counts an issue with another CVE of 2026 as a near match, and `1.15` does not match `1.15.2`. Identifiers are recognised by their form (underscore, inner capital, letters with digits, five or more digits, or words joined by `-` `.` `:` `/` with a digit), so plain words and short numbers such as "Android 15" keep the combined ranking; an identifier found in more than 20 issues does as well. Measured on 7,742 issues: for a rare identifier, all issues containing it now lead the top 10 in 97 % of the queries instead of 72 %; for a compound identifier such as `7.0.0-1014-azure` in 98 % instead of 11 %, and such a query finds its issue among the top 10 in 98 % instead of 64 %. Titles, sentences and paraphrases stay level or gain slightly. No index rebuild is needed.
 
 ---
 
