@@ -18,7 +18,7 @@ function registerAll(server: unknown): void {
   const s = server as McpServer;
   const client = new MantisClient('https://mantis.example.com', 'test-token');
   const cache = { loadIfValid: vi.fn(async () => null) } as unknown as MetadataCache;
-  registerAllTools(s, { client, cache, versionHint: new VersionHintService(), version: '0.0.0-test' });
+  registerAllTools(s, { client, cache, versionHint: new VersionHintService(), build: { version: '0.0.0-test' } });
   registerSearchTools(s, client, makeMockStore(), makeMockEmbedder());
 }
 

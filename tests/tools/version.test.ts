@@ -8,13 +8,15 @@ import { MockMcpServer } from '../helpers/mock-server.js';
 // get_version (#8498) — replaces get_mcp_version and get_mantis_version
 // ---------------------------------------------------------------------------
 
+const BUILD = { version: '1.15.0-test', commit: 'abc1234', built_at: '2026-11-09T12:00:00.000Z' };
+
 let mockServer: MockMcpServer;
 let versionHint: VersionHintService;
 
 beforeEach(() => {
   mockServer = new MockMcpServer();
   versionHint = new VersionHintService();
-  registerVersionTools(mockServer as never, new MantisClient('https://mantis.example.com', 'test-token'), versionHint, '1.15.0-test');
+  registerVersionTools(mockServer as never, new MantisClient('https://mantis.example.com', 'test-token'), versionHint, BUILD);
   vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200, headers: { 'X-Mantis-Version': '2.28.4' } })));
 });
 
@@ -31,10 +33,16 @@ describe('get_version', () => {
 
     expect(result.isError).toBeUndefined();
     expect(JSON.parse(result.content[0]!.text)).toEqual({
-      mcp_server: { version: '1.15.0-test' },
+      mcp_server: BUILD,
       mantis: { installed_version: '2.28.4' },
     });
     expect(trigger).not.toHaveBeenCalled();
+  });
+
+  it('get_mcp_version keeps returning only the version', async () => {
+    const result = await mockServer.callTool('get_mcp_version', {}, { validate: true });
+
+    expect(JSON.parse(result.content[0]!.text)).toEqual({ version: '1.15.0-test' });
   });
 
   it('compares the MantisBT version with the latest release by default', async () => {

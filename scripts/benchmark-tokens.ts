@@ -41,7 +41,7 @@ registerAllTools(server as never, {
   client,
   cache: new MetadataCache(join(tmpdir(), 'mantisbt-mcp-benchmark'), 3600),
   versionHint: new VersionHintService(),
-  version: 'benchmark',
+  build: { version: 'benchmark' },
 });
 
 /** Calls a tool like an MCP client would (schema defaults and coercion applied) and returns the response text. */

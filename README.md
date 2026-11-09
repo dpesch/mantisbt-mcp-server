@@ -251,7 +251,7 @@ npm install sqlite-vec better-sqlite3
 | Tool | Description |
 |---|---|
 | `get_metadata` | Retrieve cached metadata: `detail: "summary"` (default) returns project/tag counts and per-project user/version/category counts; `detail: "full"` returns the complete raw cache; `refresh: true` re-fetches from MantisBT first; with semantic search enabled the response also contains a `search_index` block |
-| `get_version` | Version of this MCP server and of the connected MantisBT installation in one response; `check_latest` (default `true`) compares MantisBT with the latest GitHub release; `mantis` holds `error` when MantisBT cannot be reached |
+| `get_version` | Version of this MCP server and of the connected MantisBT installation in one response; the server part also names the commit and build time (`-dev` suffix unless it is a published release); `check_latest` (default `true`) compares MantisBT with the latest GitHub release; `mantis` holds `error` when MantisBT cannot be reached |
 | `get_issue_schema` | Valid `select` fields (`fields`, `fields_source`) and enum values (`enums`: severity, status, priority, resolution, reproducibility) for this MantisBT server in one response; optional `project_id` scopes the field discovery — use before `create_issue` / `update_issue` or when building a `select` string |
 | `get_issue_fields` | **Deprecated:** use `get_issue_schema` instead — will be removed in 2.0.0 |
 | `get_issue_enums` | **Deprecated:** use `get_issue_schema` instead; the resource `mantis://enums` stays — will be removed in 2.0.0 |

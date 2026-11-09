@@ -43,7 +43,7 @@ beforeEach(() => {
   registerTagTools(mockServer as never, client);
   registerProjectTools(mockServer as never, client);
   registerProjectVersionTools(mockServer as never, client);
-  registerVersionTools(mockServer as never, client, new VersionHintService(), '0.0.0-test');
+  registerVersionTools(mockServer as never, client, new VersionHintService(), { version: '0.0.0-test' });
   vi.stubGlobal('fetch', vi.fn());
 });
 

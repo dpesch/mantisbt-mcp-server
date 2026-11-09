@@ -2344,7 +2344,7 @@ Returns the version of this mantisbt-mcp-server and of the connected MantisBT in
 
 ```json
 {
-  "mcp_server": { "version": "1.15.0" },
+  "mcp_server": { "version": "1.18.0", "commit": "9ebef4c", "built_at": "2026-11-09T12:00:00.000Z" },
   "mantis": {
     "installed_version": "2.27.0",
     "latest_version": "2.27.1",
@@ -2354,6 +2354,8 @@ Returns the version of this mantisbt-mcp-server and of the connected MantisBT in
 ```
 
 Possible values for `status`: `up-to-date`, `update-available`, `newer-than-release`, `unknown`. Set `check_latest: false` to skip the GitHub comparison.
+
+`mcp_server` describes the running build, not the current `package.json`: `version` is the version it was built from, `commit` the short commit hash (with `-dirty` if there were uncommitted changes), `built_at` the build time. Only a published release reports a plain version; a local build, `npm run dev` or code run straight from `src/` reports e.g. `1.18.0-dev`. Without git, `commit` is left out; code run from `src/` has neither `commit` nor `built_at`.
 
 > **Deprecated:** `get_mcp_version` and `get_mantis_version` will be removed in 2.0.0 — use `get_version` as shown above.
 

@@ -3,10 +3,10 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer } from 'node:http';
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { join, dirname } from 'node:path';
+import { dirname } from 'node:path';
 
+import { loadBuildInfo } from './build-info.js';
 import { getConfig, getStartupConfig, assertHttpAuthConfigured } from './config.js';
 import { MantisClient } from './client.js';
 import { VersionHintService, setGlobalVersionHint } from './version-hint.js';
@@ -18,15 +18,11 @@ import { registerPrompts } from './prompts/index.js';
 import { registerResources } from './resources/index.js';
 
 // ---------------------------------------------------------------------------
-// Read version from package.json
+// Version of the running build (dist/build-info.json, see build-info.ts)
 // ---------------------------------------------------------------------------
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const packageJson = JSON.parse(
-  readFileSync(join(__dirname, '..', 'package.json'), 'utf-8')
-) as { version: string };
-const version = packageJson.version;
+const build = loadBuildInfo(dirname(fileURLToPath(import.meta.url)));
+const version = build.version;
 
 // ---------------------------------------------------------------------------
 // Bootstrap
@@ -73,7 +69,7 @@ async function createMcpServer(transport: 'stdio' | 'http'): Promise<McpServer> 
     client,
     cache,
     versionHint,
-    version,
+    build,
     uploadDir: startupConfig.uploadDir,
     transport,
     searchIndexStatus,

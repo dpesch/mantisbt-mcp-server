@@ -55,8 +55,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # RELEASE_TAG makes this the one build that reports its plain version;
+      # every other build is marked -dev (scripts/write-build-info.mjs), and
+      # npm publish refuses those (prepublishOnly).
       - name: Build
         run: npm run build
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
 
       # Every publish step below is skipped when its target already exists, so a
       # re-run after a partial failure only catches up on what is missing instead

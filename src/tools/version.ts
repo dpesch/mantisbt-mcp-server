@@ -4,8 +4,9 @@ import { coerceBool } from '../coerce.js';
 import { MantisClient } from '../client.js';
 import { VersionHintService, parseVersion, compareVersions } from '../version-hint.js';
 import { deprecationNote } from '../deprecation.js';
+import type { BuildInfo } from '../build-info.js';
 
-export function registerVersionTools(server: McpServer, client: MantisClient, versionHint: VersionHintService, mcpVersion: string): void {
+export function registerVersionTools(server: McpServer, client: MantisClient, versionHint: VersionHintService, build: BuildInfo): void {
 
   /**
    * Installed MantisBT version (X-Mantis-Version header), optionally compared
@@ -49,7 +50,9 @@ export function registerVersionTools(server: McpServer, client: MantisClient, ve
     {
       title: 'Get Versions',
       description: `Return the version of this mantisbt-mcp-server and of the connected MantisBT installation in one response:
-{ mcp_server: { version }, mantis: { installed_version, latest_version?, status?, github_note? } }
+{ mcp_server: { version, commit?, built_at? }, mantis: { installed_version, latest_version?, status?, github_note? } }
+
+mcp_server describes the running build: version ends in "-dev" unless it is a published release; commit is the short hash it was built from ("-dirty" with uncommitted changes), built_at the ISO-8601 build time.
 
 The MantisBT version is read from the X-Mantis-Version response header. With check_latest (default: true) it is compared against the latest MantisBT release on GitHub (outbound HTTPS request, up to 5 seconds); status is "up-to-date", "update-available", "newer-than-release" or "unknown". If MantisBT cannot be reached, mantis contains "error" instead and mcp_server is still returned.`,
       inputSchema: z.object({ check_latest: checkLatestSchema }),
@@ -64,7 +67,7 @@ The MantisBT version is read from the X-Mantis-Version response header. With che
         error: error instanceof Error ? error.message : String(error),
       }));
       return {
-        content: [{ type: 'text', text: JSON.stringify({ mcp_server: { version: mcpVersion }, mantis }, null, 2) }],
+        content: [{ type: 'text', text: JSON.stringify({ mcp_server: build, mantis }, null, 2) }],
       };
     },
   );
@@ -86,7 +89,7 @@ The MantisBT version is read from the X-Mantis-Version response header. With che
       },
     },
     async () => ({
-      content: [{ type: 'text', text: JSON.stringify({ version: mcpVersion }, null, 2) }],
+      content: [{ type: 'text', text: JSON.stringify({ version: build.version }, null, 2) }],
     }),
   );
 

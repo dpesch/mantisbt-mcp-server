@@ -2344,7 +2344,7 @@ Gibt die Version dieses mantisbt-mcp-servers und der verbundenen MantisBT-Instal
 
 ```json
 {
-  "mcp_server": { "version": "1.15.0" },
+  "mcp_server": { "version": "1.18.0", "commit": "9ebef4c", "built_at": "2026-11-09T12:00:00.000Z" },
   "mantis": {
     "installed_version": "2.27.0",
     "latest_version": "2.27.1",
@@ -2354,6 +2354,8 @@ Gibt die Version dieses mantisbt-mcp-servers und der verbundenen MantisBT-Instal
 ```
 
 Mögliche Werte für `status`: `up-to-date`, `update-available`, `newer-than-release`, `unknown`. Mit `check_latest: false` den GitHub-Vergleich überspringen.
+
+`mcp_server` beschreibt den laufenden Build, nicht die aktuelle `package.json`: `version` ist die Version, aus der gebaut wurde, `commit` der kurze Commit-Hash (mit `-dirty`, wenn es nicht committete Änderungen gab), `built_at` der Build-Zeitpunkt. Nur ein veröffentlichter Release meldet eine reine Versionsnummer; ein lokaler Build, `npm run dev` oder Code direkt aus `src/` meldet z. B. `1.18.0-dev`. Ohne Git fehlt `commit`; Code direkt aus `src/` hat weder `commit` noch `built_at`.
 
 > **Veraltet:** `get_mcp_version` und `get_mantis_version` werden in 2.0.0 entfernt – stattdessen `get_version` wie oben gezeigt verwenden.
 

@@ -3,6 +3,7 @@ import type { MantisClient } from '../client.js';
 import type { MetadataCache } from '../cache.js';
 import type { VersionHintService } from '../version-hint.js';
 import type { SearchIndexStatus } from '../types.js';
+import type { BuildInfo } from '../build-info.js';
 import { registerIssueTools } from './issues.js';
 import { registerNoteTools } from './notes.js';
 import { registerFileTools } from './files.js';
@@ -21,8 +22,8 @@ export interface ToolDeps {
   client: MantisClient;
   cache: MetadataCache;
   versionHint: VersionHintService;
-  /** Version of this MCP server (package.json). */
-  version: string;
+  /** Version, commit and build time of this MCP server (see build-info.ts). */
+  build: BuildInfo;
   uploadDir?: string;
   transport?: 'stdio' | 'http';
   /** Index status from the search module, if it runs (see get_metadata). */
@@ -48,5 +49,5 @@ export function registerAllTools(server: McpServer, deps: ToolDeps): void {
   registerConfigTools(server, client, cache);
   registerMetadataTools(server, client, cache, deps.searchIndexStatus);
   registerTagTools(server, client);
-  registerVersionTools(server, client, deps.versionHint, deps.version);
+  registerVersionTools(server, client, deps.versionHint, deps.build);
 }

@@ -56,7 +56,7 @@ describe('deprecated metadata, version and schema tools (#8498)', () => {
   const cache = { loadIfValid: vi.fn(async () => null) } as unknown as MetadataCache;
   registerMetadataTools(mockServer as never, client, cache);
   registerConfigTools(mockServer as never, client, cache);
-  registerVersionTools(mockServer as never, client, new VersionHintService(), '0.0.0-test');
+  registerVersionTools(mockServer as never, client, new VersionHintService(), { version: '0.0.0-test' });
   registerUserTools(mockServer as never, client);
 
   it.each([

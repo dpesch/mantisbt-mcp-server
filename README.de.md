@@ -251,7 +251,7 @@ npm install sqlite-vec better-sqlite3
 | Tool | Beschreibung |
 |---|---|
 | `get_metadata` | Gecachte Metadaten abrufen: `detail: "summary"` (Standard) liefert Projekt-/Tag-Zählwerte und Benutzer-/Versions-/Kategorie-Zählwerte je Projekt; `detail: "full"` liefert den vollständigen rohen Cache; `refresh: true` lädt alle Daten zuerst von MantisBT nach; mit aktivierter semantischer Suche enthält die Antwort zusätzlich einen `search_index`-Block |
-| `get_version` | Version dieses MCP-Servers und der verbundenen MantisBT-Installation in einer Antwort; `check_latest` (Standard `true`) vergleicht MantisBT mit dem neuesten GitHub-Release; `mantis` enthält `error`, wenn MantisBT nicht erreichbar ist |
+| `get_version` | Version dieses MCP-Servers und der verbundenen MantisBT-Installation in einer Antwort; der Server-Teil nennt zusätzlich Commit und Build-Zeitpunkt (Anhang `-dev`, wenn es kein veröffentlichter Release ist); `check_latest` (Standard `true`) vergleicht MantisBT mit dem neuesten GitHub-Release; `mantis` enthält `error`, wenn MantisBT nicht erreichbar ist |
 | `get_issue_schema` | Gültige `select`-Felder (`fields`, `fields_source`) und Enum-Werte (`enums`: severity, status, priority, resolution, reproducibility) für diesen MantisBT-Server in einer Antwort; optionale `project_id` schränkt die Feldermittlung ein – vor `create_issue` / `update_issue` oder beim Aufbau eines `select`-Strings verwenden |
 | `get_issue_fields` | **Veraltet:** stattdessen `get_issue_schema` verwenden – wird in 2.0.0 entfernt |
 | `get_issue_enums` | **Veraltet:** stattdessen `get_issue_schema` verwenden; die Ressource `mantis://enums` bleibt – wird in 2.0.0 entfernt |
