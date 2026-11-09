@@ -2083,3 +2083,150 @@ describe('list_issues – filters with a narrow select', () => {
     expect(new URL(fetchCall(0).url).searchParams.get('select')).toBe('id,summary');
   });
 });
+
+// ---------------------------------------------------------------------------
+// update_issue / create_issue – response: "short" (#8598)
+// "short" returns what confirms the change instead of the whole issue with
+// description, notes and history. "full" stays the default until 2.0.0.
+// ---------------------------------------------------------------------------
+
+describe('update_issue / create_issue – response "short"', () => {
+  const RESOLVED = { id: 80, name: 'resolved', label: 'erledigt' };
+  const FIXED = { id: 20, name: 'fixed', label: 'erledigt' };
+  const PUBLIC = { id: 10, name: 'public', label: 'öffentlich' };
+  const FULL_ISSUE = {
+    id: 42,
+    summary: 'Something broke',
+    description: 'A long description '.repeat(50),
+    project: { id: 57, name: 'mcp' },
+    category: { id: 369, name: 'API' },
+    status: RESOLVED,
+    resolution: FIXED,
+    priority: { id: 30, name: 'normal' },
+    handler: { id: 2, name: 'dom' },
+    created_at: '2026-11-01T10:00:00+01:00',
+    updated_at: '2026-11-09T12:00:00+01:00',
+    custom_fields: [
+      { field: { id: 10, name: 'Wiedervorlage' }, value: '1767222000' },
+      { field: { id: 11, name: 'Kunde' }, value: 'ACME' },
+    ],
+    notes: [
+      { id: 5, text: 'old note '.repeat(40), view_state: PUBLIC },
+      { id: 6, text: 'another note', view_state: PUBLIC },
+    ],
+    history: [{ created_at: '2026-11-01T10:00:00+01:00', type: { id: 1, name: 'issue-new' } }],
+  };
+  const issueResponse = (status = 200) => makeResponse(status, JSON.stringify({ issues: [FULL_ISSUE] }));
+  const parse = (r: { content: Array<{ text: string }> }) => JSON.parse(r.content[0]!.text) as Record<string, unknown>;
+
+  it('update_issue keeps returning the full issue by default', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(issueResponse());
+
+    const result = await mockServer.callTool('update_issue', { id: 42, fields: { status: { name: 'resolved' } } }, { validate: true });
+
+    expect(parse(result)).toMatchObject({ description: FULL_ISSUE.description, history: FULL_ISSUE.history });
+  });
+
+  it('update_issue with "short" returns the core fields plus the changed ones', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(issueResponse());
+
+    const result = await mockServer.callTool('update_issue', {
+      id: 42, fields: { status: { name: 'resolved' }, resolution: { id: 20 }, handler: { id: 2 } }, response: 'short',
+    }, { validate: true });
+
+    expect(parse(result)).toEqual({
+      id: 42,
+      summary: 'Something broke',
+      status: RESOLVED,
+      resolution: FIXED,
+      handler: { id: 2, name: 'dom' },
+      updated_at: '2026-11-09T12:00:00+01:00',
+      view_url: 'https://mantis.example.com/view.php?id=42',
+    });
+  });
+
+  it('update_issue with "short" lists only the changed custom fields', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(issueResponse());
+
+    const result = await mockServer.callTool('update_issue', {
+      id: 42, fields: { custom_fields: [{ field: { name: 'Wiedervorlage' }, value: '1767222000' }] }, response: 'short',
+    }, { validate: true });
+
+    expect(parse(result)['custom_fields']).toEqual([{ field: { id: 10, name: 'Wiedervorlage' }, value: '1767222000' }]);
+  });
+
+  it('update_issue with "short" lists only the edited notes', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(issueResponse()) // current notes
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ ...FULL_ISSUE, notes: [FULL_ISSUE.notes[0], { ...FULL_ISSUE.notes[1], text: 'edited' }] }] })));
+
+    const result = await mockServer.callTool('update_issue', {
+      id: 42, fields: { notes: [{ id: 6, text: 'edited' }] }, response: 'short',
+    }, { validate: true });
+
+    expect(parse(result)['notes']).toEqual([
+      { id: 6, text: 'edited', view_state: PUBLIC, view_url: 'https://mantis.example.com/view.php?id=42#bugnote6' },
+    ]);
+  });
+
+  it('update_issue with "short" reduces the appended note to id and view_url', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(issueResponse())
+      .mockResolvedValueOnce(makeResponse(201, JSON.stringify({ note: { id: 7, text: 'Grund '.repeat(30), view_state: PUBLIC } })));
+
+    const result = await mockServer.callTool('update_issue', {
+      id: 42, fields: { status: { name: 'resolved' } }, note: 'Grund', response: 'short',
+    }, { validate: true });
+
+    expect(parse(result)['note']).toEqual({ id: 7, view_url: 'https://mantis.example.com/view.php?id=42#bugnote7' });
+  });
+
+  it('create_issue with "short" returns the core fields of the new issue', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(makeResponse(201, JSON.stringify({ issue: { ...FULL_ISSUE, status: { id: 10, name: 'new' } } })));
+
+    const result = await mockServer.callTool('create_issue', {
+      summary: 'Something broke', description: 'x', project_id: 57, category: 'API', response: 'short',
+    }, { validate: true });
+
+    expect(parse(result)).toEqual({
+      id: 42,
+      summary: 'Something broke',
+      project: { id: 57, name: 'mcp' },
+      category: { id: 369, name: 'API' },
+      status: { id: 10, name: 'new' },
+      handler: { id: 2, name: 'dom' },
+      created_at: '2026-11-01T10:00:00+01:00',
+      view_url: 'https://mantis.example.com/view.php?id=42',
+    });
+  });
+
+  it('create_issue with "short" fetches only the short fields when MantisBT returns just the id', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(201, JSON.stringify({ issue: { id: 42 } })))
+      .mockResolvedValueOnce(issueResponse());
+
+    await mockServer.callTool('create_issue', {
+      summary: 'Something broke', description: 'x', project_id: 57, category: 'API', response: 'short',
+    }, { validate: true });
+
+    expect(fetchCall(1).method).toBe('GET');
+    expect(new URL(fetchCall(1).url).searchParams.get('select')).toBe('id,summary,project,category,status,handler,created_at');
+  });
+
+  it('create_issue keeps returning the full issue by default', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(makeResponse(201, JSON.stringify({ issue: FULL_ISSUE })));
+
+    const result = await mockServer.callTool('create_issue', {
+      summary: 'Something broke', description: 'x', project_id: 57, category: 'API',
+    }, { validate: true });
+
+    expect(parse(result)).toMatchObject({ description: FULL_ISSUE.description, notes: expect.any(Array) });
+  });
+
+  it('rejects an unknown response value', async () => {
+    const result = await mockServer.callTool('update_issue', { id: 42, fields: { summary: 'x' }, response: 'long' }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+});

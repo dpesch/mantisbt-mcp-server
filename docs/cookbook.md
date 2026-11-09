@@ -779,6 +779,47 @@ Changes the status and appends a note explaining the change — in one `update_i
 
 ---
 
+### Get a short response instead of the whole issue
+
+By default `update_issue` and `create_issue` return the whole issue, including description, notes and history — several thousand tokens on a busy issue. With `response: "short"` you get only what confirms the change.
+
+**Tool:** `update_issue` (works the same way for `create_issue`)
+
+**Parameters:**
+- `response` — _(optional)_ `"full"` (default) or `"short"`. The default changes to `"short"` in 2.0.0.
+
+**Request:**
+
+```json
+{
+  "id": 1042,
+  "fields": {
+    "status": { "name": "resolved" },
+    "resolution": { "id": 20 }
+  },
+  "note": "Fixed in commit abc123.",
+  "response": "short"
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 1042,
+  "summary": "Login fails on iOS",
+  "status": { "id": 80, "name": "resolved", "label": "resolved" },
+  "resolution": { "id": 20, "name": "fixed", "label": "fixed" },
+  "updated_at": "2026-11-09T13:21:00+01:00",
+  "view_url": "https://mantis.example.com/view.php?id=1042",
+  "note": { "id": 4957, "view_url": "https://mantis.example.com/view.php?id=1042#bugnote4957" }
+}
+```
+
+`update_issue` returns `id`, `summary`, `status`, `resolution`, `updated_at`, `view_url` and every field you changed; `custom_fields` and `notes` (edits via `fields.notes`) are narrowed to the entries you changed, an appended note to `id` and `view_url`. `monitors` and the `*_error` keys appear as with `"full"`. `create_issue` returns `id`, `summary`, `project`, `category`, `status`, `handler`, `created_at` and `view_url`.
+
+---
+
 ### Set custom fields
 
 Writes custom field values on create or update. The same `custom_fields` format works for both `create_issue` and `update_issue` (inside `fields`).

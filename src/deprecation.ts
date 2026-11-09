@@ -1,4 +1,7 @@
-/** Major version in which deprecated tools are removed (see versioning rules in CLAUDE.md). */
+/**
+ * Next major version: deprecated tools are removed and announced default
+ * changes take effect (see versioning rules in CLAUDE.md).
+ */
 export const REMOVAL_VERSION = '2.0.0';
 
 /**

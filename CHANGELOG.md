@@ -11,7 +11,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `update_issue` and `create_issue`: optional `response` parameter. `"short"` returns only what confirms the change instead of the whole issue with description, notes and history (#8598) — for `update_issue` `id`, `summary`, `status`, `resolution`, `updated_at`, `view_url` and the changed fields (custom fields and edited notes narrowed to the changed entries, an appended note to `id` and `view_url`); for `create_issue` `id`, `summary`, `project`, `category`, `status`, `handler`, `created_at` and `view_url`. On a fresh demo issue that is 529 instead of 4,046 characters; on an issue with many notes the gap is far larger. The default stays `"full"`.
 - `get_version`: `mcp_server` now also contains `commit` (short hash of the build, `-dirty` with uncommitted changes) and `built_at` (build time), so an outdated build shows even when its version number is right (#8547).
+
+### Deprecated
+
+- The default of `response` in `update_issue` and `create_issue` changes from `"full"` to `"short"` in 2.0.0. Callers that rely on the whole issue in the response should pass `response: "full"` explicitly.
 
 ### Fixed
 

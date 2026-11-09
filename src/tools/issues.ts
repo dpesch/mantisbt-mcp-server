@@ -12,7 +12,7 @@ import { fetchIssueEnumsWithCache } from './config.js';
 import { postNote, noteEditsSchema, prepareNoteEdits, verifyNoteEdits } from './notes.js';
 import { applyMonitorChanges } from './monitors.js';
 import { firstIssue, type IssueEnvelope } from '../issue-envelope.js';
-import { deprecationNote } from '../deprecation.js';
+import { deprecationNote, REMOVAL_VERSION } from '../deprecation.js';
 
 function errorText(msg: string): string {
   const vh = getVersionHint();
@@ -96,6 +96,40 @@ function makeIssueFilter({ status, assigned_to, reporter_id, dateFilter }: Issue
 }
 
 type IssueFilter = ReturnType<typeof makeIssueFilter>;
+
+// response: "short" for create_issue / update_issue (#8598) — the fields that
+// confirm what happened, instead of the whole issue with notes and history.
+const responseSchema = z.enum(['short', 'full']).default('full').describe(
+  `"full" (default): the whole issue as MantisBT returns it, including description, notes and history. ` +
+  `"short": only the fields that confirm the change — far fewer tokens. The default changes to "short" in ${REMOVAL_VERSION}.`,
+);
+const SHORT_CREATE_FIELDS = ['id', 'summary', 'project', 'category', 'status', 'handler', 'created_at', 'view_url'];
+const SHORT_UPDATE_FIELDS = ['id', 'summary', 'status', 'resolution', 'updated_at', 'view_url'];
+
+/** Returns only the given top-level fields of an object (those it has). */
+function pickFields<T extends object>(obj: T, fields: readonly string[]): Partial<T> {
+  return Object.fromEntries(Object.entries(obj).filter(([key]) => fields.includes(key))) as Partial<T>;
+}
+
+/**
+ * Short update_issue result: the core fields plus every changed field. Custom
+ * fields and notes are narrowed to the entries that were changed.
+ */
+function shortUpdatedIssue(
+  issue: MantisIssue,
+  changes: { custom_fields?: Array<{ field: { id?: number; name?: string } }>; notes?: Array<{ id: number }> },
+): Partial<MantisIssue> {
+  const short = pickFields(issue, [...SHORT_UPDATE_FIELDS, ...Object.keys(changes)]);
+  const { custom_fields: changedCustomFields, notes: editedNotes } = changes;
+  if (short.custom_fields && changedCustomFields) {
+    short.custom_fields = short.custom_fields.filter(({ field }) =>
+      changedCustomFields.some(c => c.field.id === field.id || c.field.name === field.name));
+  }
+  if (short.notes && editedNotes) {
+    short.notes = short.notes.filter(n => editedNotes.some(e => e.id === n.id));
+  }
+  return short;
+}
 
 /** Returns the issue without the given top-level fields. */
 function omitFields(issue: MantisIssue, fields: readonly string[]): MantisIssue {
@@ -423,7 +457,7 @@ Use "select" to fetch only some fields, e.g. select: "notes" for just the notes 
     'create_issue',
     {
       title: 'Create Issue',
-      description: `Create a new MantisBT issue. Returns the full created issue object including the assigned id, summary, status, priority, severity, category, reporter, created_at, and view_url.
+      description: `Create a new MantisBT issue. Returns the full created issue object including the assigned id, summary, status, priority, severity, category, reporter, created_at, and view_url. With response: "short" only id, summary, project, category, status, handler, created_at and view_url (default "full"; it changes to "short" in ${REMOVAL_VERSION}).
 
 Required fields: summary, description, project_id, category. All other fields are optional with sensible defaults (priority: "normal", severity: "minor").
 
@@ -452,6 +486,7 @@ For the handler, prefer the username field (resolved server-side) over handler_i
         reproducibility: z.string().optional().describe('How reliably the issue reproduces. Canonical English names: always, sometimes, random, have not tried, unable to reproduce, N/A. Use get_issue_schema to see localized labels.'),
         view_state: z.enum(['public', 'private']).optional().describe('Visibility of the issue: "public" (visible to all, default) or "private" (restricted to higher-access users).'),
         custom_fields: z.array(customFieldEntry).optional().describe('Custom field values: [{field: {id|name}, value: "<string>"}]. Use get_issue_schema or get_metadata to discover available custom fields per project.'),
+        response: responseSchema,
       }),
       annotations: {
         readOnlyHint: false,
@@ -459,7 +494,7 @@ For the handler, prefer the username field (resolved server-side) over handler_i
         idempotentHint: false,
       },
     },
-    async ({ summary, description, project_id, category, priority, severity, handler_id, handler, version, target_version, fixed_in_version, steps_to_reproduce, additional_information, reproducibility, view_state, custom_fields }) => {
+    async ({ summary, description, project_id, category, priority, severity, handler_id, handler, version, target_version, fixed_in_version, steps_to_reproduce, additional_information, reproducibility, view_state, custom_fields, response }) => {
       // Resolve handler username to handler_id when only a name is given
       let resolvedHandlerId = handler_id;
       if (resolvedHandlerId === undefined && handler !== undefined) {
@@ -515,18 +550,21 @@ For the handler, prefer the username field (resolved server-side) over handler_i
         const partial = firstIssue(raw) ?? (raw as MantisIssue);
         let issue: MantisIssue = partial;
         if (!('summary' in (partial as unknown as Record<string, unknown>))) {
-          // Older MantisBT returned only { id: N } — fetch the full issue.
+          // Older MantisBT returned only { id: N } — fetch the issue (only the
+          // short fields when those are all that is returned).
           // Suppress GET errors: the issue was already created.
           try {
-            const fetched = await client.get<IssueEnvelope>(`issues/${partial.id}`);
+            const select = response === 'short' ? SHORT_CREATE_FIELDS.filter(f => f !== 'view_url').join(',') : undefined;
+            const fetched = await client.get<IssueEnvelope>(`issues/${partial.id}`, { select });
             issue = firstIssue(fetched) ?? partial;
           } catch {
             // unable to fetch details — return minimal object
           }
         }
-        const baseUrl = await client.getBaseUrl();
+        const enriched = enrichIssue(issue, await client.getBaseUrl());
+        const result = response === 'short' ? pickFields(enriched, SHORT_CREATE_FIELDS) : enriched;
         return {
-          content: [{ type: 'text', text: JSON.stringify(enrichIssue(issue, baseUrl), null, 2) }],
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -588,6 +626,8 @@ Use the optional "note" parameter to append a note in the same call (e.g. the re
 
 Use "add_monitors" / "remove_monitors" (lists of MantisBT login names) to change who watches the issue — "fields" may be omitted then. The response contains "monitors" with added/removed/not_monitoring and the current monitor list. Adding or removing other users requires the monitor_add_others_bug_threshold / monitor_delete_others_bug_threshold access level.
 
+The response is the updated issue. With response: "short" it holds only id, summary, status, resolution, updated_at, view_url and the fields that were changed (custom_fields and notes narrowed to the changed entries; an appended note as { id, view_url }) — use it for routine changes. Default is "full"; it changes to "short" in ${REMOVAL_VERSION}.
+
 Steps run in order: fields, monitors, note. Once one step succeeded, a later failure is reported inline ("notes_error" when a note edit was not applied, "monitors_error", "note_error") instead of failing the call — do not retry the steps that went through. Only if every requested step failed is the call an error.`,
       inputSchema: z.object({
         id: z.coerce.number().int().positive().describe('Numeric issue ID to update'),
@@ -596,6 +636,7 @@ Steps run in order: fields, monitors, note. Once one step succeeded, a later fai
         dry_run: z.preprocess(coerceBool, z.boolean().optional()).describe('If true, return the patch payload that would be sent without actually updating the issue. Useful for previewing changes before committing them.'),
         note: z.string().min(1).optional().describe('Optional note text appended after a successful update (e.g. reason for a status change). Replaces a separate add_note call.'),
         note_view_state: z.enum(['public', 'private']).default('public').describe('Visibility of the appended note: "public" (default) or "private". Only used when "note" is set.'),
+        response: responseSchema,
         fields: z.preprocess(
           (v) => {
             if (typeof v !== 'string') return v;
@@ -628,7 +669,7 @@ Steps run in order: fields, monitors, note. Once one step succeeded, a later fai
         idempotentHint: false,
       },
     },
-    async ({ id, fields, dry_run, note, note_view_state, add_monitors, remove_monitors }) => {
+    async ({ id, fields, dry_run, note, note_view_state, add_monitors, remove_monitors, response: responseMode }) => {
       const fieldChanges = fields ?? {};
       const hasFields = Object.keys(fieldChanges).length > 0;
       const hasMonitorChanges = add_monitors !== undefined || remove_monitors !== undefined;
@@ -669,9 +710,10 @@ Steps run in order: fields, monitors, note. Once one step succeeded, a later fai
           };
         }
 
+        const short = responseMode === 'short';
         const patched = hasFields ? await patchIssueFields(id, patchFields) : undefined;
         const response: Record<string, unknown> = patched
-          ? { ...patched }
+          ? (short ? shortUpdatedIssue(patched, fieldChanges) : { ...patched })
           : { id, view_url: buildIssueViewUrl(await client.getBaseUrl(), id) };
 
         // MantisBT skips note edits it does not apply without an error, so the
@@ -712,7 +754,8 @@ Steps run in order: fields, monitors, note. Once one step succeeded, a later fai
 
         if (note !== undefined) {
           try {
-            response['note'] = await postNote(client, id, note, note_view_state);
+            const posted = await postNote(client, id, note, note_view_state);
+            response['note'] = short ? pickFields(posted, ['id', 'view_url']) : posted;
             succeeded = true;
           } catch (noteError) {
             const noteMsg = noteError instanceof Error ? noteError.message : String(noteError);

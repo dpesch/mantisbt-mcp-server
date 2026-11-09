@@ -779,6 +779,47 @@ Löst ein Issue auf und schließt es. **Immer beide Felder** `status` und `resol
 
 ---
 
+### Kurze Antwort statt des ganzen Issues
+
+Standardmäßig geben `update_issue` und `create_issue` das ganze Issue zurück, mit Beschreibung, Notizen und Historie – bei einem lebhaften Issue mehrere tausend Token. Mit `response: "short"` kommt nur zurück, was die Änderung bestätigt.
+
+**Tool:** `update_issue` (bei `create_issue` genauso)
+
+**Parameter:**
+- `response` – _(optional)_ `"full"` (Standard) oder `"short"`. In 2.0.0 wird `"short"` zum Standard.
+
+**Request:**
+
+```json
+{
+  "id": 1042,
+  "fields": {
+    "status": { "name": "resolved" },
+    "resolution": { "id": 20 }
+  },
+  "note": "Behoben in Commit abc123.",
+  "response": "short"
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 1042,
+  "summary": "Login schlägt auf iOS fehl",
+  "status": { "id": 80, "name": "resolved", "label": "erledigt" },
+  "resolution": { "id": 20, "name": "fixed", "label": "erledigt" },
+  "updated_at": "2026-11-09T13:21:00+01:00",
+  "view_url": "https://mantis.example.com/view.php?id=1042",
+  "note": { "id": 4957, "view_url": "https://mantis.example.com/view.php?id=1042#bugnote4957" }
+}
+```
+
+`update_issue` liefert `id`, `summary`, `status`, `resolution`, `updated_at`, `view_url` und jedes geänderte Feld; `custom_fields` und `notes` (Änderungen über `fields.notes`) sind auf die geänderten Einträge beschränkt, eine angehängte Notiz auf `id` und `view_url`. `monitors` und die `*_error`-Schlüssel erscheinen wie bei `"full"`. `create_issue` liefert `id`, `summary`, `project`, `category`, `status`, `handler`, `created_at` und `view_url`.
+
+---
+
 ### Benutzerdefinierte Felder setzen
 
 Schreibt Custom-Field-Werte beim Anlegen oder Aktualisieren. Dasselbe `custom_fields`-Format funktioniert bei `create_issue` und `update_issue` (dort innerhalb von `fields`).
