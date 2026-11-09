@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `list_issues`: the client-side filters `status`, `assigned_to`, `reporter_id`, `updated_after`/`updated_before` and `created_after`/`created_before` returned an empty list when `select` did not contain the field they read (`status`, `handler`, `reporter`, `updated_at`, `created_at`). The `select` projection removed the field before the filter ran, so every issue failed it — silently, without an error (#8597). The fields a filter needs are now fetched as well and removed again after filtering, so the response still holds exactly the selected fields. `group_by` was not affected.
+
 ---
 
 ## [1.17.0] – 2026-11-03

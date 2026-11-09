@@ -97,6 +97,12 @@ function makeIssueFilter({ status, assigned_to, reporter_id, dateFilter }: Issue
 
 type IssueFilter = ReturnType<typeof makeIssueFilter>;
 
+/** Returns the issue without the given top-level fields. */
+function omitFields(issue: MantisIssue, fields: readonly string[]): MantisIssue {
+  if (fields.length === 0) return issue;
+  return Object.fromEntries(Object.entries(issue).filter(([key]) => !fields.includes(key))) as MantisIssue;
+}
+
 interface IssueGroup {
   id: number | null;
   name: string;
@@ -159,20 +165,29 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
    * the current page once MantisBT's newest-first order shows the rest is
    * older than updated_after. Returns truncated when maxPages ended the scan
    * before either happened.
+   *
+   * select is the caller's projection. The filter reads its fields from each
+   * issue, so a select that omits them would fail every issue (#8597): they
+   * are fetched as well and removed again before onMatch sees the issue.
    */
   async function scanMatchingIssues(
     params: Record<string, string | number | boolean | undefined>,
+    select: string | undefined,
     filter: IssueFilter,
     pageSize: number,
     maxPages: number,
     onMatch: (issue: MantisIssue) => boolean | void,
   ): Promise<{ truncated: boolean }> {
+    const selected = select?.split(',').map(f => f.trim()).filter(Boolean);
+    const extraFields = selected ? filter.fields.filter(f => !selected.includes(f)) : [];
+    const fetchSelect = selected && [...selected, ...extraFields].join(',');
+
     for (let page = 1; page <= maxPages; page++) {
-      const issues = (await client.get<MantisPaginatedIssues>('issues', { ...params, page, page_size: pageSize })).issues ?? [];
+      const issues = (await client.get<MantisPaginatedIssues>('issues', { ...params, select: fetchSelect, page, page_size: pageSize })).issues ?? [];
       let stopAfterBatch = false;
       for (const issue of issues) {
         if (filter.matches(issue)) {
-          if (onMatch(issue) === false) return { truncated: false };
+          if (onMatch(omitFields(issue, extraFields)) === false) return { truncated: false };
         } else if (filter.olderThanUpdatedAfter(issue)) {
           stopAfterBatch = true; // finish the batch — items within it may still be newer
         }
@@ -191,11 +206,10 @@ export function registerIssueTools(server: McpServer, client: MantisClient, cach
     params: Record<string, string | number | undefined>,
     filter: IssueFilter,
   ): Promise<{ group_by: GroupByField; total: number; truncated?: true; groups: IssueGroup[] }> {
-    const select = [...new Set(['id', groupBy, ...filter.fields])].join(',');
     const groups = new Map<number | null, IssueGroup>();
     let total = 0;
 
-    const { truncated } = await scanMatchingIssues({ ...params, select }, filter, GROUP_BY_PAGE_SIZE, GROUP_BY_MAX_PAGES, issue => {
+    const { truncated } = await scanMatchingIssues(params, `id,${groupBy}`, filter, GROUP_BY_PAGE_SIZE, GROUP_BY_MAX_PAGES, issue => {
       const ref: Partial<MantisIdName> | undefined = issue[groupBy];
       const key = ref?.id ?? null;
       let group = groups.get(key);
@@ -380,7 +394,7 @@ Use "select" to fetch only some fields, e.g. select: "notes" for just the notes 
         const neededTotal = page * page_size; // need this many matches to serve page N
 
         const matching: MantisIssue[] = [];
-        const { truncated } = await scanMatchingIssues(baseParams, filter, API_PAGE_SIZE, MAX_API_PAGES, issue => {
+        const { truncated } = await scanMatchingIssues(baseParams, select, filter, API_PAGE_SIZE, MAX_API_PAGES, issue => {
           matching.push(issue);
           return matching.length < neededTotal;
         });

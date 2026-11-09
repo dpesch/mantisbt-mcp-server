@@ -1990,3 +1990,96 @@ describe('list_issues – truncated', () => {
     expect(vi.mocked(fetch)).toHaveBeenCalledOnce();
   });
 });
+
+// ---------------------------------------------------------------------------
+// list_issues – client-side filters with a narrow select (#8597)
+// The filters must see their field even when the caller's select omits it,
+// and the caller must still get exactly the fields they selected.
+// ---------------------------------------------------------------------------
+
+describe('list_issues – filters with a narrow select', () => {
+  const ISSUES: Array<Record<string, unknown>> = [
+    {
+      id: 1, summary: 'open, dom, recent',
+      status: { id: 10, name: 'new' }, handler: { id: 2, name: 'dom' }, reporter: { id: 51, name: 'domAgent' },
+      created_at: '2026-11-05T00:00:00Z', updated_at: '2026-11-08T00:00:00Z',
+    },
+    {
+      id: 2, summary: 'resolved, other, old',
+      status: { id: 80, name: 'resolved' }, handler: { id: 7, name: 'anna' }, reporter: { id: 7, name: 'anna' },
+      created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-02T00:00:00Z',
+    },
+  ];
+
+  /** Serves ISSUES projected like MantisBT: flat, trimmed top-level field names. */
+  function serveProjected(): void {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const select = new URL(String(input)).searchParams.get('select');
+      const fields = select === null ? null : select.split(',').map(f => f.trim());
+      const issues = ISSUES.map(issue => fields === null
+        ? issue
+        : Object.fromEntries(Object.entries(issue).filter(([key]) => fields.includes(key))));
+      return makeResponse(200, JSON.stringify({ issues }));
+    });
+  }
+
+  const parse = (r: { content: Array<{ text: string }> }) =>
+    JSON.parse(r.content[0]!.text) as { issues: Array<Record<string, unknown>> };
+
+  it.each([
+    ['status', { status: 'open' }],
+    ['assigned_to', { assigned_to: 2 }],
+    ['reporter_id', { reporter_id: 51 }],
+    ['updated_after', { updated_after: '2026-11-01T00:00:00Z' }],
+    ['updated_before', { updated_before: '2026-10-15T00:00:00Z' }],
+    ['created_after', { created_after: '2026-11-01T00:00:00Z' }],
+    ['created_before', { created_before: '2026-10-15T00:00:00Z' }],
+  ])('filters by %s although select omits its field', async (_name, filterArgs) => {
+    serveProjected();
+
+    const result = await mockServer.callTool('list_issues', { select: 'id', ...filterArgs }, { validate: true });
+
+    expect(result.isError).toBeUndefined();
+    expect(parse(result).issues).toHaveLength(1);
+  });
+
+  it('returns only the selected fields, not the ones fetched for filtering', async () => {
+    serveProjected();
+
+    const result = await mockServer.callTool('list_issues', {
+      select: 'id,summary', status: 'open', assigned_to: 2, updated_after: '2026-11-01T00:00:00Z',
+    }, { validate: true });
+
+    const [issue] = parse(result).issues;
+    expect(issue).toEqual({
+      id: 1,
+      summary: 'open, dom, recent',
+      view_url: 'https://mantis.example.com/view.php?id=1',
+    });
+  });
+
+  it('keeps a filter field the caller selected', async () => {
+    serveProjected();
+
+    const result = await mockServer.callTool('list_issues', { select: 'id, status', status: 'open' }, { validate: true });
+
+    expect(parse(result).issues[0]).toMatchObject({ id: 1, status: { id: 10, name: 'new' } });
+  });
+
+  it('adds the filter fields to the select sent to MantisBT', async () => {
+    serveProjected();
+
+    await mockServer.callTool('list_issues', { select: 'id', status: 'open', reporter_id: 51 }, { validate: true });
+
+    const select = new URL(fetchCall(0).url).searchParams.get('select')!.split(',');
+    expect(select).toEqual(expect.arrayContaining(['id', 'status', 'reporter']));
+  });
+
+  it('leaves the select untouched without client-side filters', async () => {
+    serveProjected();
+
+    await mockServer.callTool('list_issues', { select: 'id,summary' }, { validate: true });
+
+    expect(new URL(fetchCall(0).url).searchParams.get('select')).toBe('id,summary');
+  });
+});
