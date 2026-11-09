@@ -9,19 +9,22 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
+---
 
-- `update_issue` and `create_issue`: optional `response` parameter. `"short"` returns only what confirms the change instead of the whole issue with description, notes and history (#8598) — for `update_issue` `id`, `summary`, `status`, `resolution`, `updated_at`, `view_url` and the changed fields (custom fields and edited notes narrowed to the changed entries, an appended note to `id` and `view_url`); for `create_issue` `id`, `summary`, `project`, `category`, `status`, `handler`, `created_at` and `view_url`. On a fresh demo issue that is 529 instead of 4,046 characters; on an issue with many notes the gap is far larger. The default stays `"full"`.
-- `get_version`: `mcp_server` now also contains `commit` (short hash of the build, `-dirty` with uncommitted changes) and `built_at` (build time), so an outdated build shows even when its version number is right (#8547).
+## [1.18.0] – 2026-11-09
 
 ### Deprecated
 
 - The default of `response` in `update_issue` and `create_issue` changes from `"full"` to `"short"` in 2.0.0. Callers that rely on the whole issue in the response should pass `response: "full"` explicitly.
 
+### Added
+
+- `update_issue` and `create_issue`: optional `response` parameter. `"short"` returns only what confirms the change instead of the whole issue with description, notes and history (#8598) — for `update_issue` `id`, `summary`, `status`, `resolution`, `updated_at`, `view_url` and the changed fields (custom fields and edited notes narrowed to the changed entries, an appended note to `id` and `view_url`); for `create_issue` `id`, `summary`, `project`, `category`, `status`, `handler`, `created_at` and `view_url`. On a fresh demo issue that is 529 instead of 4,046 characters; on an issue with many notes the gap is far larger. The default stays `"full"`.
+- `get_version`: `mcp_server` now also contains `commit` (short hash of the build, `-dirty` with uncommitted changes) and `built_at` (build time), so an outdated build shows even when its version number is right (#8547).
+
 ### Fixed
 
 - The server reported the version from `package.json` at runtime, not the one its code was built from — in the MCP handshake, `get_version`, `get_mcp_version`, the startup log and the HTTP `/health` endpoint. Between a version bump and `npm run build`, a local install therefore claimed the new version while running the old code (#8547). The build now writes `dist/build-info.json`, and the server reads its version from there. Only the release build in CI reports a plain version; every other build — a local `npm run build`, `npm run dev`, code run from `src/` — is marked `-dev`, e.g. `1.18.0-dev`. `npm publish` refuses any build that is not the release build of the package version (`prepublishOnly`). The npm package was not affected: it is always built right before publishing.
-
 - `list_issues`: the client-side filters `status`, `assigned_to`, `reporter_id`, `updated_after`/`updated_before` and `created_after`/`created_before` returned an empty list when `select` did not contain the field they read (`status`, `handler`, `reporter`, `updated_at`, `created_at`). The `select` projection removed the field before the filter ran, so every issue failed it — silently, without an error (#8597). The fields a filter needs are now fetched as well and removed again after filtering, so the response still holds exactly the selected fields. `group_by` was not affected.
 
 ---
