@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `get_project` and `get_project_versions`: `obsolete: true` returned no obsolete versions, and `inherit: true` no versions of parent projects (#8614). Without the IDs of obsolete versions, `update_version` could not reach them. The cause lies in MantisBT: the REST handler of `GET /projects/{id}/versions` drops these query parameters, so the endpoint always returns the project's own, active versions (known upstream as [mantisbt #34578](https://mantisbt.org/bugs/view.php?id=34578), unfixed as of MantisBT 2.28.4). With `obsolete` or `inherit` set, the server now also reads `GET /projects`, which embeds every version of a project and gives the project hierarchy; without `inherit`, versions of parent projects are left out — unless the API user cannot see the parent project, in which case they cannot be told apart and stay in. The metadata cache (`get_metadata`) and the `mantis://projects/{id}` resource held the same gap and now contain obsolete and inherited versions too; refresh an existing cache with `get_metadata(refresh: true)`. The cache sync now takes the versions from `GET /projects` and no longer sends one `/versions` request per project. Without either parameter, `get_project` and `get_project_versions` behave as before and make no extra request.
+
 ---
 
 ## [1.18.0] – 2026-11-09

@@ -308,6 +308,28 @@ describe('sync_metadata', () => {
     expect(url.searchParams.get('inherit')).toBe('1');
   });
 
+  it('caches obsolete versions embedded in GET /projects (#8614)', async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+
+    const active = { id: 813, name: '1.2.4', obsolete: false };
+    const obsolete = { id: 791, name: '1.0.0', obsolete: true };
+    const projectsResponse = { projects: [{ id: 1, name: 'Test Project', versions: [active, obsolete] }] };
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify(projectsResponse)))
+      // /versions drops obsolete=1 and returns only the active version
+      .mockResolvedValue(makeResponse(200, JSON.stringify({ users: [], versions: [active], projects: [{ id: 1, categories: [] }], tags: [] })));
+
+    await mockServer.callTool('sync_metadata', {});
+
+    const saved = JSON.parse(String(vi.mocked(writeFile).mock.calls[0]![1])) as { data: CachedMetadata };
+    expect(saved.data.byProject[1]!.versions.map(v => v.id).sort()).toEqual([791, 813]);
+    // The embedded versions make the per-project /versions request unnecessary
+    expect(vi.mocked(fetch).mock.calls.some(call => String(call[0]).includes('/versions'))).toBe(false);
+  });
+
   it('stores categories from GET /projects/{id} response (not from /categories sub-path)', async () => {
     // Regression: sync_metadata called projects/{id}/categories which returned []
     // on this MantisBT installation. The correct source is projects/{id}.projects[0].categories,

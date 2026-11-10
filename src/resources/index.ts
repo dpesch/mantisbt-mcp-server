@@ -4,6 +4,7 @@ import { MetadataCache } from '../cache.js';
 import type { MantisProject, MantisUser, MantisVersion, MantisCategory } from '../types.js';
 import { fetchIssueEnums } from '../tools/config.js';
 import { normalizeProject, stripAllProjectsPrefix } from '../tools/metadata.js';
+import { fetchProjectVersions } from '../versions.js';
 
 function jsonResource(uri: URL, data: unknown): { contents: Array<{ uri: string; mimeType: string; text: string }> } {
   return {
@@ -79,15 +80,15 @@ export function registerResources(server: McpServer, client: MantisClient, cache
         versions = meta?.versions ?? [];
         categories = meta?.categories ?? [];
       } else {
-        const [projectResult, usersResult, versionsResult] = await Promise.all([
+        const [projectResult, usersResult, fetchedVersions] = await Promise.all([
           client.get<{ projects: Array<MantisProject & { categories?: MantisCategory[] }> }>(`projects/${numId}`),
           client.get<{ users: MantisUser[] }>(`projects/${numId}/users`),
-          client.get<{ versions: MantisVersion[] }>(`projects/${numId}/versions`, { obsolete: 1, inherit: 1 }),
+          fetchProjectVersions(client, numId, { obsolete: true, inherit: true }),
         ]);
         const raw = projectResult.projects?.[0];
         project = raw ? normalizeProject(raw) : undefined;
         users = usersResult.users ?? [];
-        versions = versionsResult.versions ?? [];
+        versions = fetchedVersions;
         categories = stripAllProjectsPrefix(raw?.categories ?? []);
       }
 

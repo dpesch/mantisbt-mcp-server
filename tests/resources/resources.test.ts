@@ -225,7 +225,8 @@ describe('mantis://projects/{id}', () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ projects: [{ id: 10, name: 'Alpha', categories: [{ id: 3, name: 'Bugs' }] }] })))
       .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ users: [{ id: 1, name: 'jsmith' }] })))
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ versions: [{ id: 5, name: '1.0.0' }] })));
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ versions: [{ id: 5, name: '1.0.0' }] })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ projects: [{ id: 10, name: 'Alpha' }] }))); // GET /projects (#8614)
 
     const result = await mockServer.callResource('mantis://projects/10');
 
@@ -240,7 +241,8 @@ describe('mantis://projects/{id}', () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ projects: [{ id: 10, name: 'Alpha', categories: [{ id: 1, name: '[All Projects] General' }] }] })))
       .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ users: [] })))
-      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ versions: [] })));
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ versions: [] })))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ projects: [{ id: 10, name: 'Alpha' }] }))); // GET /projects (#8614)
 
     const result = await mockServer.callResource('mantis://projects/10');
 

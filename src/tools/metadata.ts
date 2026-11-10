@@ -9,6 +9,7 @@ import { ALL_PROJECTS_PREFIX } from '../constants.js';
 import { deprecationNote } from '../deprecation.js';
 import type { SearchIndexStatus } from '../types.js';
 import { fetchIssueEnumsWithCache } from './config.js';
+import { collectVersions, type RawProject } from '../versions.js';
 
 // Fields MantisBT strips from issue responses when the array is empty.
 // They are always valid 'select' values even if absent in a sample issue.
@@ -127,17 +128,25 @@ export function normalizeProject(p: any): MantisProject {
 
 async function fetchAndCacheMetadata(client: MantisClient, cache: MetadataCache): Promise<CachedMetadata> {
   // Fetch all projects
-  const projectResult = await client.get<{ projects: MantisProject[] }>('projects');
-  const projects = (projectResult.projects ?? []).map(normalizeProject);
+  const projectResult = await client.get<{ projects: Array<MantisProject & RawProject> }>('projects');
+  const rawProjects = projectResult.projects ?? [];
+  const projects = rawProjects.map(normalizeProject);
 
   const byProject: Record<number, CachedProjectMeta> = {};
+
+  // GET /projects embeds every version of a project, obsolete ones included;
+  // /versions ignores obsolete and inherit (#8614) and is only asked when a
+  // project arrives without embedded versions.
+  const embedsVersions = new Set(rawProjects.filter(p => p.versions !== undefined).map(p => p.id));
 
   // For each project, fetch users, versions, categories in parallel
   await Promise.all(
     projects.map(async (project) => {
       const [usersResult, versionsResult, projectDetailResult] = await Promise.allSettled([
         client.get<{ users: MantisUser[] }>(`projects/${project.id}/users`),
-        client.get<{ versions: MantisVersion[] }>(`projects/${project.id}/versions`, { obsolete: 1, inherit: 1 }),
+        embedsVersions.has(project.id)
+          ? { versions: [] as MantisVersion[] }
+          : client.get<{ versions: MantisVersion[] }>(`projects/${project.id}/versions`, { obsolete: 1, inherit: 1 }),
         // Categories are embedded in the project detail response — same source as get_project_categories
         client.get<{ projects: Array<{ categories?: MantisCategory[] }> }>(`projects/${project.id}`),
       ]);
@@ -146,9 +155,13 @@ async function fetchAndCacheMetadata(client: MantisClient, cache: MetadataCache)
         ? (usersResult.value.users ?? [])
         : [];
 
-      const versions: MantisVersion[] = versionsResult.status === 'fulfilled'
-        ? (versionsResult.value.versions ?? [])
-        : [];
+      const versions = collectVersions({
+        own: versionsResult.status === 'fulfilled' ? (versionsResult.value.versions ?? []) : [],
+        projects: rawProjects,
+        projectId: project.id,
+        obsolete: true,
+        inherit: true,
+      });
 
       const rawCategories: MantisCategory[] = projectDetailResult.status === 'fulfilled'
         ? (projectDetailResult.value.projects?.[0]?.categories ?? [])

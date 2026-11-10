@@ -400,6 +400,7 @@ describe('get_project', () => {
       'projects/7': { projects: [PROJECT] },
       'projects/7/users': { users: USERS },
       'projects/7/versions': { versions: [{ id: 3, name: '1.0', released: true }] },
+      'projects': { projects: [PROJECT] },
     });
 
     const result = await mockServer.callTool(
@@ -428,12 +429,48 @@ describe('get_project', () => {
   });
 
   it('obsolete/inherit imply versions', async () => {
-    routeFetch({ 'projects/7': { projects: [PROJECT] }, 'projects/7/versions': { versions: [] } });
+    routeFetch({ 'projects/7': { projects: [PROJECT] }, 'projects/7/versions': { versions: [] }, 'projects': { projects: [PROJECT] } });
 
     const result = await mockServer.callTool('get_project', { project_id: 7, obsolete: true }, { validate: true });
 
     expect(parse(result)['versions']).toEqual([]);
     expect(urls().some(u => u.pathname.endsWith('/versions'))).toBe(true);
+  });
+
+  // #8614: MantisBT's /versions handler drops obsolete and inherit, so the
+  // obsolete versions must come from the GET /projects listing.
+  it('obsolete: returns obsolete versions that /versions leaves out', async () => {
+    const active = { id: 813, name: '1.2.4', released: false, obsolete: false, timestamp: '2026-11-10T00:00:00+01:00' };
+    const obsolete = { id: 791, name: '1.0.0', description: '', released: true, obsolete: true, timestamp: '2020-01-01T00:00:00+01:00' };
+    routeFetch({
+      'projects/7': { projects: [PROJECT] },
+      'projects/7/versions': { versions: [active] },
+      'projects': { projects: [{ ...PROJECT, versions: [active, obsolete] }] },
+    });
+
+    const result = await mockServer.callTool('get_project', { project_id: 7, obsolete: true }, { validate: true });
+
+    expect(parse(result)['versions']).toEqual([active, { id: 791, name: '1.0.0', released: true, obsolete: true, timestamp: obsolete.timestamp }]);
+  });
+
+  it('get_project_versions: obsolete: true returns obsolete versions as well', async () => {
+    const obsolete = { id: 791, name: '1.0.0', released: true, obsolete: true };
+    routeFetch({
+      'projects/7/versions': { versions: [] },
+      'projects': { projects: [{ id: 7, versions: [obsolete] }] },
+    });
+
+    const result = await mockServer.callTool('get_project_versions', { project_id: 7, obsolete: true }, { validate: true });
+
+    expect(JSON.parse(result.content[0]!.text)).toEqual([obsolete]);
+  });
+
+  it('does not fetch GET /projects without obsolete or inherit', async () => {
+    routeFetch({ 'projects/7': { projects: [PROJECT] }, 'projects/7/versions': { versions: [] } });
+
+    await mockServer.callTool('get_project', { project_id: 7, include: ['versions'] }, { validate: true });
+
+    expect(urls().some(u => u.pathname.endsWith('/rest/projects'))).toBe(false);
   });
 
   it('serves users from a fresh cache when no access_level is given', async () => {

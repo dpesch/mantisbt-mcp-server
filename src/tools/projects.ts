@@ -2,7 +2,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { coerceBool } from '../coerce.js';
 import { MantisClient } from '../client.js';
-import type { MantisProject, MantisUser, MantisVersion, MantisCategory } from '../types.js';
+import type { MantisProject, MantisUser, MantisCategory } from '../types.js';
+import { fetchProjectVersions } from '../versions.js';
 import { getVersionHint } from '../version-hint.js';
 import { normalizeProject, stripAllProjectsPrefix } from './metadata.js';
 import { MetadataCache } from '../cache.js';
@@ -28,14 +29,6 @@ const matchMembers = (users: MantisUser[], query: string): MantisUser[] => {
 const PROJECT_INCLUDES = ['categories', 'users', 'versions'] as const;
 
 export function registerProjectTools(server: McpServer, client: MantisClient, cache?: MetadataCache): void {
-
-  async function fetchVersions(projectId: number, obsolete?: boolean, inherit?: boolean): Promise<MantisVersion[]> {
-    const params: Record<string, number> = {};
-    if (obsolete) params.obsolete = 1;
-    if (inherit) params.inherit = 1;
-    const result = await client.get<{ versions: MantisVersion[] }>(`projects/${projectId}/versions`, params);
-    return result.versions ?? [];
-  }
 
   /**
    * Project users. The metadata cache has no access-level filter, so it is
@@ -93,7 +86,7 @@ Users come from the local metadata cache when it is fresh and no access_level is
         const [projectResult, users, versions] = await Promise.all([
           client.get<{ projects: Array<MantisProject & { categories?: MantisCategory[] }> }>(`projects/${project_id}`),
           wants.has('users') ? fetchUsers(project_id, access_level) : undefined,
-          wants.has('versions') ? fetchVersions(project_id, obsolete, inherit) : undefined,
+          wants.has('versions') ? fetchProjectVersions(client, project_id, { obsolete, inherit }) : undefined,
         ]);
         const raw = projectResult.projects?.[0];
         if (!raw) throw new Error(`Project ${project_id} not found or not accessible.`);
@@ -211,7 +204,7 @@ Prerequisites: obtain project_id from list_projects.`,
     },
     async ({ project_id, obsolete, inherit }) => {
       try {
-        const versions = await fetchVersions(project_id, obsolete, inherit);
+        const versions = await fetchProjectVersions(client, project_id, { obsolete, inherit });
         return {
           content: [{ type: 'text', text: JSON.stringify(versions, null, 2) }],
         };
