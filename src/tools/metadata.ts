@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { coerceBool } from '../coerce.js';
 import { MantisClient } from '../client.js';
 import { MetadataCache, type CachedMetadata, type CachedProjectMeta } from '../cache.js';
-import type { MantisProject, MantisIdName, MantisUser, MantisVersion, MantisCategory, MantisTag, MantisPaginatedIssues } from '../types.js';
+import type { MantisProject, MantisProjectRef, MantisIdName, MantisUser, MantisVersion, MantisCategory, MantisTag, MantisPaginatedIssues } from '../types.js';
 import { getVersionHint } from '../version-hint.js';
 import { ALL_PROJECTS_PREFIX } from '../constants.js';
 import { deprecationNote } from '../deprecation.js';
@@ -122,7 +122,10 @@ export function normalizeProject(p: any): MantisProject {
     ...(p.enabled !== undefined && { enabled: p.enabled }),
     ...(p.view_state !== undefined && { view_state: normalizeIdName(p.view_state) }),
     ...(p.access_level !== undefined && { access_level: { id: p.access_level.id, label: p.access_level.label } }),
-    ...(p.subprojects !== undefined && { subprojects: p.subprojects.map(normalizeProject) }),
+    // MantisBT sends the direct subprojects as subProjects: [{ id, name }] (#8616)
+    ...(p.subProjects !== undefined && {
+      subprojects: p.subProjects.map((s: MantisProjectRef) => ({ id: s.id, name: s.name })),
+    }),
   };
 }
 

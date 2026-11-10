@@ -30,6 +30,11 @@ export interface MantisUser {
   enabled?: boolean;
 }
 
+export interface MantisProjectRef {
+  id: number;
+  name: string;
+}
+
 export interface MantisProject {
   id: number;
   name: string;
@@ -38,7 +43,8 @@ export interface MantisProject {
   enabled?: boolean;
   view_state?: MantisIdName;
   access_level?: MantisIdLabel;
-  subprojects?: MantisProject[];
+  /** Direct subprojects as references; MantisBT sends them as subProjects. */
+  subprojects?: MantisProjectRef[];
 }
 
 export interface MantisVersion {

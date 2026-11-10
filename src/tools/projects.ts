@@ -54,7 +54,7 @@ export function registerProjectTools(server: McpServer, client: MantisClient, ca
     'get_project',
     {
       title: 'Get Project',
-      description: `Get one MantisBT project: its master data (id, name, description, status, enabled, view_state, access_level, subprojects) and, on request, its categories, users and versions in the same call.
+      description: `Get one MantisBT project: its master data (id, name, description, status, enabled, view_state, access_level, subprojects as id and name of the direct subprojects) and, on request, its categories, users and versions in the same call.
 
 - include: any of "categories", "users", "versions" (default: none — master data only).
 - categories: names come without the "[All Projects] " prefix, ready for create_issue / update_issue.

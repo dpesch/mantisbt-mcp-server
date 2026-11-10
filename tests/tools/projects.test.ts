@@ -119,15 +119,20 @@ describe('list_projects', () => {
     expect((parsed[0]!['view_state'] as Record<string, unknown>)['id']).toBe(10);
   });
 
-  it('normalizes subprojects recursively', async () => {
+  it('returns the subProjects references MantisBT sends as subprojects (#8616)', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       makeResponse(200, JSON.stringify({
-        projects: [{ id: 1, name: 'Parent', subprojects: [{ id: 2, name: 'Child', custom_fields: [{ field: { id: 9 }, value: 'x' }] }] }],
+        projects: [
+          { id: 1, name: 'Parent', subProjects: [{ id: 2, name: 'Child', extra: 'x' }] },
+          { id: 2, name: 'Child' },
+        ],
       }))
     );
     const result = await mockServer.callTool('list_projects', {});
-    const parsed = JSON.parse(result.content[0]!.text) as Array<{ subprojects?: Array<{ custom_fields?: unknown }> }>;
-    expect(parsed[0]!.subprojects![0]!.custom_fields).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as Array<Record<string, unknown>>;
+    expect(parsed[0]!['subprojects']).toEqual([{ id: 2, name: 'Child' }]);
+    expect(parsed[0]!['subProjects']).toBeUndefined();
+    expect(parsed[1]!['subprojects']).toBeUndefined();
   });
 });
 
@@ -370,6 +375,19 @@ describe('get_project', () => {
 
   beforeEach(() => {
     vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+  });
+
+  it('returns the direct subprojects as references (#8616)', async () => {
+    // GET /projects/{id} lists the project first, followed by its subprojects
+    routeFetch({ 'projects/7': { projects: [
+      { ...PROJECT, subProjects: [{ id: 8, name: 'Sub' }] },
+      { id: 8, name: 'Sub' },
+    ] } });
+
+    const parsed = parse(await mockServer.callTool('get_project', { project_id: 7 }, { validate: true }));
+
+    expect(parsed['id']).toBe(7);
+    expect(parsed['subprojects']).toEqual([{ id: 8, name: 'Sub' }]);
   });
 
   it('returns only the project master data by default (one request)', async () => {
