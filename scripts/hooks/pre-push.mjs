@@ -28,7 +28,7 @@
 // from local SHAs, so git rejects main as non-fast-forward before the hook
 // runs unless --force bypasses that check.
 
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
@@ -55,43 +55,56 @@ export const isCodebergRemote = url => remoteHost(url) === 'codeberg.org';
 // deletion has the zero SHA locally. Any other line would publish commits.
 export const carriesCommits = lines => lines.some(line => line.split(' ')[1] !== ZERO_SHA);
 
-const git = (cmd, opts = {}) => {
+// Git runs without a shell: ref names, SHAs and the remote URL arrive as
+// separate arguments, so shell syntax in them is never interpreted (#8620).
+const runGit = (args, opts = {}) => execFileSync('git', args, { encoding: 'utf8', ...opts }).trim();
+
+const git = (args, opts = {}) => {
   try {
-    return execSync(`git ${cmd}`, { encoding: 'utf8', ...opts }).trim();
+    return runGit(args, opts);
   } catch (err) {
-    console.error(`✗ git ${cmd}\n${err.stderr || err.message}`);
+    console.error(`✗ git ${args.join(' ')}\n${err.stderr || err.message}`);
     process.exit(1);
   }
 };
 
-const gitOptional = (cmd, opts = {}) => {
-  try { return execSync(`git ${cmd}`, { encoding: 'utf8', ...opts }).trim(); }
+const gitOptional = (args, opts = {}) => {
+  try { return runGit(args, opts); }
   catch { return ''; }
+};
+
+// Pushes a filtered commit; the recursion guard keeps this hook out of it.
+const pushFiltered = (remoteUrl, sha, remoteRef, label) => {
+  try {
+    execFileSync('git', ['push', remoteUrl, `${sha}:${remoteRef}`, '--force'],
+      { env: { ...process.env, _PREPUSH_FILTER_ACTIVE: '1' }, stdio: 'inherit' });
+  } catch {
+    console.error(`✗ Push to Codeberg failed for ${label}`); process.exit(1);
+  }
 };
 
 const isSha = s => /^[0-9a-f]{40}$/.test(s);
 
 // Remove .claude/ from the root tree of a commit and return the new tree SHA.
 const filterTree = commitSha => {
-  const entries = git(`ls-tree "${commitSha}^{tree}"`);
+  const entries = git(['ls-tree', `${commitSha}^{tree}`]);
   const filtered = entries.split('\n').filter(e => !e.match(/\t\.claude$/)).join('\n');
-  const tree = git('mktree', { input: filtered });
+  const tree = git(['mktree'], { input: filtered });
   if (!isSha(tree)) { console.error(`✗ mktree failed for ${commitSha}`); process.exit(1); }
   return tree;
 };
 
 // Create a filtered commit object preserving all original metadata.
 const makeFilteredCommit = (commitSha, filteredTree, mappedParents) => {
-  const log = git(`log -1 --format=%an%n%ae%n%aI%n%cn%n%ce%n%cI%n%n%B "${commitSha}"`);
+  const log = git(['log', '-1', '--format=%an%n%ae%n%aI%n%cn%n%ce%n%cI%n%n%B', commitSha]);
   const [an, ae, aI, cn, ce, cI, , ...msgLines] = log.split('\n');
   const commitMsg = msgLines.join('\n').trimEnd();
-  const parentFlags = mappedParents.map(p => `-p ${p}`).join(' ');
   const env = {
     ...process.env,
     GIT_AUTHOR_NAME: an,    GIT_AUTHOR_EMAIL: ae,    GIT_AUTHOR_DATE: aI,
     GIT_COMMITTER_NAME: cn, GIT_COMMITTER_EMAIL: ce, GIT_COMMITTER_DATE: cI,
   };
-  const result = git(`commit-tree "${filteredTree}" ${parentFlags}`, { env, input: commitMsg });
+  const result = git(['commit-tree', filteredTree, ...mappedParents.flatMap(p => ['-p', p])], { env, input: commitMsg });
   if (!isSha(result)) { console.error(`✗ commit-tree failed for ${commitSha}`); process.exit(1); }
   return result;
 };
@@ -99,9 +112,9 @@ const makeFilteredCommit = (commitSha, filteredTree, mappedParents) => {
 // Scan ancestors of tipSha (newest first) and return the most recent one whose
 // filtered root tree equals the tree of remoteSha. Returns null if not found.
 const findLocalAnchor = (tipSha, remoteSha, maxDepth = 100) => {
-  const remoteTree = gitOptional(`rev-parse "${remoteSha}^{tree}"`);
+  const remoteTree = gitOptional(['rev-parse', `${remoteSha}^{tree}`]);
   if (!remoteTree) return null;
-  const candidates = gitOptional(`rev-list --max-count=${maxDepth} "${tipSha}"`);
+  const candidates = gitOptional(['rev-list', `--max-count=${maxDepth}`, tipSha]);
   if (!candidates) return null;
   for (const sha of candidates.split('\n').filter(Boolean)) {
     if (filterTree(sha) === remoteTree) return sha;
@@ -120,7 +133,7 @@ const processRefs = (remoteUrl, lines) => {
   const others   = lines.filter(l => !l.split(' ')[2]?.startsWith('refs/heads/'));
 
   // Batch-fetch all tags from Codeberg (single ls-remote call, ref → sha).
-  const remoteTagsRaw = gitOptional(`ls-remote --tags "${remoteUrl}"`);
+  const remoteTagsRaw = gitOptional(['ls-remote', '--tags', remoteUrl]);
   const remoteTagMap = new Map(
     remoteTagsRaw
       ? remoteTagsRaw.split('\n').filter(Boolean)
@@ -135,8 +148,12 @@ const processRefs = (remoteUrl, lines) => {
 
   for (const line of [...branches, ...others]) {
     const parts = line.split(' ');
-    if (parts.length < 3) { console.error(`✗ Malformed push input: ${line}`); process.exit(1); }
     const [, localSha, remoteRef] = parts;
+    // Git sends full SHAs and full ref names; anything else is refused, so no
+    // value from stdin can reach git looking like an option.
+    if (parts.length < 3 || !isSha(localSha) || !remoteRef.startsWith('refs/')) {
+      console.error(`✗ Malformed push input: ${line}`); process.exit(1);
+    }
 
     if (localSha === ZERO_SHA) continue; // deletion — skip
 
@@ -147,7 +164,7 @@ const processRefs = (remoteUrl, lines) => {
         console.log(`  ↷ ${label} already on Codeberg — skipping`);
         continue;
       }
-      if (!gitOptional(`rev-parse --verify "${localSha}"`)) {
+      if (!gitOptional(['rev-parse', '--verify', localSha])) {
         console.warn(`  ⚠ ${label} — commit ${localSha.slice(0, 8)} not found locally, skipping`);
         continue;
       }
@@ -155,12 +172,7 @@ const processRefs = (remoteUrl, lines) => {
 
     // If this commit was already filtered as part of a branch push, reuse it.
     if (localSha in shaMap) {
-      try {
-        execSync(`git push "${remoteUrl}" "${shaMap[localSha]}:${remoteRef}" --force`,
-          { env: { ...process.env, _PREPUSH_FILTER_ACTIVE: '1' }, stdio: 'inherit' });
-      } catch {
-        console.error(`✗ Push failed for ${label}`); process.exit(1);
-      }
+      pushFiltered(remoteUrl, shaMap[localSha], remoteRef, label);
       console.log(`✓ ${label} pushed to Codeberg (without .claude/)`);
       pushed++;
       continue;
@@ -170,7 +182,7 @@ const processRefs = (remoteUrl, lines) => {
     // Branches: query individually to find the incremental anchor for filtered chain building.
     const actualRemoteSha = remoteRef.startsWith('refs/tags/')
       ? ''
-      : (gitOptional(`ls-remote "${remoteUrl}" "${remoteRef}"`)?.split(/\s+/)[0] ?? '');
+      : gitOptional(['ls-remote', remoteUrl, remoteRef]).split(/\s+/)[0];
 
     if (!actualRemoteSha) {
       // New ref on Codeberg — filter the tip with no parent.
@@ -183,12 +195,12 @@ const processRefs = (remoteUrl, lines) => {
         shaMap[localAnchor] = actualRemoteSha;
 
         // Filter all commits between anchor and tip, oldest first.
-        const revList = gitOptional(`rev-list --reverse "${localAnchor}..${localSha}"`);
+        const revList = gitOptional(['rev-list', '--reverse', `${localAnchor}..${localSha}`]);
         const commits = revList ? revList.split('\n').filter(Boolean) : [];
 
         for (const sha of commits) {
           const filteredTree = filterTree(sha);
-          const parents = gitOptional(`log -1 --format=%P "${sha}"`);
+          const parents = gitOptional(['log', '-1', '--format=%P', sha]);
           const parentShas = parents ? parents.split(' ').filter(Boolean) : [];
           // Map each parent through shaMap; fall back to actualRemoteSha for
           // parents outside the current range (already on the remote).
@@ -199,7 +211,7 @@ const processRefs = (remoteUrl, lines) => {
         }
       } else {
         // Fallback: anchor not found — branch only (tags exit early above).
-        const remoteExists = !!gitOptional(`rev-parse --verify "${actualRemoteSha}"`);
+        const remoteExists = !!gitOptional(['rev-parse', '--verify', actualRemoteSha]);
         console.warn(`  ⚠ Could not find local base for ${label}, filtering tip only`);
         shaMap[localSha] = makeFilteredCommit(localSha, filterTree(localSha), remoteExists ? [actualRemoteSha] : []);
       }
@@ -211,12 +223,7 @@ const processRefs = (remoteUrl, lines) => {
       process.exit(1);
     }
 
-    try {
-      execSync(`git push "${remoteUrl}" "${filteredTip}:${remoteRef}" --force`,
-        { env: { ...process.env, _PREPUSH_FILTER_ACTIVE: '1' }, stdio: 'inherit' });
-    } catch {
-      console.error(`✗ Push to Codeberg failed for ${label}`); process.exit(1);
-    }
+    pushFiltered(remoteUrl, filteredTip, remoteRef, label);
 
     console.log(`✓ ${label} pushed to Codeberg (without .claude/)`);
     pushed++;
