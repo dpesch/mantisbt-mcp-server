@@ -608,6 +608,34 @@ describe('search_issues – highlight: true (with select)', () => {
     const parsed = JSON.parse(result.content[0]!.text) as Array<Record<string, unknown>>;
     expect(parsed[0]).toHaveProperty('id', 1);
   });
+
+  // #8617: an access denial or a deleted issue must not leak indexed text
+  it.each([401, 403, 404])('drops the result when the API answers %i', async (status) => {
+    const store = makeMockStore({ items: [{ id: 1, score: 0.9 }, { id: 2, score: 0.8 }] });
+    vi.mocked(store.getItem).mockResolvedValue({
+      id: 1,
+      vector: [],
+      metadata: { summary: 'Login crash issue', description: 'Secret login details' },
+    });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeResponse(status, 'Access denied'))
+      .mockResolvedValueOnce(makeResponse(200, JSON.stringify({ issues: [{ id: 2, summary: 'Login page' }] })));
+
+    const result = await mockServer.callTool('search_issues', {
+      query: 'login',
+      top_n: 2,
+      select: 'summary',
+      highlight: true,
+    });
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0]!.text) as Array<Record<string, unknown>>;
+    expect(parsed.map(r => r['id'])).toEqual([2]);
+    expect(result.content[0]!.text).not.toContain('Secret');
+    expect(result.content[0]!.text).not.toContain('crash');
+  });
 });
 
 describe('search_issues – highlight: true combined with date filter', () => {

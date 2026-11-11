@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- `search_issues` with `select`: when MantisBT refused an issue (401, 403) or no longer had it (404), the result still came back with `highlights` taken from the local search index — text of an issue the API user may no longer read (#8617). Such results are now left out. Other errors (network, 5xx) keep the previous fallback to the indexed text.
+
 ---
 
 ## [1.18.1] – 2026-11-10

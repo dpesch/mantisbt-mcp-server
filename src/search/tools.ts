@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { coerceBool } from '../coerce.js';
-import { buildIssueViewUrl, type MantisClient } from '../client.js';
+import { buildIssueViewUrl, MantisApiError, type MantisClient } from '../client.js';
 import type { VectorStore } from './store.js';
 import type { SearchIndexStatus } from '../types.js';
 import type { Embedder } from './embedder.js';
@@ -51,6 +51,9 @@ export async function getSearchIndexStatus(store: VectorStore): Promise<SearchIn
   return { summary, indexed, total, percent, last_synced_at: lastSyncedAt };
 }
 
+/** API answers that mean the issue is not (or no longer) visible to this account. */
+const HIDDEN_ISSUE_STATUSES = new Set([401, 403, 404]);
+
 export function registerSearchTools(
   server: McpServer,
   client: MantisClient,
@@ -87,7 +90,8 @@ export function registerSearchTools(
         select: z.string().optional().describe(
           'Comma-separated list of fields to include for each result (e.g. "id,summary,status,handler,priority"). ' +
           'When provided, each matching issue is fetched from MantisBT and enriched with the requested fields. ' +
-          'The relevance score is always included. Without this parameter only id and score are returned.'
+          'The relevance score is always included. Issues that MantisBT reports as inaccessible or deleted are left out. ' +
+          'Without this parameter only id and score are returned.'
         ),
         highlight: z
           .preprocess(coerceBool, z.boolean().default(false))
@@ -177,7 +181,12 @@ export function registerSearchTools(
                 if (h) projected['highlights'] = h;
               }
               return projected;
-            } catch {
+            } catch (error) {
+              // Denied or deleted: MantisBT has the final say, so indexed text
+              // must not leak through the fallback below (#8617).
+              if (error instanceof MantisApiError && HIDDEN_ISSUE_STATUSES.has(error.statusCode)) {
+                return null;
+              }
               const result: Record<string, unknown> = { id, score, view_url: buildIssueViewUrl(baseUrl, id) };
               if (terms.length > 0) {
                 const item = await store.getItem(id);
