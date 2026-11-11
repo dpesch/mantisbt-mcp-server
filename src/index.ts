@@ -72,6 +72,7 @@ async function createMcpServer(transport: 'stdio' | 'http'): Promise<McpServer> 
     build,
     uploadDir: startupConfig.uploadDir,
     transport,
+    disableDestructive: startupConfig.disableDestructive,
     searchIndexStatus,
   });
   registerPrompts(server);

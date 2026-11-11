@@ -120,7 +120,7 @@ When `MANTIS_BASE_URL` ends with `/api/rest/index.php`, index.php routing is ena
 
 ### Offer only some tool groups
 
-By default all 41 tools are active (search off). Restrict them with `MANTIS_TOOLSETS` to keep the model's context shorter and load only what is needed for the task. Use `MANTIS_DISABLE_DESTRUCTIVE=true` to hide every destructive tool regardless of the active groups.
+By default all 41 tools are active (search off). Restrict them with `MANTIS_TOOLSETS` to keep the model's context shorter and load only what is needed for the task. Use `MANTIS_DISABLE_DESTRUCTIVE=true` to hide every destructive tool regardless of the active groups; `update_issue` then also rejects `remove_monitors`.
 
 Valid group names: `issues`, `notes`, `links`, `files`, `projects`, `versions`, `meta`, `search`. An unknown name stops the server at startup with a message listing the valid ones. Deprecated tools always belong to the same group as their replacement. For the complete group-to-tool mapping see [Limit the offered tools in the README](../README.md#limit-the-offered-tools).
 

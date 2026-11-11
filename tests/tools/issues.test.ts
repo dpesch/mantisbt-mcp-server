@@ -1823,6 +1823,34 @@ describe('update_issue – monitors', () => {
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 
+  // #8621: MANTIS_DISABLE_DESTRUCTIVE hides remove_monitor, so update_issue
+  // must not offer the same removal through the back door.
+  describe('with MANTIS_DISABLE_DESTRUCTIVE', () => {
+    let guarded: MockMcpServer;
+    beforeEach(() => {
+      guarded = new MockMcpServer();
+      registerIssueTools(guarded as never, client, makeStubCache(), { disableDestructive: true });
+    });
+
+    it.each([false, true])('rejects remove_monitors before any request (dry_run: %s)', async (dryRun) => {
+      const result = await guarded.callTool(
+        'update_issue',
+        { id: 42, fields: { summary: 'Updated' }, remove_monitors: ['jdoe'], dry_run: dryRun },
+        { validate: true },
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0]!.text).toContain('MANTIS_DISABLE_DESTRUCTIVE');
+      expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+    });
+
+    it('still adds monitors', async () => {
+      const result = await guarded.callTool('update_issue', { id: 42, add_monitors: ['jdoe'], dry_run: true }, { validate: true });
+
+      expect(result.isError).toBeUndefined();
+    });
+  });
+
   it('rejects a call with nothing to change', async () => {
     const result = await mockServer.callTool('update_issue', { id: 42 }, { validate: true });
 

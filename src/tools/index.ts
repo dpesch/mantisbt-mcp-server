@@ -26,6 +26,8 @@ export interface ToolDeps {
   build: BuildInfo;
   uploadDir?: string;
   transport?: 'stdio' | 'http';
+  /** MANTIS_DISABLE_DESTRUCTIVE: also blocks destructive parameters of non-destructive tools. */
+  disableDestructive?: boolean;
   /** Index status from the search module, if it runs (see get_metadata). */
   searchIndexStatus?: () => Promise<SearchIndexStatus>;
 }
@@ -37,7 +39,7 @@ export interface ToolDeps {
  */
 export function registerAllTools(server: McpServer, deps: ToolDeps): void {
   const { client, cache } = deps;
-  registerIssueTools(server, client, cache);
+  registerIssueTools(server, client, cache, { disableDestructive: deps.disableDestructive });
   registerNoteTools(server, client);
   registerFileTools(server, client, deps.uploadDir, deps.transport);
   registerRelationshipTools(server, client);

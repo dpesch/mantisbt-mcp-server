@@ -120,7 +120,7 @@ Endet `MANTIS_BASE_URL` auf `/api/rest/index.php`, wird das index.php-Routing au
 
 ### Nur bestimmte Tool-Gruppen anbieten
 
-Standardmäßig sind alle 41 Tools aktiv (Suche deaktiviert). Mit `MANTIS_TOOLSETS` lassen sich nur die benötigten Gruppen laden – das hält den Kontext des Modells kürzer. Mit `MANTIS_DISABLE_DESTRUCTIVE=true` werden alle destruktiven Tools ausgeblendet, unabhängig von den aktiven Gruppen.
+Standardmäßig sind alle 41 Tools aktiv (Suche deaktiviert). Mit `MANTIS_TOOLSETS` lassen sich nur die benötigten Gruppen laden – das hält den Kontext des Modells kürzer. Mit `MANTIS_DISABLE_DESTRUCTIVE=true` werden alle destruktiven Tools ausgeblendet, unabhängig von den aktiven Gruppen; `update_issue` lehnt dann auch `remove_monitors` ab.
 
 Gültige Gruppennamen: `issues`, `notes`, `links`, `files`, `projects`, `versions`, `meta`, `search`. Ein unbekannter Name stoppt den Server beim Start mit einer Meldung, die die gültigen Namen auflistet. Veraltete Tools gehören immer zur gleichen Gruppe wie ihr Ersatz. Die vollständige Zuordnung von Gruppe zu Tools findet sich unter [Angebotene Tools einschränken im README](../README.de.md#angebotene-tools-einschränken).
 

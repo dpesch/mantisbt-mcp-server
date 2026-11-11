@@ -191,7 +191,12 @@ async function resolveEnum(
   return `Invalid ${group} "${value}". Valid canonical names: ${valid}. Call get_issue_schema to see localized labels.`;
 }
 
-export function registerIssueTools(server: McpServer, client: MantisClient, cache: MetadataCache): void {
+export function registerIssueTools(
+  server: McpServer,
+  client: MantisClient,
+  cache: MetadataCache,
+  { disableDestructive = false }: { disableDestructive?: boolean } = {},
+): void {
 
   /**
    * Pages through GET /issues and hands every issue matching the client-side
@@ -632,7 +637,7 @@ Steps run in order: fields, monitors, note. Once one step succeeded, a later fai
       inputSchema: z.object({
         id: z.coerce.number().int().positive().describe('Numeric issue ID to update'),
         add_monitors: z.array(z.string().min(1)).min(1).optional().describe('MantisBT login names to add as monitors (watchers) of the issue'),
-        remove_monitors: z.array(z.string().min(1)).min(1).optional().describe('MantisBT login names to remove from the monitors of the issue; names that are not monitoring are ignored'),
+        remove_monitors: z.array(z.string().min(1)).min(1).optional().describe('MantisBT login names to remove from the monitors of the issue; names that are not monitoring are ignored. Rejected when the server runs with MANTIS_DISABLE_DESTRUCTIVE=true'),
         dry_run: z.preprocess(coerceBool, z.boolean().optional()).describe('If true, return the patch payload that would be sent without actually updating the issue. Useful for previewing changes before committing them.'),
         note: z.string().min(1).optional().describe('Optional note text appended after a successful update (e.g. reason for a status change). Replaces a separate add_note call.'),
         note_view_state: z.enum(['public', 'private']).default('public').describe('Visibility of the appended note: "public" (default) or "private". Only used when "note" is set.'),
@@ -677,6 +682,13 @@ Steps run in order: fields, monitors, note. Once one step succeeded, a later fai
       if (!hasFields && !hasMonitorChanges && note === undefined) {
         return {
           content: [{ type: 'text', text: errorText('Nothing to update — pass fields, add_monitors, remove_monitors or note.') }],
+          isError: true,
+        };
+      }
+      // remove_monitor is hidden then; the same removal must not run here (#8621).
+      if (disableDestructive && remove_monitors !== undefined) {
+        return {
+          content: [{ type: 'text', text: errorText('remove_monitors is disabled — this server runs with MANTIS_DISABLE_DESTRUCTIVE=true.') }],
           isError: true,
         };
       }
