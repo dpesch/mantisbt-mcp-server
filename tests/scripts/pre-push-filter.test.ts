@@ -39,8 +39,11 @@ afterEach(() => {
   rmSync(tmp, { recursive: true, force: true });
 });
 
-/** Runs the hook like git does for a push of HEAD to remoteRef on Codeberg. */
-function push(remoteRef: string) {
+/**
+ * Runs the hook like git does for a push of HEAD to remoteRef on Codeberg,
+ * plus the deletion of each ref in `deletions`.
+ */
+function push(remoteRef: string, deletions: string[] = []) {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     GIT_CONFIG_COUNT: '1',
@@ -48,7 +51,8 @@ function push(remoteRef: string) {
     GIT_CONFIG_VALUE_0: CODEBERG_URL,
   };
   delete env._PREPUSH_FILTER_ACTIVE;
-  const input = `refs/heads/main ${git(work, 'rev-parse', 'HEAD')} ${remoteRef} ${ZERO_SHA}\n`;
+  const input = `refs/heads/main ${git(work, 'rev-parse', 'HEAD')} ${remoteRef} ${ZERO_SHA}\n`
+    + deletions.map(ref => `(delete) ${ZERO_SHA} ${ref} ${'f'.repeat(40)}\n`).join('');
   return spawnSync(process.execPath, [hook, 'upstream', CODEBERG_URL], { cwd: work, env, input, encoding: 'utf8' });
 }
 
@@ -81,6 +85,16 @@ describe('pre-push hook against a stand-in Codeberg', { timeout: 30_000 }, () =>
     expect(git(bare, 'log', '--format=%s', 'main')).toBe('Second commit\nInitial commit');
     expect(git(bare, 'log', '--format=%H', 'main').split('\n').map(sha => git(bare, 'ls-tree', '--name-only', sha)))
       .toEqual(['README.md\npackage.json', 'README.md\npackage.json']);
+  });
+
+  // #8634: the hook blocks git's own push, so it must send deletions itself.
+  it('deletes a ref when the same push also updates a branch', () => {
+    expect(push('refs/heads/old').status).toBe(2);
+
+    const result = push('refs/heads/main', ['refs/heads/old']);
+
+    expect(result.status, result.stderr).toBe(2);
+    expect(git(bare, 'for-each-ref', '--format=%(refname)')).toBe('refs/heads/main');
   });
 
   // #8620: ref names reach git as arguments, never through a shell. Both

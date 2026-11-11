@@ -9,7 +9,8 @@
 //   2. Finds the local commit whose filtered tree matches that tip (anchor)
 //   3. Filters every commit between anchor and tip in order (oldest first)
 //   4. Builds a proper filtered chain anchored to the actual remote tip
-//   5. Pushes the filtered tip with --force
+//   5. Pushes the filtered tip with --force; deletions are pushed too,
+//      since step 6 blocks them in git's own push as well (#8634)
 //   6. Exits 2 to block git's unfiltered push
 //      Exit codes: 0 = not Codeberg, or only deletions; 1 = error;
 //      2 = filtered push done (or nothing new), unfiltered push blocked.
@@ -73,10 +74,11 @@ const gitOptional = (args, opts = {}) => {
   catch { return ''; }
 };
 
-// Pushes a filtered commit; the recursion guard keeps this hook out of it.
-const pushFiltered = (remoteUrl, sha, remoteRef, label) => {
+// Pushes one refspec — "<filtered sha>:<ref>", or ":<ref>" to delete; the
+// recursion guard keeps this hook out of it.
+const pushRef = (remoteUrl, refspec, label) => {
   try {
-    execFileSync('git', ['push', remoteUrl, `${sha}:${remoteRef}`, '--force'],
+    execFileSync('git', ['push', remoteUrl, refspec, '--force'],
       { env: { ...process.env, _PREPUSH_FILTER_ACTIVE: '1' }, stdio: 'inherit' });
   } catch {
     console.error(`✗ Push to Codeberg failed for ${label}`); process.exit(1);
@@ -155,9 +157,18 @@ const processRefs = (remoteUrl, lines) => {
       console.error(`✗ Malformed push input: ${line}`); process.exit(1);
     }
 
-    if (localSha === ZERO_SHA) continue; // deletion — skip
-
     const label = remoteRef.replace('refs/heads/', '').replace('refs/tags/', '');
+
+    if (localSha === ZERO_SHA) {
+      if (remoteRef.startsWith('refs/tags/') && !remoteTagMap.has(remoteRef)) {
+        console.log(`  ↷ ${label} not on Codeberg — nothing to delete`);
+        continue;
+      }
+      pushRef(remoteUrl, `:${remoteRef}`, label);
+      console.log(`✓ ${label} deleted on Codeberg`);
+      pushed++;
+      continue;
+    }
 
     if (remoteRef.startsWith('refs/tags/')) {
       if (remoteTagMap.has(remoteRef)) {
@@ -172,7 +183,7 @@ const processRefs = (remoteUrl, lines) => {
 
     // If this commit was already filtered as part of a branch push, reuse it.
     if (localSha in shaMap) {
-      pushFiltered(remoteUrl, shaMap[localSha], remoteRef, label);
+      pushRef(remoteUrl, `${shaMap[localSha]}:${remoteRef}`, label);
       console.log(`✓ ${label} pushed to Codeberg (without .claude/)`);
       pushed++;
       continue;
@@ -223,7 +234,7 @@ const processRefs = (remoteUrl, lines) => {
       process.exit(1);
     }
 
-    pushFiltered(remoteUrl, filteredTip, remoteRef, label);
+    pushRef(remoteUrl, `${filteredTip}:${remoteRef}`, label);
 
     console.log(`✓ ${label} pushed to Codeberg (without .claude/)`);
     pushed++;
