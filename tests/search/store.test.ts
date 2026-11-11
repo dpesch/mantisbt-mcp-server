@@ -183,6 +183,15 @@ describe('VectraStore.delete', () => {
     await store.delete(9999);
     expect(await store.count()).toBe(1);
   });
+
+  // #8626: the sync removes all stale issues in one call.
+  it('removes several items at once and lists the remaining ids', async () => {
+    for (const id of [1, 2, 3]) await store.add({ id, vector: randomVector(), metadata: { summary: `Issue ${id}` } });
+
+    await store.delete(1, 3);
+
+    expect(await store.ids()).toEqual([2]);
+  });
 });
 
 describe('VectraStore.clear', () => {

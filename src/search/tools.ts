@@ -274,14 +274,14 @@ export function registerSearchTools(
       try {
         const startMs = Date.now();
         const syncService = new SearchSyncService(client, store, embedder, lockDir);
-        const { indexed, skipped, total } = await syncService.sync(project_id, { full });
+        const { indexed, skipped, removed, total } = await syncService.sync(project_id, { full });
         const duration_ms = Date.now() - startMs;
 
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ indexed, skipped, total, duration_ms }, null, 2),
+              text: JSON.stringify({ indexed, skipped, removed, total, duration_ms }, null, 2),
             },
           ],
         };

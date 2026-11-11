@@ -60,6 +60,7 @@ export function makeMockStore(options?: {
       }));
     }),
     getItem: vi.fn(async (id: number) => itemMap.get(id) ?? null),
+    ids: vi.fn(async () => [...itemMap.keys()]),
     delete: vi.fn(async () => {}),
     count: vi.fn(async () => count),
     clear: vi.fn(async () => {

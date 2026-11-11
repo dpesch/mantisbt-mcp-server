@@ -24,7 +24,10 @@ export interface VectorStore {
    */
   search(vector: number[], topN: number, queryText?: string): Promise<Array<{ id: number; score: number }>>;
   getItem(id: number): Promise<VectorStoreItem | null>;
-  delete(id: number): Promise<void>;
+  /** IDs of all indexed issues. */
+  ids(): Promise<number[]>;
+  /** Removes the issues and writes the index once. */
+  delete(...ids: number[]): Promise<void>;
   count(): Promise<number>;
   clear(): Promise<void>;
   getLastSyncedAt(): Promise<string | null>;
@@ -173,9 +176,14 @@ export class VectraStore implements VectorStore {
     return this.items.get(id) ?? null;
   }
 
-  async delete(id: number): Promise<void> {
+  async ids(): Promise<number[]> {
     await this.ensureLoaded();
-    this.items.delete(id);
+    return [...this.items.keys()];
+  }
+
+  async delete(...ids: number[]): Promise<void> {
+    await this.ensureLoaded();
+    for (const id of ids) this.items.delete(id);
     this.lexical = null;
     await this.persist();
   }

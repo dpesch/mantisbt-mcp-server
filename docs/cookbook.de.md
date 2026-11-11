@@ -1646,6 +1646,7 @@ Der Server baut den Index außerdem von selbst neu auf, wenn er mit einem andere
 {
   "indexed": 312,
   "skipped": 0,
+  "removed": 0,
   "total": 312,
   "duration_ms": 48203
 }
@@ -1657,7 +1658,7 @@ Der Server baut den Index außerdem von selbst neu auf, wenn er mit einem andere
 
 Aktualisiert den Index mit Issues, die seit der letzten Synchronisation hinzugekommen oder geändert wurden. Schneller als ein vollständiger Neuaufbau: Nur die seitdem geänderten Issues werden abgerufen und neu eingebettet.
 
-Es synchronisiert immer nur ein Serverprozess den gemeinsamen Index. Läuft bereits eine Synchronisation in einem anderen Prozess (etwa einer anderen Client-Sitzung), gibt das Tool einen Fehler zurück – nach deren Ende einfach erneut aufrufen. Eine auf `project_id` beschränkte Synchronisation verschiebt `last_synced_at` nicht, damit Änderungen in anderen Projekten beim nächsten Sync trotzdem erfasst werden. Wurde der Index mit einem anderen Embedding-Modell oder einer anderen Version erstellt, baut der Sync ihn für alle Projekte neu auf, auch mit `project_id`.
+Es synchronisiert immer nur ein Serverprozess den gemeinsamen Index. Läuft bereits eine Synchronisation in einem anderen Prozess (etwa einer anderen Client-Sitzung), gibt das Tool einen Fehler zurück – nach deren Ende einfach erneut aufrufen. Eine auf `project_id` beschränkte Synchronisation entfernt nichts und verschiebt `last_synced_at` nicht, damit Änderungen in anderen Projekten beim nächsten Sync trotzdem erfasst werden. Eine Synchronisation über alle Projekte entfernt außerdem Issues, die in MantisBT gelöscht wurden oder die das Konto nicht mehr sehen darf (`removed`); dafür listet sie die sichtbaren Issue-IDs auf, rund 1 s für 7.800 Issues. Wurde der Index mit einem anderen Embedding-Modell oder einer anderen Version erstellt, baut der Sync ihn für alle Projekte neu auf, auch mit `project_id`.
 
 **Tool:** `rebuild_search_index`
 
@@ -1679,6 +1680,7 @@ Es synchronisiert immer nur ein Serverprozess den gemeinsamen Index. Läuft bere
 {
   "indexed": 14,
   "skipped": 0,
+  "removed": 0,
   "total": 312,
   "duration_ms": 2104
 }

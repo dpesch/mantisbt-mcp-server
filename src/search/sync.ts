@@ -27,7 +27,14 @@ const PAGE_SIZE = 50;
 const EMBED_BATCH_SIZE = 10;
 const CHECKPOINT_INTERVAL = 100; // flush to disk every N indexed issues
 
-type SyncResult = { indexed: number; skipped: number; total: number | null };
+// Listing of the issue IDs the account can see (#8626), with select=id. It
+// ends at an empty page, not at a short one: a server that caps page_size
+// would otherwise end it after the first page and empty the index. Past
+// MAX_ID_PAGES it counts as incomplete, and nothing is removed.
+const ID_PAGE_SIZE = 1000;
+const MAX_ID_PAGES = 200;
+
+type SyncResult = { indexed: number; skipped: number; removed: number; total: number | null };
 
 export class SyncLockedError extends Error {
   constructor() {
@@ -128,8 +135,23 @@ export class SearchSyncService {
       }
     }
 
+    // Issues deleted in MantisBT, or no longer visible to this account, never
+    // show up as changed (#8626). A sync over all projects therefore drops
+    // every indexed issue the account cannot see any more. A project-scoped
+    // sync sees only part of the issues, and a cleared index holds no stale
+    // ones — both skip the listing.
+    let removed = 0;
+    if (scope === undefined && !full && !outdated) {
+      const visible = await this.fetchVisibleIds();
+      const stale = visible ? (await this.store.ids()).filter(id => !visible.has(id)) : [];
+      if (stale.length > 0) {
+        await this.store.delete(...stale); // also writes the items added above
+        removed = stale.length;
+      }
+    }
+
     // Final flush for any remaining items not yet written by a checkpoint.
-    if (indexedSinceCheckpoint > 0) {
+    if (indexedSinceCheckpoint > 0 && removed === 0) {
       await this.store.flush();
     }
 
@@ -151,7 +173,19 @@ export class SearchSyncService {
     const total = totalFromApi ?? (lastSyncedAt === null ? allIssues.length : storeCount);
     await this.store.setLastKnownTotal(total);
 
-    return { indexed, skipped, total };
+    return { indexed, skipped, removed, total };
+  }
+
+  /** IDs of all issues the account can see; null if the listing did not end. */
+  private async fetchVisibleIds(): Promise<Set<number> | null> {
+    const ids = new Set<number>();
+    for (let page = 1; page <= MAX_ID_PAGES; page++) {
+      const response = await this.client.get<IssueListResponse>('issues', { page_size: ID_PAGE_SIZE, page, select: 'id' });
+      const issues = response.issues ?? [];
+      if (issues.length === 0) return ids;
+      for (const { id } of issues) ids.add(id);
+    }
+    return null;
   }
 
   private async fetchAllIssues(

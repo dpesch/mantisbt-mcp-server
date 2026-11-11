@@ -148,7 +148,9 @@ describe('SearchSyncService.sync – incremental filtering (API ignores updated_
     const service = new SearchSyncService(client, store, embedder);
     const result = await service.sync();
 
-    expect(fetch).toHaveBeenCalledTimes(2);
+    const issuePages = vi.mocked(fetch).mock.calls
+      .filter(([input]) => new URL(input as string).searchParams.get('select') !== 'id');
+    expect(issuePages).toHaveLength(2);
     expect(result.indexed).toBe(60);
   });
 
@@ -214,6 +216,105 @@ describe('SearchSyncService.sync – incremental filtering (API ignores updated_
     await service.sync(7);
 
     expect(store.setLastSyncedAt).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Issues deleted in MantisBT or no longer visible (#8626)
+// ---------------------------------------------------------------------------
+
+describe('SearchSyncService.sync – removes issues the account cannot see', () => {
+  const WATERMARK = '2024-03-10T00:00:00Z';
+
+  /**
+   * Answers the ID listing (select=id) with `idPages`, any other request with
+   * an empty changes list; returns the listing requests made.
+   */
+  function mockIdListing(idPages: number[][]) {
+    const listings: URL[] = [];
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = new URL(input as string);
+      if (url.searchParams.get('select') !== 'id') {
+        return makeResponse(200, JSON.stringify({ issues: [], total_count: 0 }));
+      }
+      listings.push(url);
+      const ids = idPages[Number(url.searchParams.get('page')) - 1] ?? [];
+      return makeResponse(200, JSON.stringify({ issues: ids.map(id => ({ id })) }));
+    });
+    return listings;
+  }
+
+  const storeItems = (...ids: number[]) => ids.map(id => ({ id, updated_at: '2024-03-01T00:00:00Z' }));
+
+  it('deletes indexed issues missing from the listing, in one call', async () => {
+    const store = makeMockStore({ lastSyncedAt: WATERMARK, items: storeItems(1, 2, 3, 4) });
+    mockIdListing([[1], [3]]);
+
+    const result = await new SearchSyncService(client, store, embedder).sync();
+
+    expect(store.delete).toHaveBeenCalledTimes(1);
+    expect(store.delete).toHaveBeenCalledWith(2, 4);
+    expect(result.removed).toBe(2);
+  });
+
+  it('reads the listing until an empty page, not until a short one', async () => {
+    // A server that caps page_size returns short pages that are not the last.
+    const store = makeMockStore({ lastSyncedAt: WATERMARK, items: storeItems(1, 2) });
+    const listings = mockIdListing([[1], [2]]);
+
+    const result = await new SearchSyncService(client, store, embedder).sync();
+
+    expect(listings.map(url => url.searchParams.get('page'))).toEqual(['1', '2', '3']);
+    expect(result.removed).toBe(0);
+  });
+
+  it('removes nothing when the listing does not end', async () => {
+    const store = makeMockStore({ lastSyncedAt: WATERMARK, items: storeItems(1, 2) });
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const select = new URL(input as string).searchParams.get('select');
+      return makeResponse(200, JSON.stringify(select === 'id' ? { issues: [{ id: 1 }] } : { issues: [], total_count: 0 }));
+    });
+
+    const result = await new SearchSyncService(client, store, embedder).sync();
+
+    expect(store.delete).not.toHaveBeenCalled();
+    expect(result.removed).toBe(0);
+  });
+
+  it('removes nothing in a project-scoped sync', async () => {
+    const store = makeMockStore({ lastSyncedAt: WATERMARK, items: storeItems(1, 2) });
+    const listings = mockIdListing([[1]]);
+
+    const result = await new SearchSyncService(client, store, embedder).sync(7);
+
+    expect(listings).toHaveLength(0);
+    expect(result.removed).toBe(0);
+  });
+
+  it('skips the listing after a full rebuild, which starts from an empty index', async () => {
+    const store = makeMockStore({ lastSyncedAt: WATERMARK, items: storeItems(1, 2) });
+    const listings = mockIdListing([[1]]);
+
+    await new SearchSyncService(client, store, embedder).sync(undefined, { full: true });
+
+    expect(listings).toHaveLength(0);
+  });
+
+  it('writes the index once when a sync both adds and removes issues', async () => {
+    const store = makeMockStore({ lastSyncedAt: WATERMARK, items: storeItems(1, 2) });
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = new URL(input as string);
+      if (url.searchParams.get('select') !== 'id') {
+        return makeResponse(200, JSON.stringify({ issues: [{ id: 3, summary: 'New', updated_at: '2024-03-11T00:00:00Z' }], total_count: 1 }));
+      }
+      return makeResponse(200, JSON.stringify({ issues: url.searchParams.get('page') === '1' ? [{ id: 1 }, { id: 3 }] : [] }));
+    });
+
+    const result = await new SearchSyncService(client, store, embedder).sync();
+
+    expect(result).toMatchObject({ indexed: 1, removed: 1 });
+    expect(store.delete).toHaveBeenCalledWith(2);
+    expect(store.flush).not.toHaveBeenCalled();
   });
 });
 
