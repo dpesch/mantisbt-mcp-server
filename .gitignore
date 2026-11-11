@@ -11,3 +11,4 @@ tests/fixtures/recorded/
 mcp-publisher.exe
 
 /.playwright-mcp/
+/var/
