@@ -321,7 +321,7 @@ MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
 #   TRANSPORT=http PORT=3456 MCP_HTTP_HOST=0.0.0.0 node dist/index.js
 ```
 
-Jede `/mcp`-Anfrage muss `Authorization: Bearer <token>` senden. Im HTTP-Modus ist der `file_path` von `upload_file` deaktiviert, sofern `MANTIS_UPLOAD_DIR` nicht gesetzt ist – stattdessen den Parameter `content` (Base64) verwenden.
+Jede `/mcp`-Anfrage muss `Authorization: Bearer <token>` senden. Im HTTP-Modus ist der `file_path` von `upload_file` deaktiviert, sofern `MANTIS_UPLOAD_DIR` nicht gesetzt ist – stattdessen den Parameter `content` (Base64) verwenden. Ein Request-Body darf höchstens 64 MB groß sein – größere bekommen `413 Payload Too Large` –, über `content` passen also Dateien bis etwa 48 MB.
 
 Healthcheck: `GET http://localhost:3456/health` (immer öffentlich, kein Token erforderlich)
 

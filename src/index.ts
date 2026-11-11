@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 
 import { loadBuildInfo } from './build-info.js';
+import { readBody } from './http-body.js';
 import { getConfig, getStartupConfig, assertHttpAuthConfigured } from './config.js';
 import { MantisClient } from './client.js';
 import { VersionHintService, setGlobalVersionHint } from './version-hint.js';
@@ -119,33 +120,40 @@ async function runHttp(): Promise<void> {
         res.end(JSON.stringify({ error: 'Unauthorized' }));
         return;
       }
-      const chunks: Buffer[] = [];
-      req.on('data', (chunk: Buffer) => chunks.push(chunk));
-      req.on('end', () => {
-        const prev = requestQueue;
-        let releaseLock!: () => void;
-        requestQueue = new Promise<void>(resolve => { releaseLock = resolve; });
+      const raw = await readBody(req, res);
+      if (raw === undefined) return; // aborted, or 413 already sent
+      // Parsed before queueing, so the raw bytes are not held while waiting.
+      let body: unknown;
+      try {
+        body = JSON.parse(raw.toString('utf8'));
+      } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Bad Request' }));
+        return;
+      }
 
-        void prev.then(async () => {
-          try {
-            const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
-            const transport = new StreamableHTTPServerTransport({
-              sessionIdGenerator: undefined,
-              enableJsonResponse: true,
-            });
-            await server.connect(transport);
-            await transport.handleRequest(req, res, body);
-          } catch (err) {
-            console.error('[HTTP handler error]', err instanceof Error ? err.stack : err);
-            if (!res.headersSent) {
-              res.writeHead(400, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: 'Bad Request' }));
-            }
-          } finally {
-            await server.close();
-            releaseLock();
+      const prev = requestQueue;
+      let releaseLock!: () => void;
+      requestQueue = new Promise<void>(resolve => { releaseLock = resolve; });
+
+      void prev.then(async () => {
+        try {
+          const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: undefined,
+            enableJsonResponse: true,
+          });
+          await server.connect(transport);
+          await transport.handleRequest(req, res, body);
+        } catch (err) {
+          console.error('[HTTP handler error]', err instanceof Error ? err.stack : err);
+          if (!res.headersSent) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Bad Request' }));
           }
-        });
+        } finally {
+          await server.close();
+          releaseLock();
+        }
       });
     } else if (req.method === 'GET' && req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });

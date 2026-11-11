@@ -1146,7 +1146,7 @@ Hängt eine Datei aus dem lokalen Dateisystem an ein Issue an.
 
 ### Dateiinhalt hochladen (Base64)
 
-Hängt eine Datei an, indem ihr base64-kodierter Inhalt direkt übergeben wird. Nur als **Fallback** verwenden, wenn die Datei nicht über einen Pfad im Server-Dateisystem erreichbar ist (z.B. im Speicher erzeugte Daten oder Dateien, die nur auf der Client-Seite vorliegen). `file_path` bevorzugen, wenn die Datei auf der Festplatte existiert – der Server liest und kodiert sie automatisch.
+Hängt eine Datei an, indem ihr base64-kodierter Inhalt direkt übergeben wird. Nur als **Fallback** verwenden, wenn die Datei nicht über einen Pfad im Server-Dateisystem erreichbar ist (z.B. im Speicher erzeugte Daten oder Dateien, die nur auf der Client-Seite vorliegen). `file_path` bevorzugen, wenn die Datei auf der Festplatte existiert – der Server liest und kodiert sie automatisch. Über den HTTP-Transport darf eine Anfrage höchstens 64 MB groß sein, das reicht für Dateien bis etwa 48 MB.
 
 **Tool:** `upload_file`
 
