@@ -77,6 +77,7 @@ npm run build
 | `PORT` | – | `3000` | Port für HTTP-Modus |
 | `MCP_HTTP_HOST` | – | `127.0.0.1` | Bind-Adresse für HTTP-Modus. **Geändert von `0.0.0.0` auf `127.0.0.1`** – der Server horcht standardmäßig nur auf localhost. Für Docker oder Remote-Zugriff `0.0.0.0` setzen. |
 | `MCP_HTTP_TOKEN` | ✅ (HTTP-Modus) | – | Bearer-Token für den `/mcp`-Endpunkt (`Authorization: Bearer <token>`). **Pflicht bei `TRANSPORT=http`** – der Server startet im HTTP-Modus ohne diesen Wert nicht, damit Tools nie unauthentifiziert erreichbar sind. Im stdio-Modus ohne Bedeutung. `/health` ist immer öffentlich. |
+| `MCP_HTTP_MAX_BODY_SIZE` | – | `67108864` (64 MB) | Größter angenommener Request-Body für `/mcp` in Bytes; größere bekommen `413 Payload Too Large`. Im HTTP-Modus muss es eine positive ganze Zahl sein, sonst startet der Server nicht. Im stdio-Modus ohne Bedeutung. |
 | `MANTIS_SEARCH_ENABLED` | – | `false` | Auf `true` setzen, um die semantische Suche zu aktivieren |
 | `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vektorspeicher: `vectra` (reines JS) oder `sqlite-vec` (manuelle Installation erforderlich) |
 | `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/<instanz>/search` | Basisverzeichnis für den Suchindex; auch ein ausdrücklich gesetzter Wert bekommt ein Unterverzeichnis pro Instanz und Konto (`{MANTIS_SEARCH_DIR}/<instanz>`) |
@@ -321,7 +322,7 @@ MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
 #   TRANSPORT=http PORT=3456 MCP_HTTP_HOST=0.0.0.0 node dist/index.js
 ```
 
-Jede `/mcp`-Anfrage muss `Authorization: Bearer <token>` senden. Im HTTP-Modus ist der `file_path` von `upload_file` deaktiviert, sofern `MANTIS_UPLOAD_DIR` nicht gesetzt ist – stattdessen den Parameter `content` (Base64) verwenden. Ein Request-Body darf höchstens 64 MB groß sein – größere bekommen `413 Payload Too Large` –, über `content` passen also Dateien bis etwa 48 MB.
+Jede `/mcp`-Anfrage muss `Authorization: Bearer <token>` senden. Im HTTP-Modus ist der `file_path` von `upload_file` deaktiviert, sofern `MANTIS_UPLOAD_DIR` nicht gesetzt ist – stattdessen den Parameter `content` (Base64) verwenden. Ein Request-Body darf standardmäßig höchstens 64 MB groß sein (`MCP_HTTP_MAX_BODY_SIZE`) – größere bekommen `413 Payload Too Large` –, über `content` passen also Dateien bis etwa 48 MB.
 
 Healthcheck: `GET http://localhost:3456/health` (immer öffentlich, kein Token erforderlich)
 

@@ -77,6 +77,7 @@ npm run build
 | `PORT` | – | `3000` | Port for HTTP mode |
 | `MCP_HTTP_HOST` | – | `127.0.0.1` | Bind address for HTTP mode. **Changed from `0.0.0.0` to `127.0.0.1`** — the server now listens on localhost only by default. Set to `0.0.0.0` for Docker or remote access. |
 | `MCP_HTTP_TOKEN` | ✅ (HTTP mode) | – | Bearer token for the `/mcp` endpoint (`Authorization: Bearer <token>`). **Required when `TRANSPORT=http`** — the server refuses to start in HTTP mode without it, so tools are never exposed unauthenticated. Ignored in stdio mode. The `/health` endpoint is always public. |
+| `MCP_HTTP_MAX_BODY_SIZE` | – | `67108864` (64 MB) | Largest accepted `/mcp` request body in bytes; larger ones get `413 Payload Too Large`. In HTTP mode it must be a positive whole number, otherwise the server does not start. Ignored in stdio mode. |
 | `MANTIS_SEARCH_ENABLED` | – | `false` | Set to `true` to enable semantic search |
 | `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vector store backend: `vectra` (pure JS) or `sqlite-vec` (requires manual install) |
 | `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/<instance>/search` | Base directory for the search index; an explicit value also gets a subdirectory per instance and account (`{MANTIS_SEARCH_DIR}/<instance>`) |
@@ -321,7 +322,7 @@ MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
 #   TRANSPORT=http PORT=3456 MCP_HTTP_HOST=0.0.0.0 node dist/index.js
 ```
 
-Every `/mcp` request must send `Authorization: Bearer <token>`. Over HTTP, `upload_file`'s `file_path` is disabled unless `MANTIS_UPLOAD_DIR` is set — use the `content` (Base64) parameter instead. A request body may be at most 64 MB — larger ones get `413 Payload Too Large` — so `content` fits files up to about 48 MB.
+Every `/mcp` request must send `Authorization: Bearer <token>`. Over HTTP, `upload_file`'s `file_path` is disabled unless `MANTIS_UPLOAD_DIR` is set — use the `content` (Base64) parameter instead. A request body may be at most 64 MB by default (`MCP_HTTP_MAX_BODY_SIZE`) — larger ones get `413 Payload Too Large` — so `content` fits files up to about 48 MB.
 
 Health check: `GET http://localhost:3456/health` (always public, no token required)
 

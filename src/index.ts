@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 
 import { loadBuildInfo } from './build-info.js';
-import { readBody } from './http-body.js';
+import { parseMaxBodySize, readBody } from './http-body.js';
 import { getConfig, getStartupConfig, assertHttpAuthConfigured } from './config.js';
 import { MantisClient } from './client.js';
 import { VersionHintService, setGlobalVersionHint } from './version-hint.js';
@@ -103,6 +103,7 @@ async function runStdio(): Promise<void> {
 async function runHttp(): Promise<void> {
   const startupConfig = await getStartupConfig();
   assertHttpAuthConfigured(startupConfig.httpToken);
+  const maxBodySize = parseMaxBodySize(startupConfig.httpMaxBodySize);
   const server = await createMcpServer('http');
   const port = startupConfig.httpPort;
 
@@ -122,7 +123,7 @@ async function runHttp(): Promise<void> {
         res.end(JSON.stringify({ error: 'Unauthorized' }));
         return;
       }
-      const raw = await readBody(req, res);
+      const raw = await readBody(req, res, maxBodySize);
       if (raw === undefined) return; // aborted, or 413 already sent
       // Parsed before queueing, so the raw bytes are not held while waiting.
       let body: unknown;

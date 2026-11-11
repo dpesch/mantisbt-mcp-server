@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createServer, request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { readBody } from '../src/http-body.js';
+import { MAX_REQUEST_BODY_BYTES, parseMaxBodySize, readBody } from '../src/http-body.js';
 
 // #8624: POST /mcp read the whole body into memory, however large.
 
@@ -57,5 +57,22 @@ describe('readBody', () => {
     const result = await post(['x'.repeat(LIMIT / 2 + 10), 'x'.repeat(LIMIT / 2 + 10)]);
 
     expect(result).toMatchObject({ status: 413, connection: 'close' });
+  });
+});
+
+// #8631
+describe('parseMaxBodySize', () => {
+  it('uses 64 MB when MCP_HTTP_MAX_BODY_SIZE is unset or blank', () => {
+    expect(MAX_REQUEST_BODY_BYTES).toBe(64 * 1024 * 1024);
+    expect(parseMaxBodySize(undefined)).toBe(MAX_REQUEST_BODY_BYTES);
+    expect(parseMaxBodySize('  ')).toBe(MAX_REQUEST_BODY_BYTES);
+  });
+
+  it('reads a number of bytes', () => {
+    expect(parseMaxBodySize(' 134217728 ')).toBe(134217728);
+  });
+
+  it.each(['0', '-5', '64MB', '1.5', 'abc'])('rejects "%s"', (value) => {
+    expect(() => parseMaxBodySize(value)).toThrow(/MCP_HTTP_MAX_BODY_SIZE must be a positive whole number of bytes/);
   });
 });

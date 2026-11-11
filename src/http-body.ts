@@ -1,8 +1,25 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-// Upper bound for a POST /mcp body (#8624). Generous because upload_file
-// sends files as Base64 in `content`, a third larger than the file itself.
+// Default upper bound for a POST /mcp body (#8624). Generous because
+// upload_file sends files as Base64 in `content`, a third larger than the
+// file itself.
 export const MAX_REQUEST_BODY_BYTES = 64 * 1024 * 1024;
+
+/**
+ * MCP_HTTP_MAX_BODY_SIZE in bytes (#8631); the default when unset. Anything
+ * but a positive whole number throws — silently falling back to the default
+ * would hide the typo until an upload fails. Called in HTTP mode only, so a
+ * stray value never stops the stdio server.
+ */
+export function parseMaxBodySize(raw: string | undefined): number {
+  const value = raw?.trim();
+  if (!value) return MAX_REQUEST_BODY_BYTES;
+  const bytes = Number(value);
+  if (!Number.isSafeInteger(bytes) || bytes <= 0) {
+    throw new Error(`MCP_HTTP_MAX_BODY_SIZE must be a positive whole number of bytes, got "${raw}".`);
+  }
+  return bytes;
+}
 
 /**
  * Reads the request body, at most `limit` bytes. A larger body — announced
@@ -18,7 +35,7 @@ export const MAX_REQUEST_BODY_BYTES = 64 * 1024 * 1024;
 export function readBody(
   req: IncomingMessage,
   res: ServerResponse,
-  limit = MAX_REQUEST_BODY_BYTES,
+  limit: number,
 ): Promise<Buffer | undefined> {
   return new Promise(resolve => {
     const tooLarge = () => {

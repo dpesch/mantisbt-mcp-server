@@ -387,6 +387,16 @@ describe('getStartupConfig()', () => {
 
     await expect((await freshGetStartupConfig())()).rejects.toThrow(/Unknown MANTIS_TOOLSETS group "tickets"/);
   });
+
+  // #8631: checked by the HTTP transport only, so stdio starts regardless.
+  it('passes MCP_HTTP_MAX_BODY_SIZE on unchecked', async () => {
+    vi.stubEnv('MCP_HTTP_MAX_BODY_SIZE', '64MB');
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+
+    const config = await (await freshGetStartupConfig())();
+
+    expect(config.httpMaxBodySize).toBe('64MB');
+  });
 });
 
 // ---------------------------------------------------------------------------

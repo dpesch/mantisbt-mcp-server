@@ -40,6 +40,8 @@ export interface StartupConfig {
   httpHost: string;
   httpPort: number;
   httpToken?: string;
+  /** MCP_HTTP_MAX_BODY_SIZE as given; parsed by runHttp (parseMaxBodySize). */
+  httpMaxBodySize?: string;
   search: SearchConfig;
   testEnvironment: boolean;
   /** Active tool groups (MANTIS_TOOLSETS); all groups when unset. */
@@ -133,6 +135,7 @@ function readNonCredentialConfig(): StartupConfig {
     httpHost: process.env.MCP_HTTP_HOST ?? '127.0.0.1',
     httpPort: parseInt(process.env.PORT ?? '3000', 10),
     httpToken: process.env.MCP_HTTP_TOKEN,
+    httpMaxBodySize: process.env.MCP_HTTP_MAX_BODY_SIZE,
     search: {
       enabled: searchEnabled,
       backend: searchBackend,
