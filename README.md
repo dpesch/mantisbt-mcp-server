@@ -1,0 +1,357 @@
+# MantisBT MCP Server
+
+[![npm version](https://img.shields.io/npm/v/@dpesch/mantisbt-mcp-server)](https://www.npmjs.com/package/@dpesch/mantisbt-mcp-server)
+[![license](https://img.shields.io/npm/l/@dpesch/mantisbt-mcp-server)](LICENSE)
+[![MCP compatible](https://img.shields.io/badge/MCP-compatible-green.svg?style=flat-square)](https://modelcontextprotocol.io/)
+[![MCP Badge](https://lobehub.com/badge/mcp/dpesch-mantisbt-mcp-server)](https://lobehub.com/mcp/dpesch-mantisbt-mcp-server)
+[![MantisBT MCP Server](https://glama.ai/mcp/servers/dpesch/mantisbt-mcp-server/badges/card.svg)](https://glama.ai/mcp/servers/dpesch/mantisbt-mcp-server)
+
+**English** · [Deutsch](README.de.md)
+
+A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that integrates the [MantisBT REST API](https://documenter.getpostman.com/view/29959/mantis-bug-tracker-rest-api) into Claude Code and other MCP-capable clients. Read, create, and update issues directly from your editor.
+
+## Requirements
+
+- Node.js ≥ 22
+- MantisBT installation with REST API enabled (version 2.23+)
+- MantisBT API token (create under *My Account → API Tokens*)
+
+## Installation
+
+**Via npx (recommended):**
+
+Add to `~/.claude/claude_desktop_config.json` (Claude Desktop) or your local
+`claude_desktop_config.json` (Claude Code):
+
+```json
+{
+  "mcpServers": {
+    "mantisbt": {
+      "command": "npx",
+      "args": ["-y", "@dpesch/mantisbt-mcp-server"],
+      "env": {
+        "MANTIS_BASE_URL": "https://your-mantis.example.com/api/rest",
+        "MANTIS_API_KEY": "your-api-token"
+      }
+    }
+  }
+}
+```
+
+**Local build:**
+
+```bash
+git clone https://codeberg.org/dpesch/mantisbt-mcp-server
+cd mantisbt-mcp-server
+npm run init
+npm run build
+```
+
+```json
+{
+  "mcpServers": {
+    "mantisbt": {
+      "command": "node",
+      "args": ["/path/to/mantisbt-mcp-server/dist/index.js"],
+      "env": {
+        "MANTIS_BASE_URL": "https://your-mantis.example.com/api/rest",
+        "MANTIS_API_KEY": "your-api-token"
+      }
+    }
+  }
+}
+```
+
+## Configuration
+
+### Environment variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `MANTIS_BASE_URL` | ✅ | – | Base URL of your MantisBT installation. Both `https://your-mantis.example.com` and `https://your-mantis.example.com/api/rest` are accepted — the `/api/rest` suffix is normalized automatically. |
+| `MANTIS_API_KEY` | ✅ | – | API token for authentication |
+| `MANTIS_USE_INDEX_PHP` | – | auto | Set to `true` when URL rewriting is unavailable — REST requests then use `/api/rest/index.php/` instead of `/api/rest/`. Detected automatically when `MANTIS_BASE_URL` ends with `/api/rest/index.php`; an explicit value always wins. See the [cookbook](docs/cookbook.md#connect-to-an-installation-without-url-rewriting). |
+| `MANTIS_CACHE_DIR` | – | `~/.cache/mantisbt-mcp` | Base directory for the metadata cache. Each MantisBT instance and account (base URL plus API key) gets a subdirectory of its own, named after the host plus a hash; the server logs its path on startup |
+| `MANTIS_CACHE_TTL` | – | `3600` | Cache lifetime in seconds |
+| `TRANSPORT` | – | `stdio` | Transport mode: `stdio` or `http` |
+| `PORT` | – | `3000` | Port for HTTP mode |
+| `MCP_HTTP_HOST` | – | `127.0.0.1` | Bind address for HTTP mode. **Changed from `0.0.0.0` to `127.0.0.1`** — the server now listens on localhost only by default. Set to `0.0.0.0` for Docker or remote access. |
+| `MCP_HTTP_TOKEN` | ✅ (HTTP mode) | – | Bearer token for the `/mcp` endpoint (`Authorization: Bearer <token>`). **Required when `TRANSPORT=http`** — the server refuses to start in HTTP mode without it, so tools are never exposed unauthenticated. Ignored in stdio mode. The `/health` endpoint is always public. |
+| `MCP_HTTP_MAX_BODY_SIZE` | – | `67108864` (64 MB) | Largest accepted `/mcp` request body in bytes; larger ones get `413 Payload Too Large`. Empty or unset means the default; in HTTP mode any other value must be a positive whole number, otherwise the server does not start. Ignored in stdio mode. |
+| `MANTIS_SEARCH_ENABLED` | – | `false` | Set to `true` to enable semantic search |
+| `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vector store backend: `vectra` (pure JS) or `sqlite-vec` (requires manual install) |
+| `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/<instance>/search` | Base directory for the search index; an explicit value also gets a subdirectory per instance and account (`{MANTIS_SEARCH_DIR}/<instance>`) |
+| `MANTIS_SEARCH_MODEL` | – | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | Embedding model name (downloaded once on first use, ~80 MB). After a change the index is rebuilt automatically on the next sync. |
+| `MANTIS_SEARCH_THREADS` | – | `1` | Number of ONNX intra-op threads for the embedding model. Default is 1 to prevent CPU saturation on multi-core machines and WSL. On a machine with 4 or more cores, `4` is a good value: a full rebuild of 7,700 issues took 160 s instead of 377 s with 1 thread. The setting mainly speeds up indexing; a search query is a single short text and hardly benefits. Effective since 1.16.0 — earlier versions ignored this setting and always used every core. |
+| `MANTIS_UPLOAD_DIR` | – | – | Restrict `upload_file`'s `file_path` to files within this directory (path traversal via `../` and symbolic links that lead outside are blocked; keep the directory unwritable for less trusted users, as a link swapped in between check and read is not caught). In **stdio mode** `file_path` is unrestricted unless this is set. In **HTTP mode** `file_path` reads from the server's filesystem, so it is **disabled unless this variable is set** — HTTP clients should upload via the `content` (Base64) parameter instead. |
+| `MANTIS_TOOLSETS` | – | – (all) | Comma-separated list of tool groups to offer: `issues`, `notes`, `links`, `files`, `projects`, `versions`, `meta`, `search` (case-insensitive). Unset or empty means all groups. The `search` group additionally requires `MANTIS_SEARCH_ENABLED=true`; without the group the search module is not started at all. An unknown group name stops the server at startup with a message listing the valid names. See [Limit the offered tools](#limit-the-offered-tools) and the [cookbook](docs/cookbook.md#offer-only-some-tool-groups). |
+| `MANTIS_DISABLE_DESTRUCTIVE` | – | `false` | Set to `true` to hide every destructive tool — `delete_issue`, `delete_note`, `delete_version`, `remove_relationship`, `remove_monitor` — regardless of the active groups. Hidden tools are not listed and return "Tool … not found" when called. `update_issue` then also rejects `remove_monitors`. |
+
+### Limit the offered tools
+
+Two env vars reduce the tool surface offered to the model — useful to keep the model's context shorter and to prevent accidental destructive operations:
+
+- **`MANTIS_TOOLSETS`** — include only the listed groups (comma-separated, case-insensitive)
+- **`MANTIS_DISABLE_DESTRUCTIVE=true`** — additionally hide `delete_issue`, `delete_note`, `delete_version`, `remove_relationship`, and `remove_monitor` regardless of the active groups
+
+Hidden tools are not listed and return "Tool … not found" when called.
+
+| Group | Tools |
+|---|---|
+| `issues` | `get_issue`, `list_issues`, `create_issue`, `update_issue`, `delete_issue`¹, `get_issues`†, `list_notes`†, `list_issue_files`†, `add_monitor`†, `remove_monitor`†¹ |
+| `notes` | `add_note`, `delete_note`¹ |
+| `links` | `add_relationship`, `remove_relationship`¹, `attach_tags`, `detach_tag`, `list_tags` |
+| `files` | `upload_file` |
+| `projects` | `list_projects`, `get_project`, `list_filters`, `get_project_categories`†, `get_project_users`†, `get_project_versions`†, `find_project_member`† |
+| `versions` | `create_version`, `update_version`, `delete_version`¹, `release_version`† |
+| `meta` | `get_metadata`, `get_issue_schema`, `get_config`, `get_version`, `get_current_user`, `get_metadata_full`†, `sync_metadata`†, `get_search_index_status`†, `get_issue_fields`†, `get_issue_enums`†, `get_mcp_version`†, `get_mantis_version`†, `list_languages`† |
+| `search` | `search_issues`, `rebuild_search_index` ² |
+
+¹ hidden by `MANTIS_DISABLE_DESTRUCTIVE=true` · † deprecated, removed in 2.0.0 · ² additionally requires `MANTIS_SEARCH_ENABLED=true`; without the `search` group the search module is not started at all
+
+Deprecated tools always belong to the same group as their replacement — disabling a group hides old and new name together.
+
+**Example A — triage setup** (issues, notes, and metadata; no destructive operations):
+
+```json
+{
+  "mcpServers": {
+    "mantisbt": {
+      "command": "npx",
+      "args": ["-y", "@dpesch/mantisbt-mcp-server"],
+      "env": {
+        "MANTIS_BASE_URL": "https://your-mantis.example.com/api/rest",
+        "MANTIS_API_KEY": "your-api-token",
+        "MANTIS_TOOLSETS": "issues,notes,meta",
+        "MANTIS_DISABLE_DESTRUCTIVE": "true"
+      }
+    }
+  }
+}
+```
+
+**Example B — all groups, delete-protection only** (36 of the 41 default tools):
+
+```json
+{
+  "mcpServers": {
+    "mantisbt": {
+      "command": "npx",
+      "args": ["-y", "@dpesch/mantisbt-mcp-server"],
+      "env": {
+        "MANTIS_BASE_URL": "https://your-mantis.example.com/api/rest",
+        "MANTIS_API_KEY": "your-api-token",
+        "MANTIS_DISABLE_DESTRUCTIVE": "true"
+      }
+    }
+  }
+}
+```
+
+## Available tools
+
+### Issues
+
+| Tool | Description |
+|---|---|
+| `get_issue` | Retrieve an issue by `id`, or several by `ids` (1–50) in one call — pass exactly one; with `ids` returns `{ issues, requested, found, failed }`, missing or inaccessible IDs give `null` at their position; optional `select` for field projection |
+| `get_issues` | **Deprecated:** use `get_issue` with `ids` instead — will be removed in 2.0.0 |
+| `list_issues` | Filter issues by project, status, author, and more; optional `select` for field projection and `status` for client-side status filtering — canonical English status names (e.g. `"new"`, `"resolved"`) are matched by ID, making the filter language-independent on localized installations; `group_by` (`"status"`, `"handler"`, `"priority"`, `"category"`) returns counts per group instead of an issue list — all filters still apply, `page`, `page_size`, and `select` are ignored |
+| `create_issue` | Create a new issue; `severity` and `priority` must be canonical English names (e.g. `minor`, `major`, `normal`, `high`) — call `get_issue_schema` to see all valid values and their localized labels; optional `handler` parameter accepts a username as alternative to `handler_id` (resolved against project members); optional `custom_fields` to set custom field values; `response: "short"` returns only the core fields of the new issue instead of the whole issue (default `"full"`, changes to `"short"` in 2.0.0) |
+| `update_issue` | Update an existing issue; enum fields (`status`, `priority`, `severity`, `resolution`, `reproducibility`) accept canonical English names, localized names, or numeric IDs — the server resolves names to IDs automatically; supports `custom_fields` and an optional `note` parameter that appends a note in the same call; `fields` may be omitted when only `add_monitors`, `remove_monitors`, or `note` are given; use `add_monitors` / `remove_monitors` (arrays of login names) to add or remove watchers — the response includes a `monitors` key with the current and changed monitor lists; use `fields.notes` to edit existing notes by ID (note ID from `get_issue`); `response: "short"` returns only the core fields and the changed ones instead of the whole issue with notes and history (default `"full"`, changes to `"short"` in 2.0.0) |
+| `delete_issue` | Delete an issue |
+
+### Notes
+
+| Tool | Description |
+|---|---|
+| `list_notes` | **Deprecated:** use `get_issue` with `select: "notes"` instead — will be removed in 2.0.0 |
+| `add_note` | Add a note to an issue |
+| `delete_note` | Delete a note |
+
+### Attachments
+
+| Tool | Description |
+|---|---|
+| `list_issue_files` | **Deprecated:** use `get_issue` with `select: "attachments"` instead — will be removed in 2.0.0 |
+| `upload_file` | Upload a file to an issue — preferred: local `file_path` (server reads and encodes automatically); fallback: Base64-encoded `content` + `filename` (use only when `file_path` is not available) |
+
+### Relationships
+
+| Tool | Description |
+|---|---|
+| `add_relationship` | Create a relationship between two issues; optional `type_name` parameter accepts a string name (e.g. `"related_to"`, `"duplicate_of"`) as alternative to numeric `type_id` |
+| `remove_relationship` | Remove a relationship from an issue (use the `id` from the relationship object, not the type) |
+
+### Monitors
+
+| Tool | Description |
+|---|---|
+| `add_monitor` | **Deprecated:** use `update_issue` with `add_monitors` instead — will be removed in 2.0.0 |
+| `remove_monitor` | **Deprecated:** use `update_issue` with `remove_monitors` instead — will be removed in 2.0.0 |
+
+### Tags
+
+| Tool | Description |
+|---|---|
+| `list_tags` | List all available tags; falls back to the metadata cache when `GET /tags` returns 404 (run `get_metadata` with `refresh: true` first to populate) |
+| `attach_tags` | Attach tags to an issue |
+| `detach_tag` | Remove a tag from an issue |
+
+### Projects
+
+| Tool | Description |
+|---|---|
+| `list_projects` | List all accessible projects; returns normalized project data (consistent with the metadata cache) |
+| `get_project` | Get one project's master data (id, name, status, enabled, subprojects) plus, on request, its categories, users and/or versions in one call; `access_level` and `member_query` imply `users`; `obsolete`/`inherit` imply `versions` |
+| `get_project_versions` | **Deprecated:** use `get_project` with `include: ["versions"]` instead — will be removed in 2.0.0 |
+| `create_version` | Create a new version in a project; returns the created version object (id, name, description, released, obsolete, timestamp); requires `manage_project_threshold` (default: manager) |
+| `update_version` | Update an existing version; only the fields you pass are changed (at least one required); renaming rewrites version/target_version/fixed_in_version on all referencing issues; optional `next_version` (only with `released: true`) creates a follow-up version in the same call; requires `manage_project_threshold` (default: manager) |
+| `release_version` | **Deprecated:** use `update_version` with `released: true`, `timestamp`, and optionally `next_version` instead — will be removed in 2.0.0 |
+| `delete_version` | Permanently delete a version — irreversible, MantisBT clears version/target_version/fixed_in_version on all referencing issues; prefer `update_version` with `obsolete=true` as the non-destructive alternative; requires `manage_project_threshold` (default: manager) |
+| `get_project_categories` | **Deprecated:** use `get_project` with `include: ["categories"]` instead — will be removed in 2.0.0 |
+| `get_project_users` | **Deprecated:** use `get_project` with `include: ["users"]` instead — will be removed in 2.0.0 |
+| `find_project_member` | **Deprecated:** use `get_project` with `member_query` instead (no `limit`, returns all matches) — will be removed in 2.0.0 |
+
+### Semantic search *(optional)*
+
+Semantic search understands the *meaning* behind a query, not just its keywords. Ask in plain language — the search engine finds conceptually related issues even when the wording doesn't match:
+
+- *"login fails after password reset"* — finds issues about authentication edge cases
+- *"performance problems on the checkout page"* — surfaces related reports regardless of the exact terminology used
+- *"duplicate entries in the invoice list"* — catches issues described as "shown twice", "double records", etc.
+
+The embedding model (~80 MB) runs entirely **offline** — no OpenAI key, no external API. It is downloaded once on first start and cached locally. Issues are indexed incrementally on every server start (only new and updated issues are re-indexed). When several client sessions start a server at the same time, only one of them syncs the shared index. The model is loaded on first use and unloaded again after 10 minutes without embedding, so idle sessions do not hold on to its memory (~0.9 GB per server process). Long descriptions are split into up to 8 chunks so that details further down are found as well; the index then holds about 1.7 vectors per issue (around 115 MB for 7,700 issues), which every server process with search enabled keeps in memory. The ranking also takes exact keyword matches into account, so a query for an identifier, error code or version number finds the issues that contain it — and lists all issues containing such an identifier as a whole before any others, unless it occurs in more than 20 issues.
+
+Activate with `MANTIS_SEARCH_ENABLED=true`.
+
+| Tool | Description |
+|---|---|
+| `search_issues` | Natural language search over all indexed issues — combines semantic similarity with keyword matching (BM25), so exact terms such as identifiers or error codes are found as well; issues containing an identifier from the query (order number, CVE, version, code name) come first; returns top-N results with the cosine similarity as `score`, ordered by the combined ranking; optional `select` (comma-separated field names) enriches each result with the requested issue fields; optional `highlight` (boolean, default `false`) adds a `highlights` field per result with keyword-matched excerpts from `summary` and `description` (matched terms shown in `**bold**`) |
+| `rebuild_search_index` | Build or update the search index; `full: true` clears and rebuilds from scratch |
+| `get_search_index_status` | **Deprecated:** use `get_metadata` (field `search_index`) instead — will be removed in 2.0.0 |
+
+#### Which backend to choose?
+
+| | `vectra` *(default)* | `sqlite-vec` |
+|---|---|---|
+| Dependencies | None (pure JS) | Requires native build tools |
+| Install | Included | `npm install sqlite-vec better-sqlite3` |
+| Best for | Up to ~10,000 issues | 10,000+ issues |
+| Performance | Fast enough for most setups | Faster for large corpora |
+
+Start with `vectra`. Switch to `sqlite-vec` if indexing or query times become noticeably slow.
+
+```bash
+npm install sqlite-vec better-sqlite3
+# then set MANTIS_SEARCH_BACKEND=sqlite-vec
+```
+
+### Metadata & system
+
+| Tool | Description |
+|---|---|
+| `get_metadata` | Retrieve cached metadata: `detail: "summary"` (default) returns project/tag counts and per-project user/version/category counts; `detail: "full"` returns the complete raw cache; `refresh: true` re-fetches from MantisBT first; with semantic search enabled the response also contains a `search_index` block |
+| `get_version` | Version of this MCP server and of the connected MantisBT installation in one response; the server part also names the commit and build time (`-dev` suffix unless it is a published release); `check_latest` (default `true`) compares MantisBT with the latest GitHub release; `mantis` holds `error` when MantisBT cannot be reached |
+| `get_issue_schema` | Valid `select` fields (`fields`, `fields_source`) and enum values (`enums`: severity, status, priority, resolution, reproducibility) for this MantisBT server in one response; optional `project_id` scopes the field discovery — use before `create_issue` / `update_issue` or when building a `select` string |
+| `get_issue_fields` | **Deprecated:** use `get_issue_schema` instead — will be removed in 2.0.0 |
+| `get_issue_enums` | **Deprecated:** use `get_issue_schema` instead; the resource `mantis://enums` stays — will be removed in 2.0.0 |
+| `get_metadata_full` | **Deprecated:** use `get_metadata` with `detail: "full"` instead — will be removed in 2.0.0 |
+| `sync_metadata` | **Deprecated:** use `get_metadata` with `refresh: true` instead — will be removed in 2.0.0 |
+| `list_filters` | List saved filters |
+| `get_current_user` | Retrieve your own user profile — includes `language` (the user's MantisBT language, a hint for which language to use in issue texts and notes) |
+| `list_languages` | **Deprecated:** use `get_current_user` (field `language`) instead — will be removed in 2.0.0 |
+| `get_config` | Show server configuration (base URL, cache TTL) |
+| `get_mantis_version` | **Deprecated:** use `get_version` instead — will be removed in 2.0.0 |
+| `get_mcp_version` | **Deprecated:** use `get_version` instead — will be removed in 2.0.0 |
+
+## Token usage
+
+The server handles counting and field projection itself — the model receives a compact summary instead of reading raw issue lists. Measured on 2026-10-31 against a MantisBT 2.28 installation (604 issues, five issues with long descriptions/notes):
+
+| Task | Before | Tokens | After | Tokens | Saved |
+|---|---|---:|---|---:|---:|
+| Status overview of a project (604 issues) | `list_issues`, all pages | 1,274,398 | `list_issues` + `group_by: "status"` | 165 | 99.9 % |
+| Open issues per handler | `list_issues` status `"open"` + `select`, all pages ¹ | 2,686 | `list_issues` + `group_by: "handler"` | 108 | 95.9 % |
+| 5 issues with selected fields | `get_issue` ids, no `select` | 16,272 | `get_issue` ids + `select` | 623 | 96.1 % |
+
+¹ `list_issues` scans at most 500 issues when client-side filters are active, so this "before" value is understated.
+
+Tokens estimated as characters / 4. To reproduce against your own instance (requires a git checkout, not available via npx):
+
+```bash
+MANTIS_BASE_URL=… MANTIS_API_KEY=… \
+  BENCHMARK_PROJECT_ID=12 BENCHMARK_ISSUE_IDS=101,102,103,104,105 \
+  npm run benchmark
+```
+
+Credentials may also come from `.env.local`.
+
+## Available resources
+
+MCP Resources are URI-addressable, read-only data that clients can fetch directly without calling a tool. They are the third MCP primitive alongside Tools and Prompts. Note that Resource support is less widely implemented in MCP clients than Tools — check your client's documentation.
+
+| Resource URI | Description |
+|---|---|
+| `mantis://me` | Profile of the authenticated API user (live fetch) |
+| `mantis://projects` | All accessible MantisBT projects as a compact list (cache-backed, refreshed via `get_metadata` with `refresh: true`) |
+| `mantis://projects/{id}` | Combined project view: project fields + users + versions + categories in one call; cache-first, list-support for enumerating all available project URIs |
+| `mantis://enums` | Valid values for all issue enum fields: severity, priority, status, resolution, reproducibility (live fetch) |
+
+## Available prompts
+
+MCP prompt templates are conversation starters that instruct the LLM to collect structured input and then call the appropriate tool. They are not tools themselves — they initiate a guided workflow.
+
+| Prompt | Required args | Optional args | Description |
+|---|---|---|---|
+| `create-bug-report` | `project_id`, `category`, `summary`, `description` | `steps_to_reproduce`, `expected`, `actual`, `environment` | Guides through a structured bug report and calls `create_issue` |
+| `create-feature-request` | `project_id`, `category`, `summary`, `description` | `use_case` | Guides through a feature request and calls `create_issue` |
+| `summarize-issue` | `issue_id` | – | Fetches an issue via `get_issue` and returns a concise summary |
+| `project-status` | `project_id` | – | Lists issues via `list_issues` and generates a status report grouped by severity |
+
+## HTTP mode
+
+For use as a standalone server (e.g. in remote setups). `MCP_HTTP_TOKEN` is **required** in HTTP mode — the server refuses to start without it:
+
+```bash
+MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
+  TRANSPORT=http PORT=3456 node dist/index.js
+
+# With explicit bind address (required for Docker/remote):
+# MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
+#   TRANSPORT=http PORT=3456 MCP_HTTP_HOST=0.0.0.0 node dist/index.js
+```
+
+Every `/mcp` request must send `Authorization: Bearer <token>`. Over HTTP, `upload_file`'s `file_path` is disabled unless `MANTIS_UPLOAD_DIR` is set — use the `content` (Base64) parameter instead. A request body may be at most 64 MB by default (`MCP_HTTP_MAX_BODY_SIZE`) — larger ones get `413 Payload Too Large` — so `content` fits files up to about 48 MB.
+
+Health check: `GET http://localhost:3456/health` (always public, no token required)
+
+## Documentation
+
+- [**Cookbook**](docs/cookbook.md) — tool-oriented recipes with copy-paste-ready parameter examples for all registered tools
+- [**Usage Examples**](docs/examples.md) — natural language prompt examples for everyday use cases (no tool names required)
+
+## Development
+
+```bash
+npm run init         # First-time setup: install deps, git hooks, typecheck
+npm run build        # Compile TypeScript → dist/
+npm run typecheck    # Type check without output
+npm run dev          # Watch mode for development
+npm test             # Run tests (vitest)
+npm run test:watch   # Run tests in watch mode
+npm run test:coverage # Coverage report
+npm run benchmark    # Token benchmark against a live MantisBT (see Token usage above)
+npm run benchmark:search # Search recall and exact-first order on an existing index (found like the server does: MANTIS_SEARCH_DIR, MANTIS_BASE_URL, MANTIS_API_KEY), vectors vs. hybrid
+```
+
+`benchmark:search` optionally reads hand-written paraphrases (`BENCHMARK_PARAPHRASES`) and fixed cases with an expected ranking (`BENCHMARK_EXACT`); the file formats are described at the top of `scripts/benchmark-search.ts`.
+
+## License
+
+MIT – see [LICENSE](LICENSE)
+
+## Contributing
+
+Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md).
+Repository: [codeberg.org/dpesch/mantisbt-mcp-server](https://codeberg.org/dpesch/mantisbt-mcp-server)
