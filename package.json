@@ -60,5 +60,10 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "onnxruntime-node@1.30.0": true,
+    "protobufjs@7.6.6": true
   }
 }
