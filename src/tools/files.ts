@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, realpath } from 'node:fs/promises';
 import { basename, resolve, sep } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
@@ -21,13 +21,13 @@ export function registerFileTools(
   uploadDir?: string,
   transport: 'stdio' | 'http' = 'stdio',
 ): void {
-  const normalizedUploadDir = uploadDir ? resolve(uploadDir) + sep : undefined;
+  const uploadRoot = uploadDir ? resolve(uploadDir) : undefined;
   // file_path reads from the server's own filesystem. Over stdio the caller is
   // the trusted local agent (same machine, same user), so any path is fine. Over
   // HTTP a remote client neither controls nor should reach server-local paths —
   // it must send Base64 via `content`. Only allow file_path in HTTP mode when an
   // explicit MANTIS_UPLOAD_DIR sandboxes it.
-  const filePathAllowed = transport === 'stdio' || normalizedUploadDir !== undefined;
+  const filePathAllowed = transport === 'stdio' || uploadRoot !== undefined;
 
   // ---------------------------------------------------------------------------
   // list_issue_files
@@ -114,13 +114,17 @@ Use this tool to attach files such as logs, screenshots, or patches to an existi
           if (!filePathAllowed) {
             return { content: [{ type: 'text', text: errorText('file_path is disabled over the HTTP transport. Send the file via the "content" parameter (Base64), or set MANTIS_UPLOAD_DIR to permit server-local paths within that directory.') }], isError: true };
           }
-          if (normalizedUploadDir) {
-            const normalizedPath = resolve(file_path);
-            if (!normalizedPath.startsWith(normalizedUploadDir)) {
-              return { content: [{ type: 'text', text: errorText('file_path is not allowed — access restricted to the designated upload directory') }], isError: true };
-            }
+          let readPath = file_path;
+          if (uploadRoot) {
+            const denied = { content: [{ type: 'text' as const, text: errorText('file_path is not allowed — access restricted to the designated upload directory') }], isError: true };
+            if (!resolve(file_path).startsWith(uploadRoot + sep)) return denied;
+            // The textual check alone is not enough: a link inside the directory
+            // must not lead the read outside, so compare the real targets (#8618).
+            const [realTarget, realRoot] = await Promise.all([realpath(file_path), realpath(uploadRoot)]);
+            if (!realTarget.startsWith(realRoot + sep)) return denied;
+            readPath = realTarget;
           }
-          const fileBuffer = await readFile(file_path);
+          const fileBuffer = await readFile(readPath);
           base64Content = fileBuffer.toString('base64');
           fileName = filename ?? basename(file_path);
         } else {

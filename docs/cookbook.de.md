@@ -1140,7 +1140,7 @@ Hängt eine Datei aus dem lokalen Dateisystem an ein Issue an.
 
 > **Hinweis:** Falls die MantisBT-Instanz keine Datei-Metadaten zurückgibt, lautet die Response `{ "success": true }`.
 
-> **Hinweis:** Wenn `MANTIS_UPLOAD_DIR` gesetzt ist, muss `file_path` auf eine Datei innerhalb dieses Verzeichnisses zeigen. Pfade außerhalb des Verzeichnisses oder Path-Traversal-Versuche (`../`) werden mit einem Fehler abgelehnt.
+> **Hinweis:** Wenn `MANTIS_UPLOAD_DIR` gesetzt ist, muss `file_path` auf eine Datei innerhalb dieses Verzeichnisses zeigen. Pfade außerhalb des Verzeichnisses, Path-Traversal-Versuche (`../`) und symbolische Links, die nach außen führen, werden mit einem Fehler abgelehnt.
 
 ---
 

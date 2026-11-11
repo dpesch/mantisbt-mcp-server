@@ -6,6 +6,9 @@ import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
 
 vi.mock('node:fs/promises', () => ({
   readFile: vi.fn(),
+  // No links in these tests: every path is its own real path.
+  // Symlink handling is covered with the real filesystem in files-symlink.test.ts.
+  realpath: vi.fn(async (p: string) => p),
 }));
 
 // Import after mock so the mock is in place
