@@ -71,7 +71,7 @@ npm run build
 | `MANTIS_BASE_URL` | ✅ | – | Basis-URL der MantisBT-Installation. Beide Formate werden akzeptiert: `https://deine-mantis-instanz.example.com` und `https://deine-mantis-instanz.example.com/api/rest` – das `/api/rest`-Suffix wird automatisch normalisiert. |
 | `MANTIS_API_KEY` | ✅ | – | API-Token für die Authentifizierung |
 | `MANTIS_USE_INDEX_PHP` | – | auto | Auf `true` setzen, wenn URL-Rewriting nicht verfügbar ist – REST-Anfragen verwenden dann `/api/rest/index.php/` statt `/api/rest/`. Wird automatisch erkannt, wenn `MANTIS_BASE_URL` auf `/api/rest/index.php` endet; ein explizit gesetzter Wert hat immer Vorrang. Siehe [Cookbook](docs/cookbook.de.md#installation-ohne-url-rewriting-anbinden). |
-| `MANTIS_CACHE_DIR` | – | `~/.cache/mantisbt-mcp` | Verzeichnis für den Metadaten-Cache |
+| `MANTIS_CACHE_DIR` | – | `~/.cache/mantisbt-mcp` | Basisverzeichnis für den Metadaten-Cache. Jede MantisBT-Instanz und jedes Konto (Basis-URL plus API-Key) bekommt ein eigenes Unterverzeichnis aus Hostname und Hash; der Server gibt dessen Pfad beim Start aus |
 | `MANTIS_CACHE_TTL` | – | `3600` | Cache-Lebensdauer in Sekunden |
 | `TRANSPORT` | – | `stdio` | Transport-Modus: `stdio` oder `http` |
 | `PORT` | – | `3000` | Port für HTTP-Modus |
@@ -79,7 +79,7 @@ npm run build
 | `MCP_HTTP_TOKEN` | ✅ (HTTP-Modus) | – | Bearer-Token für den `/mcp`-Endpunkt (`Authorization: Bearer <token>`). **Pflicht bei `TRANSPORT=http`** – der Server startet im HTTP-Modus ohne diesen Wert nicht, damit Tools nie unauthentifiziert erreichbar sind. Im stdio-Modus ohne Bedeutung. `/health` ist immer öffentlich. |
 | `MANTIS_SEARCH_ENABLED` | – | `false` | Auf `true` setzen, um die semantische Suche zu aktivieren |
 | `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vektorspeicher: `vectra` (reines JS) oder `sqlite-vec` (manuelle Installation erforderlich) |
-| `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/search` | Verzeichnis für den Suchindex |
+| `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/<instanz>/search` | Basisverzeichnis für den Suchindex; auch ein ausdrücklich gesetzter Wert bekommt ein Unterverzeichnis pro Instanz und Konto (`{MANTIS_SEARCH_DIR}/<instanz>`) |
 | `MANTIS_SEARCH_MODEL` | – | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | Embedding-Modell (wird beim ersten Start einmalig heruntergeladen, ~80 MB). Nach einem Wechsel baut der nächste Sync den Index von selbst neu auf. |
 | `MANTIS_SEARCH_THREADS` | – | `1` | Anzahl der ONNX-Intra-Op-Threads für das Embedding-Modell. Standard ist 1, um CPU-Sättigung auf Mehrkernsystemen und in WSL zu verhindern. Auf Rechnern mit 4 oder mehr Kernen ist `4` ein guter Wert: Ein vollständiger Neuaufbau von 7.700 Issues dauerte damit 160 s statt 377 s mit 1 Thread. Die Einstellung beschleunigt vor allem das Indexieren; eine Suchanfrage ist ein einzelner kurzer Text und profitiert kaum. Wirksam ab 1.16.0 – frühere Versionen haben die Einstellung ignoriert und immer alle Kerne genutzt. |
 | `MANTIS_UPLOAD_DIR` | – | – | Schränkt den `file_path` von `upload_file` auf dieses Verzeichnis ein (Pfad-Traversal via `../` und symbolische Links, die nach außen führen, werden blockiert; das Verzeichnis sollte für weniger vertrauenswürdige Nutzer nicht beschreibbar sein, denn ein Link, der zwischen Prüfung und Lesen ausgetauscht wird, fällt nicht auf). Im **stdio-Modus** ist `file_path` ohne diese Variable unbeschränkt. Im **HTTP-Modus** liest `file_path` aus dem Dateisystem des Servers und ist deshalb **deaktiviert, sofern diese Variable nicht gesetzt ist** – HTTP-Clients sollten stattdessen den Parameter `content` (Base64) verwenden. |
@@ -341,7 +341,7 @@ npm test             # Tests ausführen (vitest)
 npm run test:watch   # Tests im Watch-Modus
 npm run test:coverage # Coverage-Report
 npm run benchmark    # Token-Benchmark gegen eine Live-MantisBT-Instanz (siehe Token-Verbrauch oben)
-npm run benchmark:search # Such-Trefferquote und Exakt-Treffer-Reihenfolge auf einem bestehenden Index (MANTIS_SEARCH_DIR), Vektor vs. hybrid
+npm run benchmark:search # Such-Trefferquote und Exakt-Treffer-Reihenfolge auf einem bestehenden Index (gefunden wie vom Server: MANTIS_SEARCH_DIR, MANTIS_BASE_URL, MANTIS_API_KEY), Vektor vs. hybrid
 ```
 
 `benchmark:search` liest optional handgeschriebene Umschreibungen (`BENCHMARK_PARAPHRASES`) und feste Fälle mit erwarteter Rangfolge (`BENCHMARK_EXACT`); die Dateiformate stehen am Anfang von `scripts/benchmark-search.ts`.

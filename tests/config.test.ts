@@ -4,7 +4,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('node:fs/promises');
 
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { TOOLSETS } from '../src/toolsets.js';
+import { instanceDirName } from '../src/config.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -110,7 +112,7 @@ describe('getConfig() – ENV variables', () => {
     const getConfig = await freshGetConfig();
     const config = await getConfig();
 
-    expect(config.cacheDir).toBe('/custom/cache/dir');
+    expect(config.cacheDir).toBe(join('/custom/cache/dir', instanceDirName('https://mantis.example.com', 'key')));
   });
 
   it('enables index.php routing when MANTIS_USE_INDEX_PHP is true', async () => {
@@ -355,7 +357,7 @@ describe('getStartupConfig()', () => {
     const getStartupConfig = await freshGetStartupConfig();
     const config = await getStartupConfig();
 
-    expect(config.cacheDir).toBe('/tmp/test-cache');
+    expect(config.cacheDir).toBe(join('/tmp/test-cache', 'unconfigured'));
   });
 
   // #8500
@@ -384,6 +386,60 @@ describe('getStartupConfig()', () => {
     vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
 
     await expect((await freshGetStartupConfig())()).rejects.toThrow(/Unknown MANTIS_TOOLSETS group "tickets"/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cache and search directory per instance and account (#8625)
+// ---------------------------------------------------------------------------
+
+describe('instanceDirName()', () => {
+  it('separates instances and accounts', () => {
+    const base = instanceDirName('https://mantis.example.com', 'key-a');
+
+    expect(instanceDirName('https://mantis.example.com', 'key-b')).not.toBe(base);
+    expect(instanceDirName('https://other.example.com', 'key-a')).not.toBe(base);
+    expect(base).toMatch(/^mantis\.example\.com-[0-9a-f]{16}$/); // no room for the key
+  });
+
+  it('maps the spellings of one base URL to the same folder', () => {
+    const base = instanceDirName('https://mantis.example.com', 'key');
+
+    expect(instanceDirName('https://mantis.example.com/', 'key')).toBe(base);
+    expect(instanceDirName('https://mantis.example.com/api/rest/', 'key')).toBe(base);
+    expect(instanceDirName('https://mantis.example.com/api/rest/index.php', 'key')).toBe(base);
+  });
+
+  it('uses a folder of its own without credentials', () => {
+    expect(instanceDirName(undefined, undefined)).toBe('unconfigured');
+    expect(instanceDirName('https://mantis.example.com', '')).toBe('unconfigured');
+  });
+});
+
+describe('getStartupConfig() – directories per instance (#8625)', () => {
+  beforeEach(() => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com');
+    vi.stubEnv('MANTIS_API_KEY', 'key');
+  });
+
+  const instance = () => instanceDirName('https://mantis.example.com', 'key');
+
+  it('puts metadata cache and search index into the instance folder', async () => {
+    vi.stubEnv('MANTIS_CACHE_DIR', '/cache');
+
+    const config = await (await freshGetStartupConfig())();
+
+    expect(config.cacheDir).toBe(join('/cache', instance()));
+    expect(config.search.dir).toBe(join('/cache', instance(), 'search'));
+  });
+
+  it('adds the instance folder to an explicit MANTIS_SEARCH_DIR', async () => {
+    vi.stubEnv('MANTIS_SEARCH_DIR', '/index');
+
+    const config = await (await freshGetStartupConfig())();
+
+    expect(config.search.dir).toBe(join('/index', instance()));
   });
 });
 

@@ -49,6 +49,8 @@ async function createMcpServer(transport: 'stdio' | 'http'): Promise<McpServer> 
     (response) => versionHint.onSuccessfulResponse(response),
   );
   const cache = new MetadataCache(startupConfig.cacheDir, startupConfig.cacheTtl);
+  console.error(`[mantisbt-config] cache directory: ${startupConfig.cacheDir}`);
+  if (startupConfig.search.enabled) console.error(`[mantisbt-config] search index: ${startupConfig.search.dir}`);
 
   const server = new McpServer({
     name: 'mantisbt-mcp-server',

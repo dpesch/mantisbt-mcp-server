@@ -31,7 +31,10 @@
  * Each case prints its ranking.
  *
  * Usage:
- *   MANTIS_SEARCH_DIR=… BENCHMARK_PARAPHRASES=paraphrases.json BENCHMARK_EXACT=exact.json npm run benchmark:search
+ *   MANTIS_BASE_URL=… MANTIS_API_KEY=… [MANTIS_SEARCH_DIR=…] BENCHMARK_PARAPHRASES=paraphrases.json BENCHMARK_EXACT=exact.json npm run benchmark:search
+ *
+ * The index is looked up like the server does (#8625): the base URL and API
+ * key pick its folder, they are not used to call MantisBT.
  *
  * The index must have been built by the current code (same embedding
  * signature) — otherwise the numbers say nothing about the current code.

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -89,9 +90,25 @@ async function readDotEnvLocal(): Promise<void> {
 
 export const DEFAULT_SEARCH_MODEL = 'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
 
+/**
+ * Subdirectory of the cache and search directories for one MantisBT instance
+ * and account (#8625), so configurations sharing a directory never read each
+ * other's data. The host keeps it recognisable; the hash covers URL and API
+ * key, never the key itself. Without credentials: an empty folder of its own.
+ */
+export function instanceDirName(baseUrl: string | undefined, apiKey: string | undefined): string {
+  if (!baseUrl || !apiKey) return 'unconfigured';
+  const url = normalizeBaseUrl(baseUrl);
+  const hash = createHash('sha256').update(`${url}\n${apiKey}`).digest('hex').slice(0, 16);
+  // The regex also drops the [ ] : of IPv6 hosts, not allowed in Windows paths.
+  const host = URL.canParse(url) ? new URL(url).hostname.replace(/[^a-z0-9.-]/gi, '') : '';
+  return host ? `${host}-${hash}` : hash;
+}
+
 function readNonCredentialConfig(): StartupConfig {
   const defaultCacheDir = join(homedir(), '.cache', 'mantisbt-mcp');
-  const cacheDir = process.env.MANTIS_CACHE_DIR ?? defaultCacheDir;
+  const instance = instanceDirName(process.env.MANTIS_BASE_URL, process.env.MANTIS_API_KEY);
+  const cacheDir = join(process.env.MANTIS_CACHE_DIR ?? defaultCacheDir, instance);
   const cacheTtl = process.env.MANTIS_CACHE_TTL
     ? parseInt(process.env.MANTIS_CACHE_TTL, 10)
     : 3600;
@@ -103,7 +120,9 @@ function readNonCredentialConfig(): StartupConfig {
   }
   const searchBackend: 'vectra' | 'sqlite-vec' =
     searchBackendRaw === 'sqlite-vec' ? 'sqlite-vec' : 'vectra';
-  const searchDir = process.env.MANTIS_SEARCH_DIR ?? join(cacheDir, 'search');
+  const searchDir = process.env.MANTIS_SEARCH_DIR
+    ? join(process.env.MANTIS_SEARCH_DIR, instance)
+    : join(cacheDir, 'search');
   const searchModelName = process.env.MANTIS_SEARCH_MODEL ?? DEFAULT_SEARCH_MODEL;
   const searchNumThreads = Math.max(1, parseInt(process.env.MANTIS_SEARCH_THREADS ?? '', 10) || 1);
 
@@ -155,7 +174,8 @@ function resolveUseIndexPhp(rawBaseUrl: string): boolean {
  * Returns all non-credential config values. Never throws, even when
  * MANTIS_BASE_URL / MANTIS_API_KEY are absent. Use this at server startup
  * so the MCP transport can connect and respond to tools/list without
- * requiring credentials to be configured.
+ * requiring credentials to be configured. The credentials, when present,
+ * still pick the instance subdirectory of the cache and search paths.
  */
 export async function getStartupConfig(): Promise<StartupConfig> {
   await loadDotEnvLocal();

@@ -71,7 +71,7 @@ npm run build
 | `MANTIS_BASE_URL` | ✅ | – | Base URL of your MantisBT installation. Both `https://your-mantis.example.com` and `https://your-mantis.example.com/api/rest` are accepted — the `/api/rest` suffix is normalized automatically. |
 | `MANTIS_API_KEY` | ✅ | – | API token for authentication |
 | `MANTIS_USE_INDEX_PHP` | – | auto | Set to `true` when URL rewriting is unavailable — REST requests then use `/api/rest/index.php/` instead of `/api/rest/`. Detected automatically when `MANTIS_BASE_URL` ends with `/api/rest/index.php`; an explicit value always wins. See the [cookbook](docs/cookbook.md#connect-to-an-installation-without-url-rewriting). |
-| `MANTIS_CACHE_DIR` | – | `~/.cache/mantisbt-mcp` | Directory for the metadata cache |
+| `MANTIS_CACHE_DIR` | – | `~/.cache/mantisbt-mcp` | Base directory for the metadata cache. Each MantisBT instance and account (base URL plus API key) gets a subdirectory of its own, named after the host plus a hash; the server logs its path on startup |
 | `MANTIS_CACHE_TTL` | – | `3600` | Cache lifetime in seconds |
 | `TRANSPORT` | – | `stdio` | Transport mode: `stdio` or `http` |
 | `PORT` | – | `3000` | Port for HTTP mode |
@@ -79,7 +79,7 @@ npm run build
 | `MCP_HTTP_TOKEN` | ✅ (HTTP mode) | – | Bearer token for the `/mcp` endpoint (`Authorization: Bearer <token>`). **Required when `TRANSPORT=http`** — the server refuses to start in HTTP mode without it, so tools are never exposed unauthenticated. Ignored in stdio mode. The `/health` endpoint is always public. |
 | `MANTIS_SEARCH_ENABLED` | – | `false` | Set to `true` to enable semantic search |
 | `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vector store backend: `vectra` (pure JS) or `sqlite-vec` (requires manual install) |
-| `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/search` | Directory for the search index |
+| `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/<instance>/search` | Base directory for the search index; an explicit value also gets a subdirectory per instance and account (`{MANTIS_SEARCH_DIR}/<instance>`) |
 | `MANTIS_SEARCH_MODEL` | – | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | Embedding model name (downloaded once on first use, ~80 MB). After a change the index is rebuilt automatically on the next sync. |
 | `MANTIS_SEARCH_THREADS` | – | `1` | Number of ONNX intra-op threads for the embedding model. Default is 1 to prevent CPU saturation on multi-core machines and WSL. On a machine with 4 or more cores, `4` is a good value: a full rebuild of 7,700 issues took 160 s instead of 377 s with 1 thread. The setting mainly speeds up indexing; a search query is a single short text and hardly benefits. Effective since 1.16.0 — earlier versions ignored this setting and always used every core. |
 | `MANTIS_UPLOAD_DIR` | – | – | Restrict `upload_file`'s `file_path` to files within this directory (path traversal via `../` and symbolic links that lead outside are blocked; keep the directory unwritable for less trusted users, as a link swapped in between check and read is not caught). In **stdio mode** `file_path` is unrestricted unless this is set. In **HTTP mode** `file_path` reads from the server's filesystem, so it is **disabled unless this variable is set** — HTTP clients should upload via the `content` (Base64) parameter instead. |
@@ -341,7 +341,7 @@ npm test             # Run tests (vitest)
 npm run test:watch   # Run tests in watch mode
 npm run test:coverage # Coverage report
 npm run benchmark    # Token benchmark against a live MantisBT (see Token usage above)
-npm run benchmark:search # Search recall and exact-first order on an existing index (MANTIS_SEARCH_DIR), vectors vs. hybrid
+npm run benchmark:search # Search recall and exact-first order on an existing index (found like the server does: MANTIS_SEARCH_DIR, MANTIS_BASE_URL, MANTIS_API_KEY), vectors vs. hybrid
 ```
 
 `benchmark:search` optionally reads hand-written paraphrases (`BENCHMARK_PARAPHRASES`) and fixed cases with an expected ranking (`BENCHMARK_EXACT`); the file formats are described at the top of `scripts/benchmark-search.ts`.
