@@ -77,7 +77,7 @@ npm run build
 | `PORT` | – | `3000` | Port for HTTP mode |
 | `MCP_HTTP_HOST` | – | `127.0.0.1` | Bind address for HTTP mode. **Changed from `0.0.0.0` to `127.0.0.1`** — the server now listens on localhost only by default. Set to `0.0.0.0` for Docker or remote access. |
 | `MCP_HTTP_TOKEN` | ✅ (HTTP mode) | – | Bearer token for the `/mcp` endpoint (`Authorization: Bearer <token>`). **Required when `TRANSPORT=http`** — the server refuses to start in HTTP mode without it, so tools are never exposed unauthenticated. Ignored in stdio mode. The `/health` endpoint is always public. |
-| `MCP_HTTP_MAX_BODY_SIZE` | – | `67108864` (64 MB) | Largest accepted `/mcp` request body in bytes; larger ones get `413 Payload Too Large`. In HTTP mode it must be a positive whole number, otherwise the server does not start. Ignored in stdio mode. |
+| `MCP_HTTP_MAX_BODY_SIZE` | – | `67108864` (64 MB) | Largest accepted `/mcp` request body in bytes; larger ones get `413 Payload Too Large`. Empty or unset means the default; in HTTP mode any other value must be a positive whole number, otherwise the server does not start. Ignored in stdio mode. |
 | `MANTIS_SEARCH_ENABLED` | – | `false` | Set to `true` to enable semantic search |
 | `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vector store backend: `vectra` (pure JS) or `sqlite-vec` (requires manual install) |
 | `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/<instance>/search` | Base directory for the search index; an explicit value also gets a subdirectory per instance and account (`{MANTIS_SEARCH_DIR}/<instance>`) |

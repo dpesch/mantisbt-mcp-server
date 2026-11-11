@@ -15,7 +15,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- `MCP_HTTP_MAX_BODY_SIZE` sets the largest accepted `/mcp` request body in bytes, default 64 MB (#8631). In HTTP mode, a value that is not a positive whole number stops the server at startup; stdio ignores it.
+- `MCP_HTTP_MAX_BODY_SIZE` sets the largest accepted `/mcp` request body in bytes, default 64 MB (#8631). An empty value counts as unset. In HTTP mode, any other value that is not a positive whole number stops the server at startup; stdio ignores it.
 
 ### Security
 
