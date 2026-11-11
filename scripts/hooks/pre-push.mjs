@@ -11,7 +11,10 @@
 //   4. Builds a proper filtered chain anchored to the actual remote tip
 //   5. Pushes the filtered tip with --force
 //   6. Exits 2 to block git's unfiltered push
-//      Exit codes: 0 = no Codeberg refs, 1 = error, 2 = success (filtered push done)
+//      Exit codes: 0 = not Codeberg, or only deletions; 1 = error;
+//      2 = filtered push done (or nothing new), unfiltered push blocked.
+//      Exit 0 lets git run the original push, so for Codeberg it is only safe
+//      when no ref carries commits (#8619).
 //
 // Branches are processed before tags so the shaMap is available for tags
 // that point to commits already processed as part of the branch.
@@ -26,27 +29,31 @@
 // runs unless --force bypasses that check.
 
 import { execSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import { createInterface } from 'node:readline';
+import { fileURLToPath } from 'node:url';
 
-// Recursion guard — must be first to avoid running typecheck during recursive pushes
-if (process.env._PREPUSH_FILTER_ACTIVE) process.exit(0);
+export const ZERO_SHA = '0'.repeat(40);
 
-// Run typecheck before every push (catches type errors before they hit CI)
-try {
-  execSync('npm run typecheck', { stdio: 'inherit' });
-} catch {
-  console.error('✗ Typecheck failed — push aborted. Fix type errors first.');
-  process.exit(1);
-}
+// Host of a git remote URL, lower-cased: URL form (ssh://, https://, git://)
+// and scp form (user@host:path). Host names are case-insensitive, so a plain
+// substring test let `Codeberg.org` slip past the filter (#8619).
+const remoteHost = url => {
+  if (!url) return '';
+  try {
+    if (url.includes('://')) return new URL(url).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+  const scp = /^(?:[^@/]+@)?([^:/]+):/.exec(url);
+  return scp ? scp[1].toLowerCase() : '';
+};
 
-const [,, , remoteUrl] = process.argv;
+export const isCodebergRemote = url => remoteHost(url) === 'codeberg.org';
 
-// Only intercept Codeberg pushes for the filter step
-if (!remoteUrl?.includes('codeberg.org')) process.exit(0);
-
-console.log('→ Codeberg push detected — filtering .claude/ directory...');
-
-const ZERO_SHA = '0'.repeat(40);
+// A pre-push line is "<local ref> <local sha> <remote ref> <remote sha>"; a
+// deletion has the zero SHA locally. Any other line would publish commits.
+export const carriesCommits = lines => lines.some(line => line.split(' ')[1] !== ZERO_SHA);
 
 const git = (cmd, opts = {}) => {
   try {
@@ -102,11 +109,12 @@ const findLocalAnchor = (tipSha, remoteSha, maxDepth = 100) => {
   return null;
 };
 
-const rl = createInterface({ input: process.stdin });
-const lines = [];
-rl.on('line', line => { if (line.trim()) lines.push(line.trim()); });
+const processRefs = (remoteUrl, lines) => {
+  // Only deletions: git's own push publishes no commits, let it run. Any other
+  // ref must not fall through to it, even when skipped below — git would send
+  // it unfiltered (#8619).
+  if (!carriesCommits(lines)) process.exit(0);
 
-rl.on('close', () => {
   // Process branches before tags so shaMap is populated when tags are handled.
   const branches = lines.filter(l => l.split(' ')[2]?.startsWith('refs/heads/'));
   const others   = lines.filter(l => !l.split(' ')[2]?.startsWith('refs/heads/'));
@@ -214,7 +222,45 @@ rl.on('close', () => {
     pushed++;
   }
 
-  if (pushed === 0) process.exit(0);
-  console.log('→ Filtered push complete. Blocking unfiltered push.');
+  console.log(pushed === 0
+    ? '→ Nothing new for Codeberg. Blocking unfiltered push.'
+    : '→ Filtered push complete. Blocking unfiltered push.');
   process.exit(2); // 2 = success (filtered push done, unfiltered blocked); 1 = error
-});
+};
+
+const main = () => {
+  // Recursion guard — must be first to avoid running typecheck during recursive pushes
+  if (process.env._PREPUSH_FILTER_ACTIVE) process.exit(0);
+
+  // Run typecheck before every push (catches type errors before they hit CI)
+  try {
+    execSync('npm run typecheck', { stdio: 'inherit' });
+  } catch {
+    console.error('✗ Typecheck failed — push aborted. Fix type errors first.');
+    process.exit(1);
+  }
+
+  const [,, , remoteUrl] = process.argv;
+
+  // Only intercept Codeberg pushes for the filter step
+  if (!isCodebergRemote(remoteUrl)) process.exit(0);
+
+  console.log('→ Codeberg push detected — filtering .claude/ directory...');
+
+  const rl = createInterface({ input: process.stdin });
+  const lines = [];
+  rl.on('line', line => { if (line.trim()) lines.push(line.trim()); });
+  rl.on('close', () => processRefs(remoteUrl, lines));
+};
+
+// Tests import the helpers above without running the hook. Fail closed: skip
+// main() only under Vitest when this file is not the entry point, so no stray
+// environment variable can switch the filter off.
+const isEntryPoint = () => {
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return true;
+  }
+};
+if (!process.env.VITEST || isEntryPoint()) main();
