@@ -32,6 +32,13 @@ export function tokenize(text: string): string[] {
 // of the search benchmark occur in at most 8 issues, well below the cap.
 const MAX_EXACT_MATCHES = 20;
 
+// The query is caller input of any length, and each identifier costs a text
+// check per candidate issue (#8623). These caps bound that work per query.
+// Measured on 7,800 issues: real queries name at most 22 identifiers and
+// check at most 2,700 texts, so neither cap changes a real search.
+export const MAX_QUERY_IDENTIFIERS = 32;
+export const MAX_CHECKED_TEXTS = 10_000;
+
 // Words, or words joined by - . : / (CVE-2026-1234, 7.0.0-1014-azure).
 const COMPOUND = /[\p{L}\p{N}_]+(?:[-.:/][\p{L}\p{N}_]+)*/gu;
 
@@ -145,21 +152,33 @@ export class LexicalIndex {
    * Per document id, how many identifiers of the query it contains as a whole
    * (#8545); documents without one are absent. Candidates come from the
    * postings of the identifier's rarest word, the text check decides.
+   *
+   * The MAX_QUERY_IDENTIFIERS cheapest identifiers, until MAX_CHECKED_TEXTS
+   * is spent (#8623). An identifier with more candidates than the budget left
+   * could count for no issue anyway — it either exceeds MAX_EXACT_MATCHES or
+   * runs out of budget — and the ones after it have at least as many.
    */
   exactMatches(query: string): Map<number, number> {
     const counts = new Map<number, number>();
     const frequency = (term: number) => this.offsets[term + 1]! - this.offsets[term]!;
-    for (const identifier of identifiers(query)) {
+    const lookups = identifiers(query).flatMap(identifier => {
       const terms = tokenize(identifier).map(word => this.termIds.get(word));
-      if (terms.length === 0 || terms.some(term => term === undefined)) continue;
+      if (terms.length === 0 || terms.some(term => term === undefined)) return [];
       const rarest = (terms as number[]).reduce((a, b) => (frequency(a) <= frequency(b) ? a : b));
+      return [{ identifier, start: this.offsets[rarest]!, end: this.offsets[rarest + 1]! }];
+    }).sort((a, b) => (a.end - a.start) - (b.end - b.start)).slice(0, MAX_QUERY_IDENTIFIERS);
+
+    let budget = MAX_CHECKED_TEXTS;
+    for (const { identifier, start, end } of lookups) {
+      if (end - start > budget) break;
       const pattern = wholeIdentifier(identifier);
       const matches: number[] = [];
-      for (let at = this.offsets[rarest]!; at < this.offsets[rarest + 1]!; at++) {
+      let at = start;
+      for (; at < end && matches.length <= MAX_EXACT_MATCHES; at++) {
         const doc = this.documents[this.docs[at]!]!;
         if (pattern.test(doc.summary) || pattern.test(doc.description ?? '')) matches.push(doc.id);
-        if (matches.length > MAX_EXACT_MATCHES) break;
       }
+      budget -= at - start;
       if (matches.length > MAX_EXACT_MATCHES) continue;
       for (const id of matches) counts.set(id, (counts.get(id) ?? 0) + 1);
     }

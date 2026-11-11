@@ -15,6 +15,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - `upload_file` with `MANTIS_UPLOAD_DIR`: the directory check looked only at the path as written, while the read followed symbolic links (#8618). A link inside the upload directory could therefore upload a file from anywhere the server can read. The check now resolves links and compares the real target, and the server reads that target. A link swapped in between check and read is still not caught — keep the upload directory unwritable for less trusted users.
 - `MANTIS_DISABLE_DESTRUCTIVE=true` hid `remove_monitor`, but `update_issue` could still remove monitors through `remove_monitors` (#8621). `update_issue` now rejects `remove_monitors` in that mode, before anything is changed; `add_monitors` keeps working.
 - `update_issue` with `fields.notes`: the check for repeated note IDs took quadratic time and ran before any access check, so a request with many note edits could block the server (#8622). It now takes a single pass, and each repeated ID appears once in the error message.
+- `search_issues`: the exact-match ranking scanned issue texts once per identifier in the query, with no limit, so a long query full of identifiers could block the server (#8623). It now looks at no more than 32 identifiers, checks no more than 10,000 issue texts per query and starts with the rarest identifier. The limits sit well above what real queries need, so their results do not change.
 
 ---
 

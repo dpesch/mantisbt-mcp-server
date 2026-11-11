@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { LexicalIndex, identifiers, tokenize } from '../../src/search/lexical.js';
+import { LexicalIndex, MAX_CHECKED_TEXTS, MAX_QUERY_IDENTIFIERS, identifiers, tokenize } from '../../src/search/lexical.js';
 
 // ---------------------------------------------------------------------------
 // tokenize
@@ -98,5 +98,25 @@ describe('LexicalIndex.exactMatches', () => {
     const common = new LexicalIndex(Array.from({ length: 30 }, (_, k) => ({ id: k, summary: `Encoding UTF-8 Fall ${k}` })));
 
     expect(common.exactMatches('UTF-8').size).toBe(0);
+  });
+
+  // #8623: a long query must not scan the corpus once per identifier.
+  it(`looks up at most ${MAX_QUERY_IDENTIFIERS} identifiers of a query`, () => {
+    const hosts = Array.from({ length: MAX_QUERY_IDENTIFIERS + 5 }, (_, k) => `host${100 + k}`);
+    const many = new LexicalIndex(hosts.map((host, k) => ({ id: k, summary: `Ausfall ${host}` })));
+
+    expect(many.exactMatches(hosts.join(' '))).toEqual(new Map(Array.from({ length: MAX_QUERY_IDENTIFIERS }, (_, k) => [k, 1])));
+  });
+
+  it('skips an identifier with more candidates than the budget, but not a rarer one', () => {
+    // Every issue holds both words of ABC-1234, only the last one the identifier.
+    const filler = Array.from({ length: MAX_CHECKED_TEXTS }, (_, k) => ({ id: k, summary: 'Fall 1234 ABC' }));
+    const big = new LexicalIndex([
+      ...filler,
+      { id: MAX_CHECKED_TEXTS, summary: 'Treffer ABC-1234' },
+      { id: MAX_CHECKED_TEXTS + 1, summary: 'Ausfall host01' },
+    ]);
+
+    expect(big.exactMatches('ABC-1234 host01')).toEqual(new Map([[MAX_CHECKED_TEXTS + 1, 1]]));
   });
 });
