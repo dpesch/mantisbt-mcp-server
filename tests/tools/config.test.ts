@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 
 type EnumEntry = { id: number; name: string; label?: string; canonical_name?: string };
 type EnumResult = Record<string, Array<EnumEntry>>;
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MantisClient } from '../../src/client.js';
@@ -40,11 +41,22 @@ const ENUM_FIXTURE_STRING = {
 let mockServer: MockMcpServer;
 let client: MantisClient;
 let cache: MetadataCache;
+let cacheDir: string;
+
+// A private directory instead of a fixed path in shared temp storage, which
+// could be a planted link (#8622). One per file: these tests never write it.
+beforeAll(() => {
+  cacheDir = mkdtempSync(join(tmpdir(), 'cache-config-test-'));
+});
+
+afterAll(() => {
+  rmSync(cacheDir, { recursive: true, force: true });
+});
 
 beforeEach(() => {
   mockServer = new MockMcpServer();
   client = new MantisClient('https://mantis.example.com', 'test-token');
-  cache = new MetadataCache('/tmp/cache-test', 86400);
+  cache = new MetadataCache(cacheDir, 86400);
   registerConfigTools(mockServer as never, client, cache);
   vi.stubGlobal('fetch', vi.fn());
 });

@@ -49,9 +49,14 @@ export type NoteEdit = z.infer<typeof noteEdit>;
 
 /** Schema of update_issue fields.notes. */
 export const noteEditsSchema = z.array(noteEdit).min(1).superRefine((edits, ctx) => {
-  const ids = edits.map(e => e.id);
-  const twice = ids.filter((noteId, i) => ids.indexOf(noteId) !== i);
-  if (twice.length > 0) ctx.addIssue({ code: 'custom', message: `Note ${twice.join(', ')} listed more than once` });
+  // Linear on purpose: this runs before any access check (#8622).
+  const seen = new Set<number>();
+  const twice = new Set<number>();
+  for (const { id } of edits) {
+    if (seen.has(id)) twice.add(id);
+    else seen.add(id);
+  }
+  if (twice.size > 0) ctx.addIssue({ code: 'custom', message: `Note ${[...twice].join(', ')} listed more than once` });
 });
 
 /** A note edit as sent to MantisBT — view_state is always set. */

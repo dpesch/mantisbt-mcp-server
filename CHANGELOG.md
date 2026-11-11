@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - `search_issues` with `select`: when MantisBT refused an issue (401, 403) or no longer had it (404), the result still came back with `highlights` taken from the local search index — text of an issue the API user may no longer read (#8617). Such results are now left out. Other errors (network, 5xx) keep the previous fallback to the indexed text.
 - `upload_file` with `MANTIS_UPLOAD_DIR`: the directory check looked only at the path as written, while the read followed symbolic links (#8618). A link inside the upload directory could therefore upload a file from anywhere the server can read. The check now resolves links and compares the real target, and the server reads that target. A link swapped in between check and read is still not caught — keep the upload directory unwritable for less trusted users.
 - `MANTIS_DISABLE_DESTRUCTIVE=true` hid `remove_monitor`, but `update_issue` could still remove monitors through `remove_monitors` (#8621). `update_issue` now rejects `remove_monitors` in that mode, before anything is changed; `add_monitors` keeps working.
+- `update_issue` with `fields.notes`: the check for repeated note IDs took quadratic time and ran before any access check, so a request with many note edits could block the server (#8622). It now takes a single pass, and each repeated ID appears once in the error message.
 
 ---
 

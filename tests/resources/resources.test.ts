@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { MantisClient } from '../../src/client.js';
 import { MetadataCache } from '../../src/cache.js';
 import { registerResources } from '../../src/resources/index.js';
@@ -46,18 +49,22 @@ const ENUM_FIXTURE = {
 let mockServer: MockMcpServer;
 let client: MantisClient;
 let cache: MetadataCache;
+let cacheDir: string;
 
 beforeEach(() => {
   mockServer = new MockMcpServer();
   client = new MantisClient('https://mantis.example.com', 'test-token');
-  cache = new MetadataCache('/tmp/cache-resources-test', 86400);
+  // A private directory per test: a fixed path in shared temp storage could
+  // be a planted link that the cache write follows (#8622).
+  cacheDir = mkdtempSync(join(tmpdir(), 'cache-resources-test-'));
+  cache = new MetadataCache(cacheDir, 86400);
   registerResources(mockServer as never, client, cache);
   vi.stubGlobal('fetch', vi.fn());
 });
 
-afterEach(async () => {
+afterEach(() => {
   vi.unstubAllGlobals();
-  await cache.invalidate();
+  rmSync(cacheDir, { recursive: true, force: true });
 });
 
 // ---------------------------------------------------------------------------

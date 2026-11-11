@@ -1664,6 +1664,16 @@ describe('update_issue – fields.notes', () => {
     expect(result.content[0]!.text).toContain('listed more than once');
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
+
+  // #8622: one pass over the IDs; each duplicate is named once
+  it('names each repeated note ID once', async () => {
+    const notes = [5, 5, 5, 7, 9, 7].map(id => ({ id, text: 'x' }));
+
+    const result = await mockServer.callTool('update_issue', { id: 42, fields: { notes } }, { validate: true });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toContain('Note 5, 7 listed more than once');
+  });
 });
 
 // ---------------------------------------------------------------------------
