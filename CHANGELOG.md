@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [1.18.3] – 2026-11-12
+
 ### Documentation
 
 - mcprush directory badge added to README.md and README.de.md
