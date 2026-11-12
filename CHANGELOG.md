@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation
+
+- mcprush directory badge added to README.md and README.de.md
+
 ### Security
 
 - Updated dependencies with known vulnerabilities: `@modelcontextprotocol/sdk` 1.32.2 and `zod` 4.6.7, and through the SDK `proxy-addr` 2.0.8, `body-parser`, `hono`, `@hono/node-server`, `fast-uri`, `ip-address` and `qs`. `npm audit` reports no vulnerabilities.
