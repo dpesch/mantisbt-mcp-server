@@ -1140,7 +1140,7 @@ Attaches a file from the local filesystem to an issue.
 
 > **Note:** If the MantisBT instance does not return file metadata, the response is `{ "success": true }`.
 
-> **Note:** If `MANTIS_UPLOAD_DIR` is set, `file_path` must point to a file inside that directory. Paths outside the directory, path traversal attempts (`../`) and symbolic links that lead outside are rejected with an error.
+> **Note:** If `MANTIS_UPLOAD_DIR` is set, `file_path` must point to a file inside that directory. Paths outside the directory, path traversal attempts (`../`) and symbolic links that lead outside are rejected with an error. Setting it is recommended in stdio mode as well, so that a prompt injection in issue text cannot make the model upload arbitrary local files; starting with 2.0.0, `file_path` requires it. See [Security considerations](../README.md#security-considerations).
 
 ---
 

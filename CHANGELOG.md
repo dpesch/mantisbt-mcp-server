@@ -12,6 +12,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Documentation
 
 - mcprush directory badge added to README.md and README.de.md
+- New "Security considerations" section in the README (#8636): issue and note texts are untrusted input that a prompt injection can use to drive write tools. `MANTIS_UPLOAD_DIR` is now recommended in stdio mode as well and appears in the installation examples, because without it `upload_file`'s `file_path` can read any file the server process can read. The section also points to `MANTIS_TOOLSETS`, `MANTIS_DISABLE_DESTRUCTIVE` and the tool annotations.
+
+### Deprecated
+
+- `upload_file`'s `file_path` without `MANTIS_UPLOAD_DIR` in stdio mode: starting with 2.0.0, `file_path` is disabled in stdio mode too unless `MANTIS_UPLOAD_DIR` is set (#8637). Uploads via `content` (Base64) are not affected.
 
 ### Security
 

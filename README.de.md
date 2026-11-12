@@ -32,7 +32,8 @@ In `~/.claude/claude_desktop_config.json` (Claude Desktop) oder der lokalen
       "args": ["-y", "@dpesch/mantisbt-mcp-server"],
       "env": {
         "MANTIS_BASE_URL": "https://deine-mantis-instanz.example.com/api/rest",
-        "MANTIS_API_KEY": "dein-api-token"
+        "MANTIS_API_KEY": "dein-api-token",
+        "MANTIS_UPLOAD_DIR": "/pfad/zu/mantis-uploads"
       }
     }
   }
@@ -56,12 +57,15 @@ npm run build
       "args": ["/pfad/zum/mantisbt-mcp-server/dist/index.js"],
       "env": {
         "MANTIS_BASE_URL": "https://deine-mantis-instanz.example.com/api/rest",
-        "MANTIS_API_KEY": "dein-api-token"
+        "MANTIS_API_KEY": "dein-api-token",
+        "MANTIS_UPLOAD_DIR": "/pfad/zu/mantis-uploads"
       }
     }
   }
 }
 ```
+
+`MANTIS_UPLOAD_DIR` ist optional, wird aber **auch im stdio-Modus empfohlen**: Die Variable beschränkt `upload_file` auf Dateien in diesem Verzeichnis, sodass eine Prompt Injection im Tickettext das Modell nicht dazu bringen kann, beliebige lokale Dateien anzuhängen. Ohne sie kann `file_path` jede Datei lesen, die der Server-Prozess lesen darf. Ab 2.0.0 ist `file_path` deaktiviert, solange die Variable nicht gesetzt ist. Siehe [Sicherheitshinweise](#sicherheitshinweise).
 
 ## Konfiguration
 
@@ -84,7 +88,7 @@ npm run build
 | `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/<instanz>/search` | Basisverzeichnis für den Suchindex; auch ein ausdrücklich gesetzter Wert bekommt ein Unterverzeichnis pro Instanz und Konto (`{MANTIS_SEARCH_DIR}/<instanz>`) |
 | `MANTIS_SEARCH_MODEL` | – | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | Embedding-Modell (wird beim ersten Start einmalig heruntergeladen, ~80 MB). Nach einem Wechsel baut der nächste Sync den Index von selbst neu auf. |
 | `MANTIS_SEARCH_THREADS` | – | `1` | Anzahl der ONNX-Intra-Op-Threads für das Embedding-Modell. Standard ist 1, um CPU-Sättigung auf Mehrkernsystemen und in WSL zu verhindern. Auf Rechnern mit 4 oder mehr Kernen ist `4` ein guter Wert: Ein vollständiger Neuaufbau von 7.700 Issues dauerte damit 160 s statt 377 s mit 1 Thread. Die Einstellung beschleunigt vor allem das Indexieren; eine Suchanfrage ist ein einzelner kurzer Text und profitiert kaum. Wirksam ab 1.16.0 – frühere Versionen haben die Einstellung ignoriert und immer alle Kerne genutzt. |
-| `MANTIS_UPLOAD_DIR` | – | – | Schränkt den `file_path` von `upload_file` auf dieses Verzeichnis ein (Pfad-Traversal via `../` und symbolische Links, die nach außen führen, werden blockiert; das Verzeichnis sollte für weniger vertrauenswürdige Nutzer nicht beschreibbar sein, denn ein Link, der zwischen Prüfung und Lesen ausgetauscht wird, fällt nicht auf). Im **stdio-Modus** ist `file_path` ohne diese Variable unbeschränkt. Im **HTTP-Modus** liest `file_path` aus dem Dateisystem des Servers und ist deshalb **deaktiviert, sofern diese Variable nicht gesetzt ist** – HTTP-Clients sollten stattdessen den Parameter `content` (Base64) verwenden. |
+| `MANTIS_UPLOAD_DIR` | – | – | Schränkt den `file_path` von `upload_file` auf dieses Verzeichnis ein (Pfad-Traversal via `../` und symbolische Links, die nach außen führen, werden blockiert; das Verzeichnis sollte für weniger vertrauenswürdige Nutzer nicht beschreibbar sein, denn ein Link, der zwischen Prüfung und Lesen ausgetauscht wird, fällt nicht auf). Im **stdio-Modus** ist `file_path` ohne diese Variable unbeschränkt – **das Setzen wird auch im stdio-Modus empfohlen** (siehe [Sicherheitshinweise](#sicherheitshinweise)); ab 2.0.0 ist `file_path` auch im stdio-Modus deaktiviert, solange sie nicht gesetzt ist. Im **HTTP-Modus** liest `file_path` aus dem Dateisystem des Servers und ist deshalb **deaktiviert, sofern diese Variable nicht gesetzt ist** – HTTP-Clients sollten stattdessen den Parameter `content` (Base64) verwenden. |
 | `MANTIS_TOOLSETS` | – | – (alle) | Kommagetrennte Liste der anzubietenden Tool-Gruppen: `issues`, `notes`, `links`, `files`, `projects`, `versions`, `meta`, `search` (Groß-/Kleinschreibung egal). Nicht gesetzt oder leer bedeutet alle Gruppen. Die Gruppe `search` erfordert zusätzlich `MANTIS_SEARCH_ENABLED=true`; ohne die Gruppe wird das Such-Modul gar nicht gestartet. Ein unbekannter Gruppenname stoppt den Server beim Start mit einer Meldung, die die gültigen Namen auflistet. Siehe [Angebotene Tools einschränken](#angebotene-tools-einschränken) und das [Cookbook](docs/cookbook.de.md#nur-bestimmte-tool-gruppen-anbieten). |
 | `MANTIS_DISABLE_DESTRUCTIVE` | – | `false` | Auf `true` setzen, um alle destruktiven Tools auszublenden – `delete_issue`, `delete_note`, `delete_version`, `remove_relationship`, `remove_monitor` – unabhängig von den aktiven Gruppen. Ausgeblendete Tools werden nicht aufgelistet und liefern »Tool … not found«, wenn sie aufgerufen werden. `update_issue` lehnt dann auch `remove_monitors` ab. |
 
@@ -326,6 +330,14 @@ MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
 Jede `/mcp`-Anfrage muss `Authorization: Bearer <token>` senden. Im HTTP-Modus ist der `file_path` von `upload_file` deaktiviert, sofern `MANTIS_UPLOAD_DIR` nicht gesetzt ist – stattdessen den Parameter `content` (Base64) verwenden. Ein Request-Body darf standardmäßig höchstens 64 MB groß sein (`MCP_HTTP_MAX_BODY_SIZE`) – größere bekommen `413 Payload Too Large` –, über `content` passen also Dateien bis etwa 48 MB.
 
 Healthcheck: `GET http://localhost:3456/health` (immer öffentlich, kein Token erforderlich)
+
+## Sicherheitshinweise
+
+Ticketbeschreibungen, Notizen und Anhänge schreibt, wer in deinem MantisBT melden oder kommentieren darf – und das Modell liest sie. Behandle sie als **nicht vertrauenswürdige Eingaben**: Eine in einem Ticket versteckte Prompt Injection kann versuchen, das Modell zu schreibenden Tools wie `create_issue`, `update_issue` oder `upload_file` zu bewegen.
+
+- **`MANTIS_UPLOAD_DIR` setzen – auch im stdio-Modus.** Ohne die Variable liest `upload_file` per `file_path` jede lokale Datei, die der Server-Prozess lesen darf. Eine eingeschleuste Anweisung könnte das Modell dazu bringen, etwa einen privaten SSH-Schlüssel an ein Ticket anzuhängen – sichtbar für alle, die das Ticket lesen können. Mit `MANTIS_UPLOAD_DIR` ist `file_path` auf dieses Verzeichnis beschränkt. Über HTTP ist `file_path` ohne die Variable bereits deaktiviert; ab 2.0.0 gilt das auch für stdio.
+- **Nur die nötigen Tools anbieten.** `MANTIS_TOOLSETS` beschränkt die angebotenen Gruppen – `files` weglassen, wenn nie hochgeladen wird, oder für eine überwiegend lesende Triage nur `issues,meta` verwenden. `MANTIS_DISABLE_DESTRUCTIVE=true` blendet alle Lösch- und Entfern-Tools aus. Beides lohnt sich besonders dort, wo auch Personen außerhalb des eigenen Teams Tickets schreiben. Siehe [Angebotene Tools einschränken](#angebotene-tools-einschränken).
+- **Schreibende Aufrufe vom Client bestätigen lassen.** Alle Tools tragen MCP-Annotationen (`readOnlyHint`, `destructiveHint`), sodass Clients, die sie unterstützen, vor ändernden Aufrufen nachfragen können.
 
 ## Dokumentation
 

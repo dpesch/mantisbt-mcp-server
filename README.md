@@ -32,7 +32,8 @@ Add to `~/.claude/claude_desktop_config.json` (Claude Desktop) or your local
       "args": ["-y", "@dpesch/mantisbt-mcp-server"],
       "env": {
         "MANTIS_BASE_URL": "https://your-mantis.example.com/api/rest",
-        "MANTIS_API_KEY": "your-api-token"
+        "MANTIS_API_KEY": "your-api-token",
+        "MANTIS_UPLOAD_DIR": "/path/to/mantis-uploads"
       }
     }
   }
@@ -56,12 +57,15 @@ npm run build
       "args": ["/path/to/mantisbt-mcp-server/dist/index.js"],
       "env": {
         "MANTIS_BASE_URL": "https://your-mantis.example.com/api/rest",
-        "MANTIS_API_KEY": "your-api-token"
+        "MANTIS_API_KEY": "your-api-token",
+        "MANTIS_UPLOAD_DIR": "/path/to/mantis-uploads"
       }
     }
   }
 }
 ```
+
+`MANTIS_UPLOAD_DIR` is optional, but **recommended in stdio mode as well**: it limits `upload_file` to files in that directory, so a prompt injection in issue text cannot make the model attach arbitrary local files. Without it, `file_path` can read any file the server process can read. Starting with 2.0.0, `file_path` will be disabled unless the variable is set. See [Security considerations](#security-considerations).
 
 ## Configuration
 
@@ -84,7 +88,7 @@ npm run build
 | `MANTIS_SEARCH_DIR` | – | `{MANTIS_CACHE_DIR}/<instance>/search` | Base directory for the search index; an explicit value also gets a subdirectory per instance and account (`{MANTIS_SEARCH_DIR}/<instance>`) |
 | `MANTIS_SEARCH_MODEL` | – | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | Embedding model name (downloaded once on first use, ~80 MB). After a change the index is rebuilt automatically on the next sync. |
 | `MANTIS_SEARCH_THREADS` | – | `1` | Number of ONNX intra-op threads for the embedding model. Default is 1 to prevent CPU saturation on multi-core machines and WSL. On a machine with 4 or more cores, `4` is a good value: a full rebuild of 7,700 issues took 160 s instead of 377 s with 1 thread. The setting mainly speeds up indexing; a search query is a single short text and hardly benefits. Effective since 1.16.0 — earlier versions ignored this setting and always used every core. |
-| `MANTIS_UPLOAD_DIR` | – | – | Restrict `upload_file`'s `file_path` to files within this directory (path traversal via `../` and symbolic links that lead outside are blocked; keep the directory unwritable for less trusted users, as a link swapped in between check and read is not caught). In **stdio mode** `file_path` is unrestricted unless this is set. In **HTTP mode** `file_path` reads from the server's filesystem, so it is **disabled unless this variable is set** — HTTP clients should upload via the `content` (Base64) parameter instead. |
+| `MANTIS_UPLOAD_DIR` | – | – | Restrict `upload_file`'s `file_path` to files within this directory (path traversal via `../` and symbolic links that lead outside are blocked; keep the directory unwritable for less trusted users, as a link swapped in between check and read is not caught). In **stdio mode** `file_path` is unrestricted unless this is set — **setting it is recommended in stdio mode as well** (see [Security considerations](#security-considerations)); starting with 2.0.0, `file_path` will be disabled in stdio mode too unless it is set. In **HTTP mode** `file_path` reads from the server's filesystem, so it is **disabled unless this variable is set** — HTTP clients should upload via the `content` (Base64) parameter instead. |
 | `MANTIS_TOOLSETS` | – | – (all) | Comma-separated list of tool groups to offer: `issues`, `notes`, `links`, `files`, `projects`, `versions`, `meta`, `search` (case-insensitive). Unset or empty means all groups. The `search` group additionally requires `MANTIS_SEARCH_ENABLED=true`; without the group the search module is not started at all. An unknown group name stops the server at startup with a message listing the valid names. See [Limit the offered tools](#limit-the-offered-tools) and the [cookbook](docs/cookbook.md#offer-only-some-tool-groups). |
 | `MANTIS_DISABLE_DESTRUCTIVE` | – | `false` | Set to `true` to hide every destructive tool — `delete_issue`, `delete_note`, `delete_version`, `remove_relationship`, `remove_monitor` — regardless of the active groups. Hidden tools are not listed and return "Tool … not found" when called. `update_issue` then also rejects `remove_monitors`. |
 
@@ -326,6 +330,14 @@ MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
 Every `/mcp` request must send `Authorization: Bearer <token>`. Over HTTP, `upload_file`'s `file_path` is disabled unless `MANTIS_UPLOAD_DIR` is set — use the `content` (Base64) parameter instead. A request body may be at most 64 MB by default (`MCP_HTTP_MAX_BODY_SIZE`) — larger ones get `413 Payload Too Large` — so `content` fits files up to about 48 MB.
 
 Health check: `GET http://localhost:3456/health` (always public, no token required)
+
+## Security considerations
+
+Issue descriptions, notes and attachments are written by whoever can report or comment in your MantisBT — and the model reads them. Treat them as **untrusted input**: a prompt injection hidden in an issue can try to make the model call write tools such as `create_issue`, `update_issue` or `upload_file`.
+
+- **Set `MANTIS_UPLOAD_DIR` — in stdio mode as well.** Without it, `upload_file` reads any local file the server process can read via `file_path`. An injected instruction could get the model to attach, for example, a private SSH key to an issue, where everyone who can read the issue sees it. With `MANTIS_UPLOAD_DIR`, `file_path` is limited to that directory. Over HTTP, `file_path` is already disabled without it; starting with 2.0.0 the same applies to stdio.
+- **Offer only the tools you need.** `MANTIS_TOOLSETS` limits the offered groups — leave out `files` if you never upload, or use only `issues,meta` for read-mostly triage. `MANTIS_DISABLE_DESTRUCTIVE=true` hides every delete and remove tool. Both are especially useful where people outside your team can write issues. See [Limit the offered tools](#limit-the-offered-tools).
+- **Let your client confirm write calls.** Every tool carries MCP annotations (`readOnlyHint`, `destructiveHint`), so clients that support them can ask before a tool changes data.
 
 ## Documentation
 
