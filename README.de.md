@@ -3,10 +3,6 @@
 [![npm version](https://img.shields.io/npm/v/@dpesch/mantisbt-mcp-server)](https://www.npmjs.com/package/@dpesch/mantisbt-mcp-server)
 [![license](https://img.shields.io/npm/l/@dpesch/mantisbt-mcp-server)](LICENSE)
 [![MCP compatible](https://img.shields.io/badge/MCP-compatible-green.svg?style=flat-square)](https://modelcontextprotocol.io/)
-[![MCP Badge](https://lobehub.com/badge/mcp/dpesch-mantisbt-mcp-server)](https://lobehub.com/mcp/dpesch-mantisbt-mcp-server)
-[![Mantisbt MCP on mcprush](https://mcprush.com/badge/mantisbt-mcp/score.svg)](https://mcprush.com/to/mantisbt-mcp?ref=badge)
-[![Listed on MCP Market](https://mcpmarket.com/badge/server/mantisbt-1.svg?style=compact)](https://mcpmarket.com/server/mantisbt-1?utm_source=readme&utm_medium=badge)
-[![MantisBT MCP Server](https://glama.ai/mcp/servers/dpesch/mantisbt-mcp-server/badges/card.svg)](https://glama.ai/mcp/servers/dpesch/mantisbt-mcp-server)
 
 [English](README.md) · **Deutsch**
 
@@ -375,3 +371,13 @@ Ich freue mich über jede Rückmeldung – Fehlermeldungen, Ideen, Fragen und Pu
 Deutsch ist ausdrücklich willkommen. Vor einem Pull Request bitte [CONTRIBUTING.md](CONTRIBUTING.md) lesen.
 
 Wenn dir der Server nützt, ist ein ⭐ auf [Codeberg](https://codeberg.org/dpesch/mantisbt-mcp-server) oder [GitHub](https://github.com/dpesch/mantisbt-mcp-server) ein schönes Dankeschön – und hilft anderen, das Projekt zu finden.
+
+## Verzeichnisse
+
+Der Server ist in diesen MCP-Verzeichnissen gelistet:
+
+[![MCP Badge](https://lobehub.com/badge/mcp/dpesch-mantisbt-mcp-server)](https://lobehub.com/mcp/dpesch-mantisbt-mcp-server)
+[![Mantisbt MCP on mcprush](https://mcprush.com/badge/mantisbt-mcp/score.svg)](https://mcprush.com/to/mantisbt-mcp?ref=badge)
+[![Listed on MCP Market](https://mcpmarket.com/badge/server/mantisbt-1.svg?style=compact)](https://mcpmarket.com/server/mantisbt-1?utm_source=readme&utm_medium=badge)
+
+[![MantisBT MCP Server](https://glama.ai/mcp/servers/dpesch/mantisbt-mcp-server/badges/card.svg)](https://glama.ai/mcp/servers/dpesch/mantisbt-mcp-server)
