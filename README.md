@@ -364,7 +364,13 @@ npm run benchmark:search # Search recall and exact-first order on an existing in
 
 MIT – see [LICENSE](LICENSE)
 
-## Contributing
+## Feedback & Contributing
 
-Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md).
-Repository: [codeberg.org/dpesch/mantisbt-mcp-server](https://codeberg.org/dpesch/mantisbt-mcp-server)
+I'm always happy to hear from you — bug reports, ideas, questions, and pull requests are all welcome, on either platform:
+
+- **Codeberg:** [issues](https://codeberg.org/dpesch/mantisbt-mcp-server/issues) · [pull requests](https://codeberg.org/dpesch/mantisbt-mcp-server/pulls)
+- **GitHub:** [issues](https://github.com/dpesch/mantisbt-mcp-server/issues) · [pull requests](https://github.com/dpesch/mantisbt-mcp-server/pulls)
+
+German is welcome too. Before opening a pull request, please read [CONTRIBUTING.md](CONTRIBUTING.md).
+
+If the server is useful to you, a ⭐ on [Codeberg](https://codeberg.org/dpesch/mantisbt-mcp-server) or [GitHub](https://github.com/dpesch/mantisbt-mcp-server) is a great way to say thanks — and it helps others find the project.

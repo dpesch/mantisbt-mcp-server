@@ -41,10 +41,9 @@ node dist/index.js
 
 Please describe **why** you made the change, not just what you changed.
 
-> **Note:** This repository on Codeberg is a public mirror. Pull requests are
-> reviewed and integrated via cherry-pick into the authoritative upstream — they
-> are not merged directly through Codeberg. Your contribution will be credited
-> in the commit message and CHANGELOG.
+Pull requests are welcome on [Codeberg](https://codeberg.org/dpesch/mantisbt-mcp-server/pulls) and on [GitHub](https://github.com/dpesch/mantisbt-mcp-server/pulls) — I review both.
+
+> **Note:** Both public repositories are mirrors of a private main repository. Pull requests are therefore integrated via cherry-pick rather than merged through the web interface. Your contribution will be credited in the commit message and CHANGELOG.
 
 ## Release process
 
@@ -61,7 +60,7 @@ git push origin main --tags
 
 ## Reporting Issues
 
-Open an issue on [Codeberg](https://codeberg.org/dpesch/mantisbt-mcp-server/issues) with:
+Open an issue on [Codeberg](https://codeberg.org/dpesch/mantisbt-mcp-server/issues) or [GitHub](https://github.com/dpesch/mantisbt-mcp-server/issues) — whichever you prefer. Ideas, questions, and general feedback are just as welcome as bug reports. For a bug, please include:
 - A clear description of the problem
 - Steps to reproduce
 - Expected vs. actual behavior

@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation
+
+- Issues and pull requests are now welcome on GitHub as well as on Codeberg. The READMEs, `CONTRIBUTING.md` and the pull request template no longer describe GitHub as an unmonitored mirror, and the READMEs invite feedback and a star.
+
 ---
 
 ## [1.18.3] – 2026-11-12
