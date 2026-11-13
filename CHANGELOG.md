@@ -9,9 +9,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [1.18.4] – 2026-11-13
+
 ### Documentation
 
 - Issues and pull requests are now welcome on GitHub as well as on Codeberg. The READMEs, `CONTRIBUTING.md` and the pull request template no longer describe GitHub as an unmonitored mirror, and the READMEs invite feedback and a star.
+- The `repository._note` in `package.json` that called GitHub a mirror "for ecosystem compatibility only" was removed.
+- MCP Market directory badge added to README.md and README.de.md.
+- The directory badges (LobeHub, mcprush, MCP Market, Glama) moved from the top of both READMEs into a new "Directories" / "Verzeichnisse" section at the end.
 
 ---
 
