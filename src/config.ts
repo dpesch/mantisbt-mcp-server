@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeBaseUrl, usesIndexPhpEntryPoint } from './client.js';
+import { requestContext } from './context.js';
 import { parseToolsets, type Toolset } from './toolsets.js';
 
 // ---------------------------------------------------------------------------
@@ -192,13 +193,8 @@ export async function getStartupConfig(): Promise<StartupConfig> {
  * startup when the token is missing or blank so HTTP mode is never exposed open.
  */
 export function assertHttpAuthConfigured(httpToken: string | undefined): void {
-  if (httpToken === undefined || httpToken.trim() === '') {
-    throw new Error(
-      'HTTP transport requires authentication: set MCP_HTTP_TOKEN to a secret value.\n' +
-      'Without it, all tools would be exposed unauthenticated. ' +
-      'Use the stdio transport (the default) if you do not need HTTP.'
-    );
-  }
+  // If MCP_HTTP_TOKEN is not configured, per-request authentication is enforced:
+  // every request to /mcp must provide a valid MantisBT API token in Authorization: Bearer <token>.
 }
 
 // ---------------------------------------------------------------------------
@@ -217,12 +213,14 @@ export async function getConfig(): Promise<MantisConfig> {
 
   const missing: string[] = [];
   if (!baseUrl) missing.push('MANTIS_BASE_URL');
-  if (!apiKey) missing.push('MANTIS_API_KEY');
+  if (!apiKey && process.env.TRANSPORT !== 'http' && !requestContext.getStore()?.apiKey) {
+    missing.push('MANTIS_API_KEY');
+  }
 
   if (missing.length > 0) {
     throw new Error(
       `Missing required MantisBT configuration: ${missing.join(', ')}.\n` +
-      `Set the environment variables MANTIS_BASE_URL and MANTIS_API_KEY.`
+      `Set the environment variable${missing.length > 1 ? 's' : ''} ${missing.join(' and ')}.`
     );
   }
 

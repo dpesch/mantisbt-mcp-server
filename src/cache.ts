@@ -1,5 +1,7 @@
 import { readFile, writeFile, unlink, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { requestContext } from './context.js';
+import { instanceDirName } from './config.js';
 import type { MantisProject, MantisUser, MantisVersion, MantisCategory, MantisTag } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -29,16 +31,30 @@ interface CacheFile {
 // ---------------------------------------------------------------------------
 
 export class MetadataCache {
-  private readonly filePath: string;
-  private readonly issueFieldsFilePath: string;
+  private readonly defaultCacheDir: string;
+  private readonly rootCacheDir?: string;
   private readonly ttlSeconds: number;
-  private readonly cacheDir: string;
 
-  constructor(cacheDir: string, ttlSeconds: number) {
-    this.cacheDir = cacheDir;
-    this.filePath = join(cacheDir, 'metadata.json');
-    this.issueFieldsFilePath = join(cacheDir, 'issue_fields.json');
+  constructor(cacheDir: string, ttlSeconds: number, rootCacheDir?: string) {
+    this.defaultCacheDir = cacheDir;
+    this.rootCacheDir = rootCacheDir;
     this.ttlSeconds = ttlSeconds;
+  }
+
+  get cacheDir(): string {
+    const ctx = requestContext.getStore();
+    if (ctx?.apiKey && ctx?.baseUrl && this.rootCacheDir) {
+      return join(this.rootCacheDir, instanceDirName(ctx.baseUrl, ctx.apiKey));
+    }
+    return this.defaultCacheDir;
+  }
+
+  get filePath(): string {
+    return join(this.cacheDir, 'metadata.json');
+  }
+
+  get issueFieldsFilePath(): string {
+    return join(this.cacheDir, 'issue_fields.json');
   }
 
   async isValid(): Promise<boolean> {
