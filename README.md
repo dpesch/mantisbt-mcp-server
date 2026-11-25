@@ -71,14 +71,14 @@ npm run build
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `MANTIS_BASE_URL` | ✅ | – | Base URL of your MantisBT installation. Both `https://your-mantis.example.com` and `https://your-mantis.example.com/api/rest` are accepted — the `/api/rest` suffix is normalized automatically. |
-| `MANTIS_API_KEY` | ✅ | – | API token for authentication |
+| `MANTIS_API_KEY` | ✅ (stdio) | – | API token for authentication. Required in `stdio` mode; optional in `http` mode when clients pass their own token per request via `Authorization: Bearer <token>` or `X-Mantis-Api-Key`. |
 | `MANTIS_USE_INDEX_PHP` | – | auto | Set to `true` when URL rewriting is unavailable — REST requests then use `/api/rest/index.php/` instead of `/api/rest/`. Detected automatically when `MANTIS_BASE_URL` ends with `/api/rest/index.php`; an explicit value always wins. See the [cookbook](docs/cookbook.md#connect-to-an-installation-without-url-rewriting). |
 | `MANTIS_CACHE_DIR` | – | `~/.cache/mantisbt-mcp` | Base directory for the metadata cache. Each MantisBT instance and account (base URL plus API key) gets a subdirectory of its own, named after the host plus a hash; the server logs its path on startup |
 | `MANTIS_CACHE_TTL` | – | `3600` | Cache lifetime in seconds |
 | `TRANSPORT` | – | `stdio` | Transport mode: `stdio` or `http` |
 | `PORT` | – | `3000` | Port for HTTP mode |
 | `MCP_HTTP_HOST` | – | `127.0.0.1` | Bind address for HTTP mode. **Changed from `0.0.0.0` to `127.0.0.1`** — the server now listens on localhost only by default. Set to `0.0.0.0` for Docker or remote access. |
-| `MCP_HTTP_TOKEN` | ✅ (HTTP mode) | – | Bearer token for the `/mcp` endpoint (`Authorization: Bearer <token>`). **Required when `TRANSPORT=http`** — the server refuses to start in HTTP mode without it, so tools are never exposed unauthenticated. Ignored in stdio mode. The `/health` endpoint is always public. |
+| `MCP_HTTP_TOKEN` | – (or ✅ if `MANTIS_BASE_URL` unset) | – | Optional server gate token for the `/mcp` endpoint (`Authorization: Bearer <token>`). When `MANTIS_BASE_URL` is set and `MCP_HTTP_TOKEN` is unset, clients authenticate directly with their personal MantisBT API token via `Authorization: Bearer <user_token>` (or `X-Mantis-Api-Key`). When `MCP_HTTP_TOKEN` is set, clients matching it use `X-Mantis-Api-Key` or fall back to `MANTIS_API_KEY`, while other bearer tokens are treated as personal MantisBT keys. Ignored in stdio mode. The `/health` endpoint is always public. |
 | `MCP_HTTP_MAX_BODY_SIZE` | – | `67108864` (64 MB) | Largest accepted `/mcp` request body in bytes; larger ones get `413 Payload Too Large`. Empty or unset means the default; in HTTP mode any other value must be a positive whole number, otherwise the server does not start. Ignored in stdio mode. |
 | `MANTIS_SEARCH_ENABLED` | – | `false` | Set to `true` to enable semantic search |
 | `MANTIS_SEARCH_BACKEND` | – | `vectra` | Vector store backend: `vectra` (pure JS) or `sqlite-vec` (requires manual install) |
@@ -313,20 +313,30 @@ MCP prompt templates are conversation starters that instruct the LLM to collect 
 
 ## HTTP mode
 
-For use as a standalone server (e.g. in remote setups). `MCP_HTTP_TOKEN` is **required** in HTTP mode — the server refuses to start without it:
+For use as a standalone server (e.g. in remote or shared team setups):
 
 ```bash
+# Single-user / shared gate token:
 MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
   TRANSPORT=http PORT=3456 node dist/index.js
 
-# With explicit bind address (required for Docker/remote):
-# MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
-#   TRANSPORT=http PORT=3456 MCP_HTTP_HOST=0.0.0.0 node dist/index.js
+# Multi-user mode (clients pass their own MantisBT API key via Authorization: Bearer <user_token>):
+MANTIS_BASE_URL=... TRANSPORT=http PORT=3456 MCP_HTTP_HOST=0.0.0.0 node dist/index.js
 ```
 
-Every `/mcp` request must send `Authorization: Bearer <token>`. Over HTTP, `upload_file`'s `file_path` is disabled unless `MANTIS_UPLOAD_DIR` is set — use the `content` (Base64) parameter instead. A request body may be at most 64 MB by default (`MCP_HTTP_MAX_BODY_SIZE`) — larger ones get `413 Payload Too Large` — so `content` fits files up to about 48 MB.
+Every `/mcp` request must send an `Authorization: Bearer <token>` (or `X-Mantis-Api-Key`) header — unauthenticated requests receive `401 Unauthorized`. In multi-user mode, metadata caches are isolated per API key. Over HTTP, `upload_file`'s `file_path` is disabled unless `MANTIS_UPLOAD_DIR` is set — use the `content` (Base64) parameter instead. A request body may be at most 64 MB by default (`MCP_HTTP_MAX_BODY_SIZE`) — larger ones get `413 Payload Too Large` — so `content` fits files up to about 48 MB.
 
 Health check: `GET http://localhost:3456/health` (always public, no token required)
+
+### Docker
+
+A multi-stage `Dockerfile` and `docker-compose.yml` are provided under `docker/`:
+
+```bash
+cp docker/.env.example docker/.env
+# Edit docker/.env and set MANTIS_BASE_URL (plus optional HOST_IP, PORT, MCP_HTTP_TOKEN, MANTIS_API_KEY)
+docker compose -f docker/docker-compose.yml up -d --build
+```
 
 ## Security considerations
 
