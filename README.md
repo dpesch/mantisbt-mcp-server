@@ -324,7 +324,7 @@ MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
 MANTIS_BASE_URL=... TRANSPORT=http PORT=3456 MCP_HTTP_HOST=0.0.0.0 node dist/index.js
 ```
 
-Every `/mcp` request must send an `Authorization: Bearer <token>` (or `X-Mantis-Api-Key`) header — unauthenticated requests receive `401 Unauthorized`. In multi-user mode, metadata caches are isolated per API key. Over HTTP, `upload_file`'s `file_path` is disabled unless `MANTIS_UPLOAD_DIR` is set — use the `content` (Base64) parameter instead. A request body may be at most 64 MB by default (`MCP_HTTP_MAX_BODY_SIZE`) — larger ones get `413 Payload Too Large` — so `content` fits files up to about 48 MB.
+Every `/mcp` request must send an `Authorization: Bearer <token>` (or `X-Mantis-Api-Key`) header — unauthenticated requests receive `401 Unauthorized`. In multi-user mode, metadata caches are isolated per API key, and semantic search (`MANTIS_SEARCH_ENABLED`) is disabled (at startup unless both `MCP_HTTP_TOKEN` and `MANTIS_API_KEY` are set, and blocked for per-user keys) because the search index is shared per server instance. Over HTTP, `upload_file`'s `file_path` is disabled unless `MANTIS_UPLOAD_DIR` is set — use the `content` (Base64) parameter instead. A request body may be at most 64 MB by default (`MCP_HTTP_MAX_BODY_SIZE`) — larger ones get `413 Payload Too Large` — so `content` fits files up to about 48 MB.
 
 Health check: `GET http://localhost:3456/health` (always public, no token required)
 

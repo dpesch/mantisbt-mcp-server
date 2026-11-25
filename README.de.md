@@ -324,7 +324,7 @@ MCP_HTTP_TOKEN=secret MANTIS_BASE_URL=... MANTIS_API_KEY=... \
 MANTIS_BASE_URL=... TRANSPORT=http PORT=3456 MCP_HTTP_HOST=0.0.0.0 node dist/index.js
 ```
 
-Jede `/mcp`-Anfrage muss einen `Authorization: Bearer <token>`-Header (oder `X-Mantis-Api-Key`) senden – Anfragen ohne Token erhalten `401 Unauthorized`. Im Mehrbenutzer-Modus werden Metadaten-Caches je API-Key isoliert. Im HTTP-Modus ist der `file_path` von `upload_file` deaktiviert, sofern `MANTIS_UPLOAD_DIR` nicht gesetzt ist – stattdessen den Parameter `content` (Base64) verwenden. Ein Request-Body darf standardmäßig höchstens 64 MB groß sein (`MCP_HTTP_MAX_BODY_SIZE`) – größere bekommen `413 Payload Too Large` –, über `content` passen also Dateien bis etwa 48 MB.
+Jede `/mcp`-Anfrage muss einen `Authorization: Bearer <token>`-Header (oder `X-Mantis-Api-Key`) senden – Anfragen ohne Token erhalten `401 Unauthorized`. Im Mehrbenutzer-Modus werden Metadaten-Caches je API-Key isoliert, und die semantische Suche (`MANTIS_SEARCH_ENABLED`) ist deaktiviert (beim Start, sofern nicht sowohl `MCP_HTTP_TOKEN` als auch `MANTIS_API_KEY` gesetzt sind, sowie für benutzerspezifische Keys gesperrt), da der Suchindex je Server-Instanz geteilt wird. Im HTTP-Modus ist der `file_path` von `upload_file` deaktiviert, sofern `MANTIS_UPLOAD_DIR` nicht gesetzt ist – stattdessen den Parameter `content` (Base64) verwenden. Ein Request-Body darf standardmäßig höchstens 64 MB groß sein (`MCP_HTTP_MAX_BODY_SIZE`) – größere bekommen `413 Payload Too Large` –, über `content` passen also Dateien bis etwa 48 MB.
 
 Healthcheck: `GET http://localhost:3456/health` (immer öffentlich, kein Token erforderlich)
 

@@ -4,6 +4,7 @@ import { registerSearchTools, getSearchIndexStatus } from '../../src/search/tool
 import { MockMcpServer, makeResponse } from '../helpers/mock-server.js';
 import { makeMockStore, makeMockEmbedder } from '../helpers/search-mocks.js';
 import type { Embedder } from '../../src/search/embedder.js';
+import { requestContext } from '../../src/context.js';
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -715,5 +716,25 @@ describe('get_search_index_status – deprecation', () => {
     const result = await mockServer.callTool('get_search_index_status', {});
 
     expect(JSON.parse(result.content[0]!.text)).toEqual(await getSearchIndexStatus(store));
+  });
+});
+
+describe('shared search index isolation', () => {
+  it('rejects search_issues and rebuild_search_index for per-user API keys', async () => {
+    vi.stubEnv('MANTIS_API_KEY', 'server-key');
+    const store = makeMockStore({ itemCount: 5 });
+    registerSearchTools(mockServer as never, client, store, embedder);
+
+    const searchRes = await requestContext.run({ apiKey: 'other-user-key' }, () =>
+      mockServer.callTool('search_issues', { query: 'test' }),
+    );
+    expect(searchRes.isError).toBe(true);
+    expect(searchRes.content[0]!.text).toMatch(/shared per server instance/);
+
+    const rebuildRes = await requestContext.run({ apiKey: 'other-user-key' }, () =>
+      mockServer.callTool('rebuild_search_index', {}),
+    );
+    expect(rebuildRes.isError).toBe(true);
+    expect(rebuildRes.content[0]!.text).toMatch(/shared per server instance/);
   });
 });

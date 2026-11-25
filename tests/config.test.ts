@@ -517,4 +517,15 @@ describe('getConfig() – HTTP multi-user mode', () => {
     const getConfig = await freshGetConfig();
     await expect(getConfig()).rejects.toThrow(/MANTIS_API_KEY/);
   });
+
+  it('treats empty MANTIS_USE_INDEX_PHP as unset and preserves auto-detection', async () => {
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com/api/rest/index.php');
+    vi.stubEnv('MANTIS_API_KEY', 'key');
+    vi.stubEnv('MANTIS_USE_INDEX_PHP', '');
+
+    const getConfig = await freshGetConfig();
+    const config = await getConfig();
+
+    expect(config.useIndexPhp).toBe(true);
+  });
 });

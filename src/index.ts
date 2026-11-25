@@ -67,8 +67,15 @@ async function createMcpServer(transport: 'stdio' | 'http'): Promise<McpServer> 
 
   // Optional: Semantic search module — needs MANTIS_SEARCH_ENABLED=true and the
   // "search" tool group (skipping it avoids loading the model and the index).
+  // Disabled in multi-user HTTP mode (when MCP_HTTP_TOKEN or MANTIS_API_KEY is unset)
+  // because the search index is shared per server instance and could leak issues across accounts.
   // Initialized first so get_metadata can report the index status.
-  const searchIndexStatus = startupConfig.search.enabled && startupConfig.toolsets.has('search')
+  const searchAllowed =
+    transport !== 'http' || (Boolean(startupConfig.httpToken) && Boolean(process.env.MANTIS_API_KEY));
+  if (startupConfig.search.enabled && !searchAllowed) {
+    console.error('[mantisbt-search] Semantic search disabled in multi-user HTTP mode to prevent cross-account index leaks');
+  }
+  const searchIndexStatus = startupConfig.search.enabled && startupConfig.toolsets.has('search') && searchAllowed
     ? await (await import('./search/index.js')).initializeSearchModule(tools, client, startupConfig.search)
     : undefined;
 
@@ -143,7 +150,7 @@ async function runHttp(): Promise<void> {
           return;
         }
       } else {
-        userApiKey = xApiKey || bearerToken || process.env.MANTIS_API_KEY;
+        userApiKey = xApiKey || bearerToken;
         if (!userApiKey) {
           res.writeHead(401, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({

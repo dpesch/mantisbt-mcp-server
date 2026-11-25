@@ -162,7 +162,7 @@ function resolveUseIndexPhp(rawBaseUrl: string): boolean {
   const explicit = process.env.MANTIS_USE_INDEX_PHP;
   const urlImpliesIndexPhp = usesIndexPhpEntryPoint(rawBaseUrl);
 
-  if (explicit === undefined) return urlImpliesIndexPhp;
+  if (explicit === undefined || explicit.trim() === '') return urlImpliesIndexPhp;
 
   const enabled = explicit === 'true';
   if (urlImpliesIndexPhp && !enabled) {
