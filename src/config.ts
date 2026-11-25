@@ -193,8 +193,13 @@ export async function getStartupConfig(): Promise<StartupConfig> {
  * startup when the token is missing or blank so HTTP mode is never exposed open.
  */
 export function assertHttpAuthConfigured(httpToken: string | undefined): void {
-  // If MCP_HTTP_TOKEN is not configured, per-request authentication is enforced:
-  // every request to /mcp must provide a valid MantisBT API token in Authorization: Bearer <token>.
+  if (httpToken === undefined || httpToken.trim() === '') {
+    throw new Error(
+      'HTTP transport requires authentication: set MCP_HTTP_TOKEN to a secret value.\n' +
+      'Without it, all tools would be exposed unauthenticated. ' +
+      'Use the stdio transport (the default) if you do not need HTTP.'
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

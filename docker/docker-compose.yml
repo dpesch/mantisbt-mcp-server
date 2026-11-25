@@ -7,7 +7,7 @@ services:
     container_name: mantisbt-mcp-server
     restart: unless-stopped
     ports:
-      - "${HOST_IP:-192.168.173.74}:${PORT:-3000}:${PORT:-3000}"
+      - "${HOST_IP:-127.0.0.1}:${PORT:-3000}:${PORT:-3000}"
     environment:
       - TRANSPORT=http
       - MCP_HTTP_HOST=0.0.0.0

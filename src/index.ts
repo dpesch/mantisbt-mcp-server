@@ -106,7 +106,9 @@ async function runStdio(): Promise<void> {
 
 async function runHttp(): Promise<void> {
   const startupConfig = await getStartupConfig();
-  assertHttpAuthConfigured(startupConfig.httpToken);
+  if (!process.env.MANTIS_BASE_URL) {
+    assertHttpAuthConfigured(startupConfig.httpToken);
+  }
   const maxBodySize = parseMaxBodySize(startupConfig.httpMaxBodySize);
   const server = await createMcpServer('http');
   const port = startupConfig.httpPort;
