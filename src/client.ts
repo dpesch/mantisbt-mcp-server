@@ -1,3 +1,5 @@
+import { requestContext } from './context.js';
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -76,6 +78,7 @@ export class MantisClient {
   private readonly credentialFactory?: CredentialFactory;
   private readonly responseObserver?: ResponseObserver;
   private resolvedCredentials?: ResolvedCredentials;
+  private baseConfig?: { baseUrl: string; defaultApiKey?: string; useIndexPhp: boolean };
 
   constructor(baseUrl: string, apiKey: string, responseObserver?: ResponseObserver);
   constructor(baseUrl: string, apiKey: string, useIndexPhp: boolean, responseObserver?: ResponseObserver);
@@ -107,11 +110,32 @@ export class MantisClient {
   // ---------------------------------------------------------------------------
 
   private async getCredentials(): Promise<ResolvedCredentials> {
-    if (!this.resolvedCredentials) {
-      const { baseUrl, apiKey, useIndexPhp = false } = await this.credentialFactory!();
-      this.resolvedCredentials = { baseUrl: normalizeBaseUrl(baseUrl), apiKey, useIndexPhp };
+    const contextApiKey = requestContext.getStore()?.apiKey;
+
+    if (this.resolvedCredentials) {
+      return {
+        ...this.resolvedCredentials,
+        apiKey: contextApiKey || this.resolvedCredentials.apiKey,
+      };
     }
-    return this.resolvedCredentials;
+
+    if (!this.baseConfig) {
+      const { baseUrl, apiKey, useIndexPhp = false } = await this.credentialFactory!();
+      this.baseConfig = { baseUrl: normalizeBaseUrl(baseUrl), defaultApiKey: apiKey, useIndexPhp };
+    }
+
+    const apiKey = contextApiKey || this.baseConfig.defaultApiKey;
+    if (!apiKey) {
+      throw new Error(
+        'Missing MantisBT API key. Set MANTIS_API_KEY in the environment or provide Authorization: Bearer <token> in your request.'
+      );
+    }
+
+    return {
+      baseUrl: this.baseConfig.baseUrl,
+      apiKey,
+      useIndexPhp: this.baseConfig.useIndexPhp,
+    };
   }
 
   async getBaseUrl(): Promise<string> {

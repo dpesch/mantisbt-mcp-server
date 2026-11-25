@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeBaseUrl, usesIndexPhpEntryPoint } from './client.js';
+import { requestContext } from './context.js';
 import { parseToolsets, type Toolset } from './toolsets.js';
 
 // ---------------------------------------------------------------------------
@@ -161,7 +162,7 @@ function resolveUseIndexPhp(rawBaseUrl: string): boolean {
   const explicit = process.env.MANTIS_USE_INDEX_PHP;
   const urlImpliesIndexPhp = usesIndexPhpEntryPoint(rawBaseUrl);
 
-  if (explicit === undefined) return urlImpliesIndexPhp;
+  if (explicit === undefined || explicit.trim() === '') return urlImpliesIndexPhp;
 
   const enabled = explicit === 'true';
   if (urlImpliesIndexPhp && !enabled) {
@@ -217,12 +218,14 @@ export async function getConfig(): Promise<MantisConfig> {
 
   const missing: string[] = [];
   if (!baseUrl) missing.push('MANTIS_BASE_URL');
-  if (!apiKey) missing.push('MANTIS_API_KEY');
+  if (!apiKey && process.env.TRANSPORT !== 'http' && !requestContext.getStore()?.apiKey) {
+    missing.push('MANTIS_API_KEY');
+  }
 
   if (missing.length > 0) {
     throw new Error(
       `Missing required MantisBT configuration: ${missing.join(', ')}.\n` +
-      `Set the environment variables MANTIS_BASE_URL and MANTIS_API_KEY.`
+      `Set the environment variable${missing.length > 1 ? 's' : ''} ${missing.join(' and ')}.`
     );
   }
 

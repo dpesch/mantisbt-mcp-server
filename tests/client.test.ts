@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MantisClient, MantisApiError, buildIssueViewUrl, buildNoteViewUrl } from '../src/client.js';
+import { requestContext } from '../src/context.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -433,5 +434,47 @@ describe('MantisClient – getBaseUrl', () => {
     });
     const client = new MantisClient(factory);
     expect(await client.getBaseUrl()).toBe('https://lazy.example.com');
+  });
+});
+
+describe('MantisClient – per-request context', () => {
+  it('uses the requestContext API key for each request without caching across users', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(makeResponse(200, '{}'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const factory = vi.fn().mockResolvedValue({
+      baseUrl: 'https://mantis.example.com',
+      apiKey: '',
+    });
+    const client = new MantisClient(factory);
+
+    await requestContext.run({ apiKey: 'user-1-token' }, () => client.get('issues'));
+    await requestContext.run({ apiKey: 'user-2-token' }, () => client.get('projects'));
+
+    expect(factory).toHaveBeenCalledOnce();
+    expect((fetchMock.mock.calls[0][1] as RequestInit).headers).toMatchObject({ Authorization: 'user-1-token' });
+    expect((fetchMock.mock.calls[1][1] as RequestInit).headers).toMatchObject({ Authorization: 'user-2-token' });
+  });
+
+  it('falls back to the default API key when requestContext has no apiKey', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(makeResponse(200, '{}'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new MantisClient(async () => ({
+      baseUrl: 'https://mantis.example.com',
+      apiKey: 'default-token',
+    }));
+
+    await requestContext.run({}, () => client.get('issues'));
+    expect((fetchMock.mock.calls[0][1] as RequestInit).headers).toMatchObject({ Authorization: 'default-token' });
+  });
+
+  it('throws when neither requestContext nor factory provides an API key', async () => {
+    const client = new MantisClient(async () => ({
+      baseUrl: 'https://mantis.example.com',
+      apiKey: '',
+    }));
+
+    await expect(client.get('issues')).rejects.toThrow(/Missing MantisBT API key/);
   });
 });

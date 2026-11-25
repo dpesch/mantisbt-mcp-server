@@ -11,6 +11,16 @@ import { firstIssue, type IssueEnvelope } from '../issue-envelope.js';
 import { deprecationNote } from '../deprecation.js';
 import { dateFilterSchema, matchesDateFilter, hasDateFilter, type DateFilter } from '../date-filter.js';
 import { extractTerms, highlightText, extractSnippet, hasTermMatch } from './highlight.js';
+import { requestContext } from '../context.js';
+
+function assertSharedSearchAllowed(): void {
+  const ctxKey = requestContext.getStore()?.apiKey;
+  if (ctxKey && ctxKey !== process.env.MANTIS_API_KEY) {
+    throw new Error(
+      'Semantic search is disabled for per-user API keys because the search index is shared per server instance.'
+    );
+  }
+}
 
 function buildHighlights(
   summary: string | undefined,
@@ -110,6 +120,7 @@ export function registerSearchTools(
     },
     async ({ query, top_n, select, highlight, updated_after, updated_before, created_after, created_before }) => {
       try {
+        assertSharedSearchAllowed();
         const count = await store.count();
         if (count === 0) {
           return {
@@ -272,6 +283,7 @@ export function registerSearchTools(
     },
     async ({ project_id, full }) => {
       try {
+        assertSharedSearchAllowed();
         const startMs = Date.now();
         const syncService = new SearchSyncService(client, store, embedder, lockDir);
         const { indexed, skipped, removed, total } = await syncService.sync(project_id, { full });

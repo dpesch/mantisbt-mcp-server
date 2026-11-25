@@ -3,15 +3,17 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer } from 'node:http';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { loadBuildInfo } from './build-info.js';
 import { parseMaxBodySize, readBody } from './http-body.js';
 import { getConfig, getStartupConfig, assertHttpAuthConfigured } from './config.js';
-import { MantisClient } from './client.js';
+import { MantisClient, normalizeBaseUrl } from './client.js';
 import { VersionHintService, setGlobalVersionHint } from './version-hint.js';
 import { MetadataCache } from './cache.js';
+import { requestContext } from './context.js';
 
 import { registerAllTools } from './tools/index.js';
 import { filterToolRegistration } from './toolsets.js';
@@ -48,7 +50,9 @@ async function createMcpServer(transport: 'stdio' | 'http'): Promise<McpServer> 
     },
     (response) => versionHint.onSuccessfulResponse(response),
   );
-  const cache = new MetadataCache(startupConfig.cacheDir, startupConfig.cacheTtl);
+  const defaultCacheDir = join(homedir(), '.cache', 'mantisbt-mcp');
+  const rootCacheDir = process.env.MANTIS_CACHE_DIR ?? defaultCacheDir;
+  const cache = new MetadataCache(startupConfig.cacheDir, startupConfig.cacheTtl, rootCacheDir);
   console.error(`[mantisbt-config] cache directory: ${startupConfig.cacheDir}`);
   if (startupConfig.search.enabled) console.error(`[mantisbt-config] search index: ${startupConfig.search.dir}`);
 
@@ -63,8 +67,15 @@ async function createMcpServer(transport: 'stdio' | 'http'): Promise<McpServer> 
 
   // Optional: Semantic search module — needs MANTIS_SEARCH_ENABLED=true and the
   // "search" tool group (skipping it avoids loading the model and the index).
+  // Disabled in multi-user HTTP mode (when MCP_HTTP_TOKEN or MANTIS_API_KEY is unset)
+  // because the search index is shared per server instance and could leak issues across accounts.
   // Initialized first so get_metadata can report the index status.
-  const searchIndexStatus = startupConfig.search.enabled && startupConfig.toolsets.has('search')
+  const searchAllowed =
+    transport !== 'http' || (Boolean(startupConfig.httpToken) && Boolean(process.env.MANTIS_API_KEY));
+  if (startupConfig.search.enabled && !searchAllowed) {
+    console.error('[mantisbt-search] Semantic search disabled in multi-user HTTP mode to prevent cross-account index leaks');
+  }
+  const searchIndexStatus = startupConfig.search.enabled && startupConfig.toolsets.has('search') && searchAllowed
     ? await (await import('./search/index.js')).initializeSearchModule(tools, client, startupConfig.search)
     : undefined;
 
@@ -102,7 +113,9 @@ async function runStdio(): Promise<void> {
 
 async function runHttp(): Promise<void> {
   const startupConfig = await getStartupConfig();
-  assertHttpAuthConfigured(startupConfig.httpToken);
+  if (!process.env.MANTIS_BASE_URL) {
+    assertHttpAuthConfigured(startupConfig.httpToken);
+  }
   const maxBodySize = parseMaxBodySize(startupConfig.httpMaxBodySize);
   const server = await createMcpServer('http');
   const port = startupConfig.httpPort;
@@ -116,13 +129,37 @@ async function runHttp(): Promise<void> {
 
   const httpServer = createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/mcp') {
-      // Token is guaranteed present by assertHttpAuthConfigured() at startup.
-      const auth = req.headers['authorization'];
-      if (auth !== `Bearer ${startupConfig.httpToken}`) {
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Unauthorized' }));
-        return;
+      const authHeader = req.headers['authorization'];
+      const bearerToken = authHeader
+        ? (authHeader.startsWith('Bearer ') || authHeader.startsWith('bearer ')
+            ? authHeader.slice(7).trim()
+            : authHeader.trim())
+        : undefined;
+      const xApiKey = (req.headers['x-mantis-api-key'] as string | undefined)?.trim();
+
+      let userApiKey: string | undefined;
+
+      if (startupConfig.httpToken) {
+        if (bearerToken === startupConfig.httpToken) {
+          userApiKey = xApiKey || process.env.MANTIS_API_KEY;
+        } else if (bearerToken || xApiKey) {
+          userApiKey = xApiKey || bearerToken;
+        } else {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Unauthorized: Invalid or missing token' }));
+          return;
+        }
+      } else {
+        userApiKey = xApiKey || bearerToken;
+        if (!userApiKey) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: 'Unauthorized: MantisBT API key required. Provide via Authorization: Bearer <token> or X-Mantis-Api-Key.'
+          }));
+          return;
+        }
       }
+
       const raw = await readBody(req, res, maxBodySize);
       if (raw === undefined) return; // aborted, or 413 already sent
       // Parsed before queueing, so the raw bytes are not held while waiting.
@@ -139,24 +176,28 @@ async function runHttp(): Promise<void> {
       let releaseLock!: () => void;
       requestQueue = new Promise<void>(resolve => { releaseLock = resolve; });
 
+      const baseUrl = normalizeBaseUrl(process.env.MANTIS_BASE_URL ?? '');
+
       void prev.then(async () => {
-        try {
-          const transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: undefined,
-            enableJsonResponse: true,
-          });
-          await server.connect(transport);
-          await transport.handleRequest(req, res, body);
-        } catch (err) {
-          console.error('[HTTP handler error]', err instanceof Error ? err.stack : err);
-          if (!res.headersSent) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Bad Request' }));
+        await requestContext.run({ apiKey: userApiKey, baseUrl }, async () => {
+          try {
+            const transport = new StreamableHTTPServerTransport({
+              sessionIdGenerator: undefined,
+              enableJsonResponse: true,
+            });
+            await server.connect(transport);
+            await transport.handleRequest(req, res, body);
+          } catch (err) {
+            console.error('[HTTP handler error]', err instanceof Error ? err.stack : err);
+            if (!res.headersSent) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Bad Request' }));
+            }
+          } finally {
+            await server.close();
+            releaseLock();
           }
-        } finally {
-          await server.close();
-          releaseLock();
-        }
+        });
       });
     } else if (req.method === 'GET' && req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });

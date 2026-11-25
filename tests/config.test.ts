@@ -491,3 +491,41 @@ describe('assertHttpAuthConfigured()', () => {
     expect(() => mod.assertHttpAuthConfigured('s3cret')).not.toThrow();
   });
 });
+
+describe('getConfig() – HTTP multi-user mode', () => {
+  beforeEach(() => {
+    vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
+  });
+
+  it('allows missing MANTIS_API_KEY when TRANSPORT=http', async () => {
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com');
+    vi.stubEnv('MANTIS_API_KEY', '');
+    vi.stubEnv('TRANSPORT', 'http');
+
+    const getConfig = await freshGetConfig();
+    const config = await getConfig();
+
+    expect(config.baseUrl).toBe('https://mantis.example.com');
+    expect(config.apiKey).toBe('');
+  });
+
+  it('requires MANTIS_API_KEY in stdio mode', async () => {
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com');
+    vi.stubEnv('MANTIS_API_KEY', '');
+    vi.stubEnv('TRANSPORT', 'stdio');
+
+    const getConfig = await freshGetConfig();
+    await expect(getConfig()).rejects.toThrow(/MANTIS_API_KEY/);
+  });
+
+  it('treats empty MANTIS_USE_INDEX_PHP as unset and preserves auto-detection', async () => {
+    vi.stubEnv('MANTIS_BASE_URL', 'https://mantis.example.com/api/rest/index.php');
+    vi.stubEnv('MANTIS_API_KEY', 'key');
+    vi.stubEnv('MANTIS_USE_INDEX_PHP', '');
+
+    const getConfig = await freshGetConfig();
+    const config = await getConfig();
+
+    expect(config.useIndexPhp).toBe(true);
+  });
+});

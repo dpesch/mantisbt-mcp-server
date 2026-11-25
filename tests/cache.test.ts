@@ -4,7 +4,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('node:fs/promises');
 
 import { readFile, writeFile, unlink, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import { MetadataCache, type CachedMetadata } from '../src/cache.js';
+import { requestContext } from '../src/context.js';
+import { instanceDirName } from '../src/config.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -322,5 +325,33 @@ describe('MetadataCache – patchVersions()', () => {
     vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'));
     await expect(makeCache().patchVersions((_projectId, versions) => versions)).resolves.toBeUndefined();
     expect(writeFile).not.toHaveBeenCalled();
+  });
+});
+
+describe('MetadataCache – per-request isolation', () => {
+  const ROOT_DIR = '/tmp/root-cache';
+  const BASE_URL = 'https://mantis.example.com';
+
+  it('isolates cache directories per user API key when requestContext is active', async () => {
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+
+    const cache = new MetadataCache(CACHE_DIR, TTL, ROOT_DIR);
+    const sample = makeSampleMetadata();
+
+    await requestContext.run({ apiKey: 'user-a', baseUrl: BASE_URL }, () => cache.save(sample));
+    await requestContext.run({ apiKey: 'user-b', baseUrl: BASE_URL }, () => cache.save(sample));
+
+    const pathA = vi.mocked(writeFile).mock.calls[0][0] as string;
+    const pathB = vi.mocked(writeFile).mock.calls[1][0] as string;
+
+    expect(pathA).toBe(join(ROOT_DIR, instanceDirName(BASE_URL, 'user-a'), 'metadata.json'));
+    expect(pathB).toBe(join(ROOT_DIR, instanceDirName(BASE_URL, 'user-b'), 'metadata.json'));
+    expect(pathA).not.toBe(pathB);
+  });
+
+  it('falls back to defaultCacheDir outside requestContext', () => {
+    const cache = new MetadataCache(CACHE_DIR, TTL, ROOT_DIR);
+    expect(cache.cacheDir).toBe(CACHE_DIR);
   });
 });
